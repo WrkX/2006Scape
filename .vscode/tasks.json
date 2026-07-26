@@ -1,0 +1,68 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "install-dependencies",
+      "type": "shell",
+      "command": "pnpm install",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "build-typescript",
+      "type": "shell",
+      "command": "pnpm build:content",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": "build",
+      "problemMatcher": ["$tsc"]
+    },
+    {
+      "label": "build-server",
+      "type": "shell",
+      "command": "mvn -B clean package",
+      "options": {
+        "cwd": "${workspaceFolder}/2006Scape",
+        "env": {
+          "JAVA_HOME": "/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home"
+        }
+      },
+      "group": "build",
+      "problemMatcher": ["$javac"]
+    },
+    {
+      "label": "build-all",
+      "dependsOrder": "sequence",
+      "dependsOn": ["build-typescript", "build-server"],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "run-server",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/run-server.sh",
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "run-client",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/run-client.sh",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    }
+  ]
+}

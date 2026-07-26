@@ -1,0 +1,37 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "Run SingleScape Server",
+      "request": "launch",
+      "mainClass": "com.rs2.GameEngine",
+      "projectName": "server",
+      "cwd": "${workspaceFolder}/server"
+    },
+    {
+      "type": "java",
+      "name": "Run SingleScape Client (local)",
+      "request": "launch",
+      "mainClass": "Client",
+      "projectName": "client",
+      "cwd": "${workspaceFolder}/client",
+      "args": "-local",
+      "vmArgs": "-Dsun.java2d.uiScale=1"
+    },
+    {
+      "type": "java",
+      "name": "Attach to Server",
+      "request": "attach",
+      "hostName": "localhost",
+      "port": 5005
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Server + Client",
+      "configurations": ["Run SingleScape Server", "Run SingleScape Client (local)"],
+      "stopAll": true
+    }
+  ]
+}

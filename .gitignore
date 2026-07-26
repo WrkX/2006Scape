@@ -1,0 +1,28 @@
+# Build artifacts
+**/target/
+content/dist/
+node_modules/
+.pnpm-store/
+
+# IDE
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+
+# OS
+.DS_Store
+
+# Logs
+*.log
+
+# Player saves (local character data)
+**/data/characters/*.txt
+
+# Secrets / local config
+**/secrets.json
+**/ServerConfig.json
+
+# Claude
+.claude/

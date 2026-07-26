@@ -1,0 +1,17 @@
+{
+  "name": "singlescape",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@11.13.1",
+  "scripts": {
+    "preinstall": "npx only-allow pnpm",
+    "build": "pnpm --filter @singlescape/content build",
+    "build:content": "pnpm --filter @singlescape/content build",
+    "watch": "pnpm --filter @singlescape/content watch",
+    "typecheck": "pnpm --filter @singlescape/content typecheck"
+  },
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=9"
+  }
+}
