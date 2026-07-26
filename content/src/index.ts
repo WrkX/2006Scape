@@ -13,7 +13,7 @@
  * } from "@singlescape/content";
  * ```
  *
- * Global functions (`defineBoss`, `onObject`, `defineRaid`, `defineArea`,
+ * Global functions (`defineBoss`, `onObject`, `onNpc`, `defineRaid`, `defineArea`,
  * `defineQuest`, `dev`) are available without import — they are provided by
  * the Java-to-TypeScript bridge at runtime.
  *
@@ -37,3 +37,28 @@ export type * from "./bosses/types.js";
 export type * from "./bots/types.js";
 export type * from "./quests/types.js";
 export type * from "./raids/types.js";
+
+interface ScriptedDialogue {
+  npc(npcId: number, line: string, more?: string[]): this;
+  player(line: string, more?: string[]): this;
+  options(lines: string[], callback: (choice: number) => void): this;
+  end(): void;
+}
+
+interface ScriptContext {
+  readonly player: {
+    readonly dialogue: ScriptedDialogue;
+  };
+  readonly target: unknown;
+  readonly action: string;
+}
+
+type OnNpc = (
+  npcId: number,
+  action: string,
+  handler: (context: ScriptContext) => void,
+) => void;
+
+declare global {
+  const onNpc: OnNpc;
+}
