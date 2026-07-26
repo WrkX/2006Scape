@@ -13,8 +13,6 @@ if [[ ! -f "$JAR" ]]; then
 fi
 
 echo "==> Starting 2006Scape client (local mode)..."
-echo "    NOTE: Do NOT press Escape on the login screen (known bug)."
-echo ""
 
 # -local connects to localhost and skips CRC checks (see Main.java)
 JAVA_OPTS=()
