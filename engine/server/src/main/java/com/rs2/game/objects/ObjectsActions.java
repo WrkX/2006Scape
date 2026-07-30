@@ -9,6 +9,7 @@ import com.rs2.game.content.guilds.Guilds;
 import com.rs2.game.content.minigames.Dueling;
 import com.rs2.game.content.minigames.FightPits;
 import com.rs2.game.content.minigames.PestControl;
+import com.rs2.game.content.minigames.brimhavenagilityarena.BrimhavenAgilityArena;
 import com.rs2.game.content.minigames.castlewars.CastleWarObjects;
 import com.rs2.game.content.minigames.castlewars.CastleWars;
 import com.rs2.game.content.quests.QuestRewards;
@@ -95,6 +96,9 @@ public class ObjectsActions {
             return;
         }
         if (player.getWerewolfAgility().werewolfCourse(objectType)) {
+            return;
+        }
+        if (BrimhavenAgilityArena.handleObject(player, objectType, objectX, objectY)) {
             return;
         }
         if (Boundary.isIn(player, Boundary.PARTY_ROOM) && objectType >= 115 && objectType <= 122) {
