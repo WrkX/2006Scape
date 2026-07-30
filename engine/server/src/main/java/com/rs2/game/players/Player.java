@@ -77,6 +77,7 @@ public abstract class Player {
 
 	public byte buffer[] = null;
 	private long lastHomeTeleport = 0;
+	private long lastStuckUse = 0;
 	public String lastConnectedFrom;
 	public int xpRate = 1;
 	public String discordCode;
@@ -180,6 +181,14 @@ public abstract class Player {
 
 	public void setLastHomeTeleport(long lastHomeTeleport) {
 		this.lastHomeTeleport = lastHomeTeleport;
+	}
+
+	public long getLastStuckUse() {
+		return lastStuckUse;
+	}
+
+	public void setLastStuckUse(long lastStuckUse) {
+		this.lastStuckUse = lastStuckUse;
 	}
 
 	public String getDiscordCode() { return discordCode; }
