@@ -6903,7 +6903,7 @@ public class Game extends RSApplet {
 		if (!flag1) {
 			if (flag) {
 				int i5 = 100;
-				for (int k5 = 1; k5 < 2; k5++) {
+				for (int k5 = 1; k5 < 11; k5++) {
 					for (int i6 = k2 - k5; i6 <= k2 + k5; i6++) {
 						for (int l6 = i2 - k5; l6 <= i2 + k5; l6++) {
 							if (i6 >= 0 && l6 >= 0 && i6 < 104 && l6 < 104 && anIntArrayArray825[i6][l6] < i5) {
@@ -7862,9 +7862,6 @@ public class Game extends RSApplet {
 	}
 
 	public void processMainScreenClick() {
-		if (anInt1021 != 0) {
-			return;
-		}
 		if (super.clickMode3 == 1) {
 			int i = super.saveClickX - 25 - getMinimapX();
 			int j = super.saveClickY - 5 - 4;
