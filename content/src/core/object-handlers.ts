@@ -11,27 +11,23 @@
  * ```ts
  * import { registerInteraction, registerObject } from "./object-handlers.js";
  *
- * // Register a handler for a specific object
+ * // Register a handler for a specific object's first interaction slot
  * registerObject({
  *   objectId: 2213,
- *   action: "open",
- *   handler: (player, obj) => {
- *     if (!player.quests.hasCompleted("dragon_awakens")) {
- *       player.message("The chest refuses to open.");
- *       return;
- *     }
- *     player.inventory.add("dragon_token", 1);
+ *   action: "first",
+ *   handler: ({ player, target }) => {
+ *     player.message(`You search ${target.getName()}.`);
+ *     player.getInventory().add("dragon_token", 1);
  *   },
  * });
  *
- * // Register a handler that fires on any object matching the condition
+ * // Optionally filter matching objects by runtime metadata
  * registerInteraction({
- *   objectId: -1,
- *   predicate: (obj) => obj.type === 10,
- *   action: "chop",
- *   handler: (player, obj) => {
- *     player.addExperience("woodcutting", 25);
- *     player.inventory.add("logs", 1);
+ *   objectId: 1276,
+ *   predicate: (object) => object.getPlane() === 0,
+ *   action: "first",
+ *   handler: ({ player }) => {
+ *     player.getInventory().add("logs", 1);
  *   },
  * });
  * ```
@@ -68,14 +64,13 @@
  *
  * // Register many interactions at once
  * registerObjects([
- *   { objectId: 1, action: "chop", handler: (p) => p.message("You chop the tree.") },
- *   { objectId: 2, action: "mine", handler: (p) => p.message("You mine the rock.") },
- *   { objectId: 3, action: "open", handler: (p) => p.message("You open the door.") },
+ *   { objectId: 1, action: "first", handler: ({ player }) => player.message("You chop the tree.") },
+ *   { objectId: 2, action: "second", handler: ({ player }) => player.message("You prospect the rock.") },
+ *   { objectId: 3, action: "third", handler: ({ player }) => player.message("You inspect the door.") },
  * ]);
  * ```
  */
 
-import type { Player } from "./player.js";
 import type {
   NpcSpawn,
   NpcInteractionHandler,
@@ -84,8 +79,8 @@ import type {
 import type {
   ObjectAction,
   ObjectInteractionHandler,
-  GameObject,
 } from "./object.js";
+import type { ScriptedObject } from "./runtime.js";
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
 
@@ -96,8 +91,7 @@ function assert(condition: boolean, message: string): asserts condition {
 }
 
 const VALID_ACTIONS: ReadonlySet<string> = new Set([
-  "use", "open", "close", "climb", "pick", "chop", "mine",
-  "bury", "pray", "search", "enter", "exit", "light", "extinguish", "operate",
+  "first", "second", "third", "fourth",
 ]);
 
 const VALID_DIRECTIONS: ReadonlySet<string> = new Set([
@@ -111,12 +105,11 @@ const VALID_DIRECTIONS: ReadonlySet<string> = new Set([
  */
 export interface ObjectInteractionConfig {
   /**
-   * The object id to watch.
-   * Use -1 to match any object (must also provide `predicate`).
+   * The exact object id to watch.
    */
   readonly objectId: number;
 
-  /** The action verb (e.g. "open", "chop", "mine"). */
+  /** The client interaction slot (`first` through `fourth`). */
   readonly action: ObjectAction;
 
   /**
@@ -125,10 +118,10 @@ export interface ObjectInteractionConfig {
   readonly handler: ObjectInteractionHandler;
 
   /**
-   * Optional predicate to filter objects when `objectId` is -1.
+   * Optional predicate to further filter matching objects.
    * Called before the handler; only fires the handler when true.
    */
-  readonly predicate?: (object: GameObject) => boolean;
+  readonly predicate?: (object: ScriptedObject) => boolean;
 }
 
 /**
@@ -140,16 +133,16 @@ export interface ObjectInteractionConfig {
  * ```ts
  * registerObject({
  *   objectId: 2213,
- *   action: "open",
- *   handler: (player, chest) => {
- *     player.inventory.add("dragon_token", 1);
+ *   action: "first",
+ *   handler: ({ player }) => {
+ *     player.getInventory().add("dragon_token", 1);
  *   },
  * });
  * ```
  */
 export function registerObject(config: ObjectInteractionConfig): void {
-  assert(Number.isInteger(config.objectId),
-    `objectId must be an integer, got ${config.objectId}`);
+  assert(Number.isInteger(config.objectId) && config.objectId >= 0,
+    `objectId must be a non-negative integer, got ${config.objectId}`);
   assert(VALID_ACTIONS.has(config.action),
     `Unknown action "${config.action}". Must be one of: ${[...VALID_ACTIONS].join(", ")}`);
   assert(typeof config.handler === "function",
@@ -160,18 +153,11 @@ export function registerObject(config: ObjectInteractionConfig): void {
       "predicate must be a function");
   }
 
-  if (config.objectId === -1 && !config.predicate) {
-    throw new Error(
-      "[object-handlers] objectId is -1 (any object): a predicate function is required " +
-      "to avoid firing on every interaction in the game.",
-    );
-  }
-
   if (config.predicate) {
     // Wrap the handler with the predicate check
-    const wrappedHandler: ObjectInteractionHandler = (player, object) => {
-      if (config.predicate!(object)) {
-        config.handler(player, object);
+    const wrappedHandler: ObjectInteractionHandler = (context) => {
+      if (config.predicate!(context.target)) {
+        config.handler(context);
       }
     };
     onObject(config.objectId, config.action, wrappedHandler);
@@ -188,8 +174,8 @@ export function registerObject(config: ObjectInteractionConfig): void {
  * @example
  * ```ts
  * registerObjects([
- *   { objectId: 1, action: "chop", handler: treeHandler },
- *   { objectId: 2, action: "mine", handler: rockHandler },
+ *   { objectId: 1, action: "first", handler: treeHandler },
+ *   { objectId: 2, action: "second", handler: rockHandler },
  * ]);
  * ```
  */
@@ -220,7 +206,7 @@ export interface SimpleObjectInteraction {
  *
  * @example
  * ```ts
- * registerInteraction({ objectId: 1, action: "chop", handler: myHandler });
+ * registerInteraction({ objectId: 1, action: "first", handler: myHandler });
  * ```
  */
 export function registerInteraction(config: SimpleObjectInteraction): void {

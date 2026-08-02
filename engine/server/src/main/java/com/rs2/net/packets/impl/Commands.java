@@ -20,6 +20,7 @@ import com.rs2.script.CommandScriptContext;
 import com.rs2.script.ScriptExecutor;
 import com.rs2.script.ScriptedPlayer;
 import com.rs2.script.registries.CommandHandlerRegistry;
+import com.rs2.script.world.ScriptEncounterService.RelocationCause;
 import com.rs2.util.Misc;
 import com.rs2.world.clip.Region;
 
@@ -475,9 +476,9 @@ public class Commands implements PacketType {
                             return;
                         }
                         if (arguments.length == 3)
-                            player.getPlayerAssistant().movePlayer(Integer.parseInt(arguments[0]), Integer.parseInt(arguments[1]), Integer.parseInt(arguments[2]));
+                            player.getPlayerAssistant().movePlayer(Integer.parseInt(arguments[0]), Integer.parseInt(arguments[1]), Integer.parseInt(arguments[2]), RelocationCause.ADMIN_RECOVERY);
                         else
-                            player.getPlayerAssistant().movePlayer(Integer.parseInt(arguments[0]), Integer.parseInt(arguments[1]), player.heightLevel);
+                            player.getPlayerAssistant().movePlayer(Integer.parseInt(arguments[0]), Integer.parseInt(arguments[1]), player.heightLevel, RelocationCause.ADMIN_RECOVERY);
                     } catch (Exception e) {
                         player.getPacketSender().sendMessage("Invalid coordinates");
                     }
@@ -921,7 +922,7 @@ public class Commands implements PacketType {
                             if (PlayerHandler.players[i].playerName.equalsIgnoreCase(teleToMe)) {
                                 Client p = (Client) PlayerHandler.players[i];
                                 player.getPacketSender().sendMessage(p.playerName + " has been teleported to you.");
-                                p.getPlayerAssistant().movePlayer(player.absX, player.absY, player.heightLevel);
+                                p.getPlayerAssistant().movePlayer(player.absX, player.absY, player.heightLevel, RelocationCause.ADMIN_RECOVERY);
                             }
                         }
                     }
@@ -938,7 +939,7 @@ public class Commands implements PacketType {
                 for (int i = 0; i < PlayerHandler.players.length; i++) {
                     if (PlayerHandler.players[i] != null) {
                         if (PlayerHandler.players[i].playerName.equalsIgnoreCase(teleTo)) {
-                            player.getPlayerAssistant().movePlayer(PlayerHandler.players[i].getX(), PlayerHandler.players[i].getY(), PlayerHandler.players[i].heightLevel);
+                            player.getPlayerAssistant().movePlayer(PlayerHandler.players[i].getX(), PlayerHandler.players[i].getY(), PlayerHandler.players[i].heightLevel, RelocationCause.ADMIN_RECOVERY);
                             return;
                         }
                     }
@@ -949,24 +950,24 @@ public class Commands implements PacketType {
             case "teleport":
             case "to":
                 if (arguments.length <= 2)
-                    player.getPlayerAssistant().movePlayer(Integer.parseInt(arguments[0]), Integer.parseInt(arguments[1]), 0);
+                    player.getPlayerAssistant().movePlayer(Integer.parseInt(arguments[0]), Integer.parseInt(arguments[1]), 0, RelocationCause.ADMIN_RECOVERY);
                 else
-                    player.getPlayerAssistant().movePlayer(Integer.parseInt(arguments[0]), Integer.parseInt(arguments[1]), Integer.parseInt(arguments[2]));
+                    player.getPlayerAssistant().movePlayer(Integer.parseInt(arguments[0]), Integer.parseInt(arguments[1]), Integer.parseInt(arguments[2]), RelocationCause.ADMIN_RECOVERY);
                 break;
             case "up":
                 player.getPacketSender().sendMessage("You are now on height level " + (player.heightLevel + 1) + ".");
-                player.getPlayerAssistant().movePlayer(player.absX, player.absY, player.heightLevel + 1);
+                player.getPlayerAssistant().movePlayer(player.absX, player.absY, player.heightLevel + 1, RelocationCause.ADMIN_RECOVERY);
                 break;
             case "up2":
-                player.getPlayerAssistant().movePlayer(player.absX, player.absY - 6400, player.heightLevel);
+                player.getPlayerAssistant().movePlayer(player.absX, player.absY - 6400, player.heightLevel, RelocationCause.ADMIN_RECOVERY);
                 player.getPacketSender().sendMessage("You are now on height level " + player.heightLevel + ".");
                 break;
             case "down":
                 player.getPacketSender().sendMessage("You are now on height level " + (player.heightLevel - 1) + ".");
-                player.getPlayerAssistant().movePlayer(player.absX, player.absY, player.heightLevel - 1);
+                player.getPlayerAssistant().movePlayer(player.absX, player.absY, player.heightLevel - 1, RelocationCause.ADMIN_RECOVERY);
                 break;
             case "down2":
-                player.getPlayerAssistant().movePlayer(player.absX, player.absY + 6400, player.heightLevel);
+                player.getPlayerAssistant().movePlayer(player.absX, player.absY + 6400, player.heightLevel, RelocationCause.ADMIN_RECOVERY);
                 player.getPacketSender().sendMessage("You are now on height level " + player.heightLevel + ".");
                 break;
             case "spec":

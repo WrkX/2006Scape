@@ -48,7 +48,7 @@
  *   onWipe: (ctx, reason) => ctx.announce(`Raid failed: ${reason}`),
  * });
  *
- * defineRaid(templeRaid.id, templeRaid);
+ * defineRaid(templeRaid);
  * ```
  *
  * @example Fluent builder
@@ -75,7 +75,7 @@
  *   .onComplete(ctx => ctx.announce("The temple is cleared!"))
  *   .build();
  *
- * defineRaid(raid.id, raid);
+ * defineRaid(raid);
  * ```
  */
 
@@ -299,24 +299,13 @@ export function createRaid(
  * Validate a raid definition and immediately register it via the global
  * `defineRaid()` bridge function.
  *
- * Equivalent to calling `defineRaid(id, createRaid(id, options))`.
+ * Equivalent to calling `defineRaid(createRaid(id, options))`.
  *
  * @param id       Unique raid identifier.
  * @param options  Raid configuration (without id).
  */
 export function registerRaid(id: string, options: RaidOptions): void {
-  const def = createRaid(id, options);
-  defineRaid(def.id, {
-    entrance: def.entrance,
-    minPlayers: def.minPlayers,
-    maxPlayers: def.maxPlayers,
-    rooms: def.rooms,
-    rewardTable: def.rewardTable,
-    timeLimitTicks: def.timeLimitTicks,
-    onStart: def.onStart,
-    onComplete: def.onComplete,
-    onWipe: def.onWipe,
-  });
+  defineRaid(createRaid(id, options));
 }
 
 // ─── Fluent builder ───────────────────────────────────────────────────────────

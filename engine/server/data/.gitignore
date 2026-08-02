@@ -1,0 +1,7 @@
+secrets.json
+
+# Mutable runtime state
+bans/
+characters/
+logs/
+cache/.scape-settings.dat

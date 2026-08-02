@@ -1,25 +1,37 @@
-const MAN_NPC_ID = 1;
+import type { NpcScriptContext } from "../core/runtime.js";
 
-onNpc(MAN_NPC_ID, "first", ({ player }) => {
-  player.dialogue.npc(MAN_NPC_ID, "Hello, traveler. Lovely day, isn't it?");
-  player.dialogue.player("Yes, it is.");
-  player.dialogue.npc(MAN_NPC_ID, "Be careful out there.");
-  player.dialogue.options(
+// Both Man variants spawn in Lumbridge — handle both
+const MAN_IDS = [1, 3] as const;
+
+function handleManDialogue({ player }: NpcScriptContext): void {
+  const dialogue = player.getDialogue();
+
+  dialogue.npc(1, "Hello, traveler. Lovely day, isn't it?");
+  dialogue.player("Yes, it is.");
+  dialogue.npc(1, "Be careful out there.");
+  dialogue.options(
     ["Tell me about Lumbridge.", "Goodbye."],
-    (choice) => {
-      if (choice === 0) {
-        player.dialogue.player("Tell me about Lumbridge.");
-        player.dialogue.npc(
-          MAN_NPC_ID,
-          "It's a small town to the south. The castle is to the north.",
-        );
-        player.dialogue.end();
-      } else if (choice === 1) {
-        player.dialogue.player("Goodbye.");
-        player.dialogue.end();
+    (choice: number) => {
+      switch (choice) {
+        case 0:
+          dialogue.player("Tell me about Lumbridge.");
+          dialogue.npc(
+            1,
+            "It's a small town to the south. The castle is to the north.",
+          );
+          dialogue.end();
+          break;
+        case 1:
+          dialogue.player("Goodbye.");
+          dialogue.end();
+          break;
       }
     },
   );
-});
+}
+
+for (const id of MAN_IDS) {
+  onNpc(id, "first", handleManDialogue);
+}
 
 export {};

@@ -10,9 +10,9 @@
     <packaging>pom</packaging>
 
     <name>SingleScape</name>
-    <description>Self-hosted single-player RuneScape-like game on 2006Scape</description>
+    <description>Self-hosted single-player RuneScape-like game</description>
 
     <modules>
-        <module>2006Scape</module>
+        <module>engine</module>
     </modules>
 </project>

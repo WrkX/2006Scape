@@ -6,8 +6,8 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 echo "==> Removing content/dist/"
 rm -rf "$ROOT/content/dist"
 
-echo "==> Removing 2006Scape build artifacts (target/)"
-find "$ROOT/2006Scape" -type d -name target -exec rm -rf {} + 2>/dev/null || true
+echo "==> Removing engine build artifacts (target/)"
+find "$ROOT/engine" -type d -name target -exec rm -rf {} + 2>/dev/null || true
 
 if [[ -d "$ROOT/node_modules" ]]; then
   echo ""

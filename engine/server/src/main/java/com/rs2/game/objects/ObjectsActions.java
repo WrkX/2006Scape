@@ -40,6 +40,7 @@ import com.rs2.game.players.Player;
 import com.rs2.game.players.Position;
 import com.rs2.script.ScriptContext;
 import com.rs2.script.ScriptExecutor;
+import com.rs2.script.ScriptHost;
 import com.rs2.script.ScriptedObject;
 import com.rs2.script.ScriptedPlayer;
 import com.rs2.script.registries.ObjectHandlerRegistry;
@@ -52,9 +53,14 @@ import org.graalvm.polyglot.Value;
 public class ObjectsActions {
 
     private final Player player;
+    private boolean lastClickHandledByScript;
 
     public ObjectsActions(Player player2) {
         player = player2;
+    }
+
+    public boolean wasLastClickHandledByScript() {
+        return lastClickHandledByScript;
     }
 
     public void firstClickObject(int objectType, int objectX, int objectY,
@@ -62,11 +68,9 @@ public class ObjectsActions {
         player.faceUpdate(0);
         player.clickObjectType = 0;
         player.turnPlayerTo(objectX, objectY);
-        Value h = ObjectHandlerRegistry.get(objectType, "first");
-        if (h != null) {
-            ScriptedObject target = new ScriptedObject(clickedObject);
-            ScriptExecutor.execute(h, "object", String.valueOf(objectType), "first",
-                    new ScriptContext(new ScriptedPlayer(player), target, "first"));
+        lastClickHandledByScript =
+                dispatchScriptedClick(objectType, "first", clickedObject);
+        if (lastClickHandledByScript) {
             return;
         }
         player.getCompost().handleObjectClick(objectType, objectX, objectY);
@@ -2802,11 +2806,12 @@ public class ObjectsActions {
         player.faceUpdate(0);
         player.clickObjectType = 0;
         player.turnPlayerTo(obX, obY);
-        Value h = ObjectHandlerRegistry.get(objectType, "second");
-        if (h != null) {
-            ScriptedObject target = new ScriptedObject(clickedObject);
-            ScriptExecutor.execute(h, "object", String.valueOf(objectType), "second",
-                    new ScriptContext(new ScriptedPlayer(player), target, "second"));
+        if (BrimhavenAgilityArena.handleObject(player, objectType, obX, obY)) {
+            return;
+        }
+        lastClickHandledByScript =
+                dispatchScriptedClick(objectType, "second", clickedObject);
+        if (lastClickHandledByScript) {
             return;
         }
         if (!Region.objectExists(objectType, obX, obY, player.heightLevel)) {
@@ -3094,11 +3099,9 @@ public class ObjectsActions {
         if (player.playerRights == 3) {
             player.getPacketSender().sendMessage("Object type: " + objectType);
         }
-        Value h = ObjectHandlerRegistry.get(objectType, "third");
-        if (h != null) {
-            ScriptedObject target = new ScriptedObject(clickedObject);
-            ScriptExecutor.execute(h, "object", String.valueOf(objectType), "third",
-                    new ScriptContext(new ScriptedPlayer(player), target, "third"));
+        lastClickHandledByScript =
+                dispatchScriptedClick(objectType, "third", clickedObject);
+        if (lastClickHandledByScript) {
             return;
         }
         if (!Region.objectExists(objectType, obX, obY, player.heightLevel)) {
@@ -3141,15 +3144,24 @@ public class ObjectsActions {
         if (player.playerRights == 3) {
             player.getPacketSender().sendMessage("Object type: " + objectType);
         }
-        Value h = ObjectHandlerRegistry.get(objectType, "fourth");
-        if (h != null) {
-            ScriptedObject target = new ScriptedObject(clickedObject);
-            ScriptExecutor.execute(h, "object", String.valueOf(objectType), "fourth",
-                    new ScriptContext(new ScriptedPlayer(player), target, "fourth"));
+        lastClickHandledByScript =
+                dispatchScriptedClick(objectType, "fourth", clickedObject);
+        if (lastClickHandledByScript) {
             return;
         }
         if (!Region.objectExists(objectType, obX, obY, player.heightLevel)) {
             return;
         }
+    }
+
+    private boolean dispatchScriptedClick(final int objectType,
+            final String action, final Objects clickedObject) {
+        return ScriptHost.getInstance().dispatchActive(
+                state -> ObjectHandlerRegistry.get(state, objectType, action),
+                (generation, handler) -> ScriptExecutor.execute(
+                        handler, "object", String.valueOf(objectType), action,
+                        new ScriptContext(new ScriptedPlayer(player, generation),
+                                new ScriptedObject(clickedObject), action)))
+                == ScriptHost.DispatchResult.CONSUMED;
     }
 }

@@ -1,6 +1,8 @@
 /**
- * Player interface — the primary API surface for interacting with a player
- * (whether human or simulated) from TypeScript content scripts.
+ * Aspirational player domain model for declarative content.
+ *
+ * Executable GraalJS handlers receive the narrower
+ * {@link import("./runtime.js").ScriptedPlayer} wrapper instead.
  *
  * @module core/player
  */
@@ -16,11 +18,15 @@ import type {
 } from "./types.js";
 
 /**
- * The core Player contract exposed to TypeScript content.
+ * The richer Player contract used to model content systems.
  *
  * Both {@link NetworkPlayer} (human, driven by client packets) and
  * {@link SimulatedPlayer} (bot, driven by a {@link BotBrain}) share this
  * interface — only the action source differs.
+ *
+ * This interface is not the Java object passed to NPC, object, or command
+ * handlers. Use {@link import("./runtime.js").ScriptContext} in those
+ * executable bridge callbacks.
  *
  * @see {@link https://github.com/2006-Scape}
  */

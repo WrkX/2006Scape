@@ -25,6 +25,8 @@ import com.rs2.game.items.impl.LightSources;
 import com.rs2.game.items.impl.Greegree.MonkeyData;
 import com.rs2.game.npcs.Npc;
 import com.rs2.game.npcs.NpcHandler;
+import com.rs2.script.world.ScriptEncounterService;
+import com.rs2.script.world.ScriptEncounterService.RelocationCause;
 import com.rs2.util.GameLogger;
 import com.rs2.util.Misc;
 import com.rs2.world.Boundary;
@@ -857,6 +859,42 @@ public class PlayerAssistant {
 	}
 
 	public void movePlayer(int x, int y, int h) {
+		movePlayer(x, y, h, RelocationCause.STANDARD);
+	}
+
+	/**
+	 * Script-facing relocation seam.  The legacy API is void and silently
+	 * rejects destinations; this variant reports whether the authoritative
+	 * relocation completed and the authoritative position reflects it. The
+	 * normal player-update pass is preserved so the client still receives the
+	 * teleport/map-region update.
+	 */
+	public boolean requestMovePlayer(int x, int y, int h) {
+		// One synchronous script relocation remains pending for the normal
+		// update pass. Reject reentrant same-tick requests before they can
+		// overwrite teleportToX/Y and become a delayed, falsely reported move.
+		if (player.preserveScriptTeleportUpdate) return false;
+		if (!ScriptEncounterService.getInstance().canDestination(
+				player, x, y, h, RelocationCause.STANDARD)) return false;
+		movePlayer(x, y, h, RelocationCause.STANDARD);
+		if (player.teleportToX != x || player.teleportToY != y
+				|| player.teleHeight != h) return false;
+		player.getNextPlayerMovement();
+		int relativeX = x - player.mapRegionX * 8;
+		int relativeY = y - player.mapRegionY * 8;
+		boolean authoritative = player.absX == x && player.absY == y
+				&& player.heightLevel == h && relativeX >= 2 * 8
+				&& relativeX < 11 * 8 && relativeY >= 2 * 8
+				&& relativeY < 11 * 8;
+		if (authoritative) player.preserveScriptTeleportUpdate = true;
+		return authoritative;
+	}
+
+	public void movePlayer(int x, int y, int h, RelocationCause cause) {
+		if (!ScriptEncounterService.getInstance().canDestination(
+				player, x, y, h, cause)) {
+			return;
+		}
 		player.refresh = false;
 		player.resetWalkingQueue();
 		player.teleportToX = x;
@@ -1510,20 +1548,25 @@ public class PlayerAssistant {
 		if (FightPits.getState(player) != null) {
 			FightPits.handleDeath(player);
 		} else if (Boundary.isIn(player, Boundary.FIGHT_PITS)) {
-			player.getPlayerAssistant().movePlayer(2399, 5178, 0);
+			player.getPlayerAssistant().movePlayer(
+					2399, 5178, 0, RelocationCause.DEATH_CLEANUP);
 		} else if (player.inCw()) {
 			if (CastleWars.getTeamNumber(player) == 1) {
 				player.getPlayerAssistant().movePlayer(2426 + Misc.random(3),
-						3076 - Misc.random(3), 1);
+						3076 - Misc.random(3), 1,
+						RelocationCause.DEATH_CLEANUP);
 			} else {
 				player.getPlayerAssistant().movePlayer(2373 + Misc.random(3),
-						3131 - Misc.random(3), 1);
+						3131 - Misc.random(3), 1,
+						RelocationCause.DEATH_CLEANUP);
 			}
 		} else if (PestControl.isInGame(player) || Boundary.isIn(player, Boundary.PC_GAME)) {
-			player.getPlayerAssistant().movePlayer(2658, 2609, 0);
+			player.getPlayerAssistant().movePlayer(
+					2658, 2609, 0, RelocationCause.DEATH_CLEANUP);
 			player.getDialogueHandler().sendDialogues(601, 3790);
 		} else if (player.tutorialProgress < 36 || Boundary.isIn(player, Boundary.TUTORIAL)) {
-			player.getPlayerAssistant().movePlayer(3094, 3107, 0);
+			player.getPlayerAssistant().movePlayer(
+					3094, 3107, 0, RelocationCause.DEATH_CLEANUP);
 			player.diedOnTut = true;
 			player.getDialogueHandler().sendStatement(
 					"Oh dear you died! Go back to the step you",
@@ -1537,7 +1580,8 @@ public class PlayerAssistant {
 																	// duel
 																	// repawn to
 																	// wildy
-			movePlayer(Constants.RESPAWN_X, Constants.RESPAWN_Y, 0);
+			movePlayer(Constants.RESPAWN_X, Constants.RESPAWN_Y, 0,
+					RelocationCause.DEATH_CLEANUP);
 			player.isSkulled = false;
 			player.skullTimer = 0;
 			player.attackedPlayers.clear();
@@ -1556,13 +1600,15 @@ public class PlayerAssistant {
 			player.getPacketSender().sendSound(122, 100, 0);
 			player.getPlayerAssistant().movePlayer(
 					Constants.DUELING_RESPAWN_X + 5,
-					Constants.DUELING_RESPAWN_Y + 5, 0);
+					Constants.DUELING_RESPAWN_Y + 5, 0,
+					RelocationCause.DEATH_CLEANUP);
 			assert o != null;
 			if (o != null) {
 				o.getPacketSender().sendSound(122, 100, 0);
 				o.getPlayerAssistant().movePlayer(
 						Constants.DUELING_RESPAWN_X + 5,
-						Constants.DUELING_RESPAWN_Y + 5, 0);
+						Constants.DUELING_RESPAWN_Y + 5, 0,
+						RelocationCause.DEATH_CLEANUP);
 			}
 			if (player.duelStatus != 6) { // if we have won but have died,
 											// don't reset the duel status.

@@ -7,7 +7,10 @@
       "request": "launch",
       "mainClass": "com.rs2.GameEngine",
       "projectName": "server",
-      "cwd": "${workspaceFolder}/server"
+      "cwd": "${workspaceFolder}/engine/server",
+      "env": {
+        "SINGLESCAPE_CONTENT_DIR": "${workspaceFolder}/content/dist"
+      }
     },
     {
       "type": "java",
@@ -15,7 +18,7 @@
       "request": "launch",
       "mainClass": "Client",
       "projectName": "client",
-      "cwd": "${workspaceFolder}/client",
+      "cwd": "${workspaceFolder}/engine/client",
       "args": "-local",
       "vmArgs": "-Dsun.java2d.uiScale=1"
     },

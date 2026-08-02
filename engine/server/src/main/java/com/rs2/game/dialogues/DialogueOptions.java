@@ -8,6 +8,8 @@ import com.rs2.game.items.impl.Flowers;
 import com.rs2.game.items.impl.Teles;
 import com.rs2.game.players.Player;
 import com.rs2.script.ScriptExecutor;
+import com.rs2.script.ScriptHost;
+import com.rs2.script.world.ScriptEncounterService;
 
 import java.util.function.Consumer;
 
@@ -20,19 +22,27 @@ public class DialogueOptions {
 	
 	public static boolean handleScriptDialogueOption(Player player, int buttonId) {
 		if (player.pendingScriptOption != null) {
-			int count = player.pendingOptionCount;
+			ScriptEncounterService service =
+					ScriptEncounterService.getInstance();
+			int count = service.pendingDialogueOptionCount(player);
+			if (count < 0) {
+				return false;
+			}
 			int choice = decodeOptionChoice(buttonId, count);
 			if (choice < 0) {
 				// This button does not belong to the currently displayed option
 				// interface. Keep the callback armed and let legacy handling run.
 			} else {
 			Consumer<Integer> cb = player.pendingScriptOption;
-			player.pendingScriptOption = null;
-			player.pendingOptionCount = 0;
+				long generation = player.pendingScriptOptionGeneration;
+				if (!service.consumeDialogueOption(player, choice)) {
+					return false;
+				}
 				player.getDialogueHandler().endDialogue();
 				player.getPacketSender().closeAllWindows();
-				ScriptExecutor.run("dialogue", "options", String.valueOf(choice),
-						() -> cb.accept(choice));
+				ScriptHost.getInstance().executeIfGenerationActive(generation,
+						() -> ScriptExecutor.run("dialogue", "options",
+								String.valueOf(choice), () -> cb.accept(choice)));
 				return true;
 			}
 		}

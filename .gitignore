@@ -4,6 +4,9 @@ content/dist/
 node_modules/
 .pnpm-store/
 
+# Optional local tooling repository
+tools/
+
 # IDE
 .idea/
 *.iml

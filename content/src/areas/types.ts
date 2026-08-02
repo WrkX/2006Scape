@@ -5,6 +5,9 @@
  * drops, shops, and quests.  Areas are the primary organisational unit for
  * TypeScript-authored world content.
  *
+ * The current bridge stores area definitions as data; it does not populate
+ * the live world or invoke lifecycle hooks.
+ *
  * @module areas/types
  */
 
@@ -26,7 +29,9 @@ import type { RaidDefinition } from "../core/raid.js";
  *
  * @example
  * ```ts
- * defineArea("dragon_island", {
+ * defineArea({
+ *   id: "dragon_island",
+ *   name: "Dragon Island",
  *   bounds: {
  *     northWest: { x: 3000, y: 5000, plane: 0 },
  *     southEast: { x: 3100, y: 4900, plane: 0 }
@@ -75,10 +80,10 @@ export interface AreaDefinition {
   /** Raid entrance points in this area. */
   readonly raids?: readonly Omit<RaidDefinition, "id">[];
 
-  /** Called once when the area is loaded by the engine. */
+  /** Aspirational hook for a future area consumer; not currently dispatched. */
   readonly onLoad?: () => void;
 
-  /** Called once when the area is unloaded. */
+  /** Aspirational hook for a future area consumer; not currently dispatched. */
   readonly onUnload?: () => void;
 }
 

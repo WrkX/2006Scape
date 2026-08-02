@@ -1,8 +1,8 @@
 /**
  * Boss system type definitions.
  *
- * Use {@link defineBoss} to register a custom boss fight.  The engine calls
- * the lifecycle hooks at the appropriate points in the encounter.
+ * Use {@link defineBoss} to store a custom boss definition in the bridge's
+ * data registry. The current server does not dispatch these lifecycle hooks.
  *
  * @module core/boss
  */
@@ -11,8 +11,8 @@ import type { ItemId, LootTable } from "./types.js";
 import type { Player } from "./player.js";
 
 /**
- * Execution context passed to every boss lifecycle hook.
- * Provides access to the boss NPC and the players involved.
+ * Aspirational execution context described by boss lifecycle data.
+ * The current bridge stores this data but does not invoke these hooks.
  */
 export interface BossContext {
   /** The NPC id of this boss. */
@@ -159,9 +159,8 @@ export interface BossDefinition {
 /**
  * Register a boss definition with the engine.
  *
- * Bosses registered via this function are automatically wired into the
- * NPC lifecycle.  When an NPC matching `npcId` spawns, the boss hooks
- * take control of its behaviour for the duration of the fight.
+ * Definitions are keyed by `npcId` and retained as data. Registering one does
+ * not currently wire its hooks into NPC combat.
  *
  * @param definition The boss encounter definition.
  */

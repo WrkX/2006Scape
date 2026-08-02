@@ -374,6 +374,7 @@ public class PacketSender {
 			player.getOutStream().createFrame(97);
 			player.getOutStream().writeWord(interfaceid);
 			player.flushOutStream();
+			player.lastMainFrameInterface = interfaceid;
 		}
 		return this;
 	}

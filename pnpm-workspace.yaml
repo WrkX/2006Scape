@@ -1,2 +1,4 @@
 packages:
   - content
+allowBuilds:
+  esbuild: true

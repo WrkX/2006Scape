@@ -59,31 +59,31 @@ else
   all_ok=false
 fi
 
-# ---- 2006Scape repo ----
-echo "--- 2006Scape ---"
-if [[ -d "$ROOT/2006Scape" ]]; then
-  ok_msg "2006Scape directory exists"
+# ---- Engine ----
+echo "--- Engine ---"
+if [[ -d "$ROOT/engine" ]]; then
+  ok_msg "engine directory exists"
 
   has_client=false
   has_server=false
 
-  if [[ -d "$ROOT/2006Scape/2006Scape Client" ]]; then
-    ok_msg "  2006Scape Client/ present"
+  if [[ -d "$ROOT/engine/client" ]]; then
+    ok_msg "  engine/client/ present"
     has_client=true
   else
-    fail_msg "  2006Scape Client/ missing"
+    fail_msg "  engine/client/ missing"
     all_ok=false
   fi
 
-  if [[ -d "$ROOT/2006Scape/2006Scape Server" ]]; then
-    ok_msg "  2006Scape Server/ present"
+  if [[ -d "$ROOT/engine/server" ]]; then
+    ok_msg "  engine/server/ present"
     has_server=true
   else
-    fail_msg "  2006Scape Server/ missing"
+    fail_msg "  engine/server/ missing"
     all_ok=false
   fi
 
-  if [[ -f "$ROOT/2006Scape/pom.xml" ]]; then
+  if [[ -f "$ROOT/engine/pom.xml" ]]; then
     ok_msg "  pom.xml present (Maven parent POM)"
   else
     fail_msg "  pom.xml missing"
@@ -91,34 +91,35 @@ if [[ -d "$ROOT/2006Scape" ]]; then
   fi
 
   # Target / build state
-  if $has_client && [[ -d "$ROOT/2006Scape/2006Scape Client/target" ]]; then
+  if $has_client && [[ -d "$ROOT/engine/client/target" ]]; then
     ok_msg "  Client is already built (target/ found)"
   else
     warn_msg "  Client not yet built (run scripts/build.sh)"
   fi
 
-  if $has_server && [[ -d "$ROOT/2006Scape/2006Scape Server/target" ]]; then
+  if $has_server && [[ -d "$ROOT/engine/server/target" ]]; then
     ok_msg "  Server is already built (target/ found)"
   else
     warn_msg "  Server not yet built (run scripts/build.sh)"
   fi
 else
-  fail_msg "2006Scape directory missing. Clone it into $ROOT/2006Scape"
+  fail_msg "engine directory missing. Import the Java engine into $ROOT/engine"
   all_ok=false
 fi
 
-# ---- Symbolic links ----
-echo "--- Symlinks ---"
-if [[ -L "$ROOT/server" && -d "$ROOT/server" ]]; then
-  ok_msg "server -> $(readlink "$ROOT/server")"
+# ---- Workspace path audit ----
+echo "--- Workspace paths ---"
+if rg -n \
+  'engine/2006Scape Client|engine/2006Scape Server|engine/content|2006Scape/content|\$ROOT/2006Scape|workspaceFolder/2006Scape' \
+  "$ROOT/scripts" "$ROOT/.vscode" "$ROOT/docs" "$ROOT/engine" \
+  --glob '!dev-check.sh' \
+  --glob '!**/target/**' \
+  --glob '!**/node_modules/**' \
+  --glob '!**/dist/**' >/dev/null 2>&1; then
+  fail_msg "obsolete workspace path references found"
+  all_ok=false
 else
-  warn_msg "server symlink missing or broken (should point to 2006Scape/2006Scape Server)"
-fi
-
-if [[ -L "$ROOT/client" && -d "$ROOT/client" ]]; then
-  ok_msg "client -> $(readlink "$ROOT/client")"
-else
-  warn_msg "client symlink missing or broken (should point to 2006Scape/2006Scape Client)"
+  ok_msg "no obsolete workspace path references found"
 fi
 
 echo ""

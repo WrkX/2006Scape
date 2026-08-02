@@ -1,120 +1,144 @@
 /**
- * "Dragon Awakens" quest definition.
- *
- * A master-level quest requiring completion of "Dragon Slayer" and
- * high combat stats.  Players must speak to the Elder Wizard, collect
- * dragon scales, and defeat a Dragon Guardian before completing the quest.
- *
- * @module quests/dragon-awakens
+ * Complete public-bridge quest used as the Phase 3 content proof.
  */
 
 import { createQuest, createStage } from "./quest-builder.js";
-import type { Player } from "../core/player.js";
+
+export const DRAGON_AWAKENS_ID = "dragon-awakens";
+export const CHRONOZON_NPC = 667;
+export const DRAGON_GUARDIAN_NPC = 941;
+export const DRAGON_ALTAR_OBJECT = 409;
+export const DRAGON_BONES_ITEM = 536;
+export const COINS_ITEM = 995;
 
 const dragonAwakens = createQuest({
-  id: "dragon_awakens",
+  id: DRAGON_AWAKENS_ID,
   name: "Dragon Awakens",
-  difficulty: "master",
-
-  requirements: {
-    quests: ["dragon_slayer"],
-    skills: { defence: 70, magic: 60 },
-    combatLevel: 85,
-  },
-
-  startPoint: { x: 7000, y: 7020, plane: 0 },
-
-  startNpc: {
-    npcId: 667,
-    dialogue: {
-      type: "npc",
-      title: "Elder Wizard",
-      lines: [
-        "Greetings, adventurer. I sense the ancient dragons stir once more.",
-        "Their king slumbers beneath the volcano, but dark forces seek to",
-        "awaken him. Will you help me prevent this catastrophe?",
-      ],
-      options: [
-        {
-          text: "Yes, I will help.",
-          handler: (player: Player): void => {
-            player.message("The Elder Wizard nods solemnly.");
-          },
-        },
-        {
-          text: "No, this sounds too dangerous.",
-          handler: (player: Player): void => {
-            player.message("The wizard sighs. 'Perhaps another time, then.'");
-          },
-        },
-      ],
-    },
-  },
-
+  summary: "Complete Chronozon's dragon-bone rite in the Wilderness.",
   stages: [
-    createStage({
-      id: "start",
-      description: "Speak to the Elder Wizard on Dragon Island.",
-      onEnter(player: Player): void {
-        player.message("The Elder Wizard awaits you on Dragon Island.");
-        player.message("You can reach the island by boat from Port Sarim.");
-      },
-      condition(player: Player): boolean {
-        return player.quests.getStage("dragon_awakens") > 0;
-      },
-    }),
-    createStage({
-      id: "collect_scales",
-      description: "Gather 5 dragon scales from the Dragon Guardians.",
-      onEnter(player: Player): void {
-        player.message("Collect 5 dragon scales from the Dragon Guardians");
-        player.message("that patrol the volcanic peaks to the northeast.");
-      },
-      condition(player: Player): boolean {
-        return player.inventory.contains("dragon_scales", 5);
-      },
-      onComplete(player: Player): void {
-        player.message("You have collected enough dragon scales.");
-        player.inventory.remove("dragon_scales", 5);
-      },
-    }),
-    createStage({
-      id: "defeat_guardian",
-      description: "Defeat the alpha Dragon Guardian blocking the volcano entrance.",
-      onEnter(player: Player): void {
-        player.message("An alpha Dragon Guardian blocks the volcano entrance.");
-        player.message("Defeat it to reach the Dragon King's lair.");
-      },
-      condition(_player: Player): boolean {
-        // The actual check is handled by the NPC kill listener via onObject
-        // or an external kill-tracker.  Return true when the kill is registered.
-        // In practice this would be set by the engine when the NPC dies.
-        return false;
-      },
-    }),
-    createStage({
-      id: "completed",
-      description: "Quest complete! You have prevented the awakening.",
-      onEnter(player: Player): void {
-        player.message("Congratulations! You have completed Dragon Awakens!");
-        player.message("The Dragon Island is now safe — for now.");
-      },
-      condition(): boolean {
-        return true;
-      },
-    }),
+    createStage(0, "Speak to Chronozon again for instructions."),
+    createStage(1, "Slay a green dragon and recover its dragon bones."),
+    createStage(2, "Use the dragon bones on an altar."),
+    createStage(3, "Defeat another green dragon to seal the rite."),
+    createStage(4, "Return to Chronozon to claim your reward."),
   ],
-
-  rewards: {
-    experience: { defence: 50000, magic: 30000 },
-    items: { dragon_token: 1 },
-    questPoints: 3,
-    unlocks: ["dragon_island_access"],
+  requirements: {
+    skills: [{ skill: "magic", level: 1 }],
   },
-
-  onGlobalComplete(player: Player): void {
-    player.message("Dragon Island is now fully accessible to you.");
+  rewards: {
+    questPoints: 3,
+    items: [{ itemId: COINS_ITEM, amount: 1000 }],
+    experience: [{ skill: "magic", amount: 1000 }],
   },
 });
 
 defineQuest(dragonAwakens);
+
+onNpc(CHRONOZON_NPC, "first", ({ player }) => {
+  const quest = player.quest(DRAGON_AWAKENS_ID);
+  if (quest === null) return;
+  if (quest.state() === "not_started") {
+    const eligibility = quest.canStart();
+    if (!eligibility.ok()) {
+      player.getDialogue()
+        .npc(CHRONOZON_NPC, "You are not ready for my dragon rite.")
+        .end();
+      return;
+    }
+    player.getDialogue()
+      .npc(CHRONOZON_NPC, "The green dragons guard a power I require.")
+      .options(["I will perform the rite.", "No, this is too dangerous."], (choice) => {
+        if (choice !== 0) {
+          player.getDialogue()
+            .npc(CHRONOZON_NPC, "Then leave before the dragons find you.")
+            .end();
+          return;
+        }
+        const result = quest.start();
+        player.getDialogue()
+          .npc(
+            CHRONOZON_NPC,
+            result.changed()
+              ? "Return to me and I will explain the first step."
+              : "The rite could not be started.",
+          )
+          .end();
+      });
+    return;
+  }
+  if (quest.state() === "in_progress" && quest.stage() === 0) {
+    if (quest.advance(0).changed()) {
+      player.getDialogue()
+        .npc(CHRONOZON_NPC, "Slay a green dragon and take its dragon bones.")
+        .end();
+    }
+    return;
+  }
+  if (quest.state() === "in_progress" && quest.stage() === 4) {
+    const completion = quest.complete(4);
+    if (completion.changed()) {
+      player.state(DRAGON_AWAKENS_ID).setString("ending", "dragon-rite-sealed");
+      player.getDialogue()
+        .npc(CHRONOZON_NPC, "The rite is complete. Take your reward.")
+        .end();
+      return;
+    }
+    const reason = completion.code();
+    const retryMessage = reason === "inventory_full"
+      ? "Make room in your inventory, then ask me again."
+      : reason === "xp_cap"
+        ? "Your Magic experience cannot accept this reward."
+        : reason === "quest_points_overflow"
+          ? "Your quest points cannot accept this reward."
+          : "The reward failed. Ask me again when you are ready.";
+    player.getDialogue().npc(CHRONOZON_NPC, retryMessage).end();
+    return;
+  }
+  player.getDialogue()
+    .npc(
+      CHRONOZON_NPC,
+      quest.state() === "completed"
+        ? "The dragon rite remains sealed."
+        : "Continue the rite and return when it is done.",
+    )
+    .end();
+});
+
+onItemPickup(DRAGON_BONES_ITEM, ({ player }) => {
+  const quest = player.quest(DRAGON_AWAKENS_ID);
+  if (quest !== null && quest.state() === "in_progress" && quest.stage() === 1) {
+    if (quest.advance(1).changed()) {
+      player.state(DRAGON_AWAKENS_ID).setBoolean("bones-recovered", true);
+      player.message("Use the dragon bones on an altar.");
+    }
+  }
+});
+
+onItemOnObject(DRAGON_BONES_ITEM, DRAGON_ALTAR_OBJECT, ({ player }) => {
+  const quest = player.quest(DRAGON_AWAKENS_ID);
+  if (quest === null || quest.state() !== "in_progress" || quest.stage() !== 2) return;
+  if (!player.getInventory().remove(DRAGON_BONES_ITEM, 1)) return;
+  if (quest.advance(2).changed()) {
+    player.state(DRAGON_AWAKENS_ID).setBoolean("altar-sealed", true);
+    player.message("The rite awakens. Defeat another green dragon.");
+  }
+});
+
+onNpcDeath(DRAGON_GUARDIAN_NPC, ({ killer }) => {
+  if (killer === null) return;
+  const quest = killer.quest(DRAGON_AWAKENS_ID);
+  if (quest === null || quest.state() !== "in_progress" || quest.stage() !== 3) return;
+  if (quest.advance(3).changed()) {
+    killer.message("The rite is sealed. Return to Chronozon for your reward.");
+  }
+});
+
+onLogin(({ player }) => {
+  const quest = player.quest(DRAGON_AWAKENS_ID);
+  if (quest !== null && quest.state() === "in_progress") {
+    const stage = quest.stage();
+    if (stage !== null) {
+      player.message(`Dragon Awakens objective: ${stage + 1}/5.`);
+    }
+  }
+});

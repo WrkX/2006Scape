@@ -25,7 +25,7 @@
       "type": "shell",
       "command": "mvn -B clean package",
       "options": {
-        "cwd": "${workspaceFolder}/2006Scape",
+        "cwd": "${workspaceFolder}/engine",
         "env": {
           "JAVA_HOME": "/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home"
         }

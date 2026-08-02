@@ -144,14 +144,4 @@ const templeOfZarosRaid = createRaid("temple_of_zaros", {
   },
 });
 
-defineRaid(templeOfZarosRaid.id, {
-  entrance: templeOfZarosRaid.entrance,
-  minPlayers: templeOfZarosRaid.minPlayers,
-  maxPlayers: templeOfZarosRaid.maxPlayers,
-  rooms: templeOfZarosRaid.rooms,
-  rewardTable: templeOfZarosRaid.rewardTable,
-  timeLimitTicks: templeOfZarosRaid.timeLimitTicks,
-  onStart: templeOfZarosRaid.onStart,
-  onComplete: templeOfZarosRaid.onComplete,
-  onWipe: templeOfZarosRaid.onWipe,
-});
+defineRaid(templeOfZarosRaid);

@@ -58,6 +58,10 @@ import com.rs2.net.PacketSender;
 import com.rs2.net.packets.PacketHandler;
 import com.rs2.net.packets.impl.ChallengePlayer;
 import com.rs2.plugin.PluginService;
+import com.rs2.script.ScriptLifecycleService;
+import com.rs2.script.state.ScriptStateStore;
+import com.rs2.script.world.ScriptEncounterService;
+import com.rs2.script.world.ScriptPlayerDeathTicket;
 import com.rs2.util.Misc;
 import com.rs2.util.Stream;
 import com.rs2.world.Boundary;
@@ -83,8 +87,16 @@ public abstract class Player {
 	public String discordCode;
 	public Consumer<Integer> pendingScriptOption;
 	public int pendingOptionCount;
+	public long pendingScriptOptionGeneration;
+	public long pendingScriptOptionFacadeEpoch;
+	public long pendingScriptOptionToken;
 	public java.util.List<Runnable> scriptDialogueFrames;
 	public int scriptDialogueFrameIndex;
+	public long scriptDialogueGeneration;
+	public long scriptDialogueFacadeEpoch;
+	public long scriptDialogueToken;
+	private final ScriptStateStore scriptState = new ScriptStateStore();
+	private String quarantinedScriptStatePayload;
 	private Compost compost = new Compost(this);
 	private Allotments allotment = new Allotments(this);
 	private Flowers flower = new Flowers(this);
@@ -174,6 +186,18 @@ public abstract class Player {
 	public int getXPRate() { return xpRate; }
 
 	public void setXPRate(int xpRate) { this.xpRate = xpRate; }
+
+	public ScriptStateStore getScriptState() {
+		return scriptState;
+	}
+
+	public String getQuarantinedScriptStatePayload() {
+		return quarantinedScriptStatePayload;
+	}
+
+	public void setQuarantinedScriptStatePayload(String payload) {
+		quarantinedScriptStatePayload = payload;
+	}
 	
 	public long getLastHomeTeleport() {
 		return lastHomeTeleport;
@@ -534,6 +558,12 @@ public abstract class Player {
 			t.currentState = text;
 		}
 		return true;
+	}
+
+	/** Last text value accepted for a component by the packet de-duplication state. */
+	public String interfaceText(int id) {
+		TinterfaceText value = interfaceText.get(id);
+		return value == null ? null : value.currentState;
 	}
 
 	public int lowMemoryVersion = 0;
@@ -1014,7 +1044,10 @@ public abstract class Player {
 		}
 
 		if (isDead && respawnTimer == -6) {
+			ScriptPlayerDeathTicket deathTicket =
+					ScriptLifecycleService.getInstance().beginPlayerDeath(this);
 			getPlayerAssistant().applyDead();
+			ScriptLifecycleService.getInstance().completePlayerDeath(deathTicket);
 		}
 
 		if (respawnTimer == 7) {
@@ -1675,8 +1708,9 @@ public abstract class Player {
 			playerIndex, oldPlayerIndex, lastWeaponUsed, projectileStage,
 			crystalBowArrowCount, playerMagicBook, teleGfx, teleEndAnimation,
 			teleHeight, teleX, teleY, rangeItemUsed, killingNpcIndex,
-			totalDamageDealt, globalDamageDealt, oldNpcIndex, fightMode, attackTimer,
+			 totalDamageDealt, globalDamageDealt, oldNpcIndex, fightMode, attackTimer,
 			bowSpecShot, ectofuntusWorshipped, graveyardPoints, alchemyPoints, enchantmentPoints, telekineticPoints, telekineticMazesSolved;
+	public long npcAllocationToken, oldNpcAllocationToken;
 	public boolean magicFailed, oldMagicFailed;
 	/**
 	 * End
@@ -1768,6 +1802,8 @@ public abstract class Player {
 	public int castleWarsTeam;
 	public boolean inCwGame;
 	public boolean inCwWait;
+	public boolean inBrimhavenAgilityArena;
+	public boolean brimhavenDispenserTagged;
 
 	/**
 	 * Fight Pits
@@ -2163,23 +2199,36 @@ public abstract class Player {
 			return -1;
 		}
 		dir >>= 1;
+		int nextAbsX = absX + Misc.directionDeltaX[dir];
+		int nextAbsY = absY + Misc.directionDeltaY[dir];
+		if (!ScriptEncounterService.getInstance().canDestination(
+				this, nextAbsX, nextAbsY, heightLevel)) {
+			resetWalkingQueue();
+			return -1;
+		}
 		currentX += Misc.directionDeltaX[dir];
 		currentY += Misc.directionDeltaY[dir];
 		/*if (!Region.canMove(absX, absY, (absX + Misc.directionDeltaX[dir]), (absY + Misc.directionDeltaY[dir]), heightLevel, 1, 1))
 			return -1;*/
-		absX += Misc.directionDeltaX[dir];
-		absY += Misc.directionDeltaY[dir];
+		absX = nextAbsX;
+		absY = nextAbsY;
 		updateWalkEntities();
 		return dir;
 	}
 
 	public boolean didTeleport = false;
 	public boolean mapRegionDidChange = false;
+	/** Keeps a synchronously materialized script teleport visible to the normal update pass. */
+	public boolean preserveScriptTeleportUpdate = false;
 	public int dir1 = -1, dir2 = -1;
 	public boolean createItems = false;
 	public int poimiX = 0, poimiY = 0;
 
 	public synchronized void getNextPlayerMovement() {
+		if (preserveScriptTeleportUpdate) {
+			preserveScriptTeleportUpdate = false;
+			return;
+		}
 		mapRegionDidChange = false;
 		didTeleport = false;
 		dir1 = dir2 = -1;

@@ -5,6 +5,9 @@
  * Each room is a self-contained module with its own spawn logic, completion
  * condition, and optional boss.
  *
+ * The current bridge stores raid definitions as data and does not dispatch
+ * their lifecycle hooks.
+ *
  * @module core/raid
  */
 
@@ -14,7 +17,7 @@ import type { BossContext } from "./boss.js";
 
 // ─── Room ──────────────────────────────────────────────────────────────────
 
-/** Context passed to room lifecycle hooks. */
+/** Aspirational context described by room lifecycle data. */
 export interface RoomContext {
   /** The raid instance this room belongs to. */
   readonly raidId: string;
@@ -35,8 +38,8 @@ export interface RoomContext {
 /**
  * A single room within a raid.
  *
- * Rooms are processed in order; the next room does not unlock until the
- * current room's completion condition is met.
+ * Rooms describe an intended processing order. The current server stores this
+ * definition but does not execute it.
  */
 export interface RaidRoom {
   /** Unique identifier for this room layout. */
@@ -101,7 +104,8 @@ export interface RaidBossRoom {
  *
  * @example
  * ```ts
- * defineRaid("temple_of_zaros", {
+ * defineRaid({
+ *   id: "temple_of_zaros",
  *   entrance: { x: 7000, y: 7000, plane: 0 },
  *   rooms: [guardianRoom, puzzleRoom, cryptRoom, zarosBossRoom],
  *   rewardTable: "zaros_raid_loot"
@@ -164,13 +168,9 @@ export interface RaidDefinition {
 /**
  * Register a raid definition with the engine.
  *
- * @param id   Unique raid identifier.
  * @param definition The raid definition.
  */
-export type DefineRaid = (
-  id: string,
-  definition: Omit<RaidDefinition, "id">,
-) => void;
+export type DefineRaid = (definition: RaidDefinition) => void;
 
 declare global {
   const defineRaid: DefineRaid;
