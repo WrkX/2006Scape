@@ -9,6 +9,7 @@ import com.rs2.game.content.quests.QuestRewards;
 import com.rs2.game.content.randomevents.FreakyForester;
 import com.rs2.game.content.randomevents.RandomEventHandler;
 import com.rs2.game.content.skills.SkillHandler;
+import com.rs2.game.content.skills.crafting.SplitbarkArmour;
 import com.rs2.game.content.skills.farming.Farmers;
 import com.rs2.game.content.skills.slayer.Slayer;
 import com.rs2.game.content.traveling.CarpetTravel;
@@ -7735,6 +7736,12 @@ public class DialogueHandler {
 			case 10007:
 				sendOption("x" + Constants.VARIABLE_XP_RATES[3], "Don't Change");
 				player.dialogueAction = 10007;
+				break;
+			case 12630:
+			case 12631:
+			case 12632:
+			case 12633:
+				SplitbarkArmour.handleDialogue(player, dialogue);
 				break;
 		}
 	}

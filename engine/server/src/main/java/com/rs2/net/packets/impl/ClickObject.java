@@ -13,6 +13,7 @@ import com.rs2.event.impl.ObjectThirdClickEvent;
 import com.rs2.game.content.minigames.brimhavenagilityarena.BrimhavenAgilityCourse;
 import com.rs2.game.content.minigames.castlewars.CastleWarObjects;
 import com.rs2.game.content.minigames.castlewars.CastleWars;
+import com.rs2.game.content.skills.firemaking.HauntedWoodsTorch;
 import com.rs2.game.content.skills.woodcutting.Woodcutting;
 import com.rs2.game.globalworldobjects.Doors;
 import com.rs2.game.npcs.NpcHandler;
@@ -164,7 +165,9 @@ public class ClickObject implements PacketType {
 				player.resetWalkingQueue();
 				break;
 			}
-			if (Woodcutting.playerTrees(player, player.objectId) && player.objectId != 1292) {
+			if (HauntedWoodsTorch.isTorch(player.objectId)) {
+				HauntedWoodsTorch.light(player);
+			} else if (Woodcutting.playerTrees(player, player.objectId) && player.objectId != 1292) {
 				Woodcutting.startWoodcutting(player, player.objectId, player.objectX, player.objectY, player.clickObjectType);
 			}
 			switch (player.objectId) {

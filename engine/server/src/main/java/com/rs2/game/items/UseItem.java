@@ -2,6 +2,7 @@ package com.rs2.game.items;
 
 import com.rs2.Constants;
 import com.rs2.event.impl.ItemOnItemEvent;
+import com.rs2.game.content.StaticItemList;
 import com.rs2.game.content.skills.cooking.Cooking;
 import com.rs2.game.content.skills.crafting.BattleStaffs;
 import com.rs2.game.content.skills.crafting.GemCutting;
@@ -10,6 +11,7 @@ import com.rs2.game.content.skills.crafting.LeatherMaking;
 import com.rs2.game.content.skills.crafting.SoftClay;
 import com.rs2.game.content.skills.farming.Farming;
 import com.rs2.game.content.skills.firemaking.Firemaking;
+import com.rs2.game.content.skills.firemaking.HauntedWoodsTorch;
 import com.rs2.game.content.skills.fletching.ArrowMaking;
 import com.rs2.game.content.skills.fletching.LogCutting;
 import com.rs2.game.content.skills.fletching.LogCuttingInterface;
@@ -61,6 +63,10 @@ public class UseItem {
 			}
 		}
 		if (Tiaras.bindTiara(c, itemId, objectID)) {
+			return;
+		}
+		if (itemId == StaticItemList.BARK && HauntedWoodsTorch.isTorch(objectID)) {
+			HauntedWoodsTorch.light(c);
 			return;
 		}
 		switch (objectID) {

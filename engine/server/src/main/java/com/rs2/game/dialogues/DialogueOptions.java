@@ -5,6 +5,7 @@ import com.rs2.game.bots.Bot;
 import com.rs2.game.bots.BotHandler;
 import com.rs2.game.content.minigames.trawler.Murphy;
 import com.rs2.game.content.skills.crafting.JewelryMaking;
+import com.rs2.game.content.skills.crafting.SplitbarkArmour;
 import com.rs2.game.items.impl.Flowers;
 import com.rs2.game.items.impl.Teles;
 import com.rs2.game.players.Player;
@@ -51,6 +52,9 @@ public class DialogueOptions {
 	}
 
 	public static void handleDialogueOptions(Player player, int buttonId) {
+		if (SplitbarkArmour.handleOption(player, buttonId)) {
+			return;
+		}
 		switch (buttonId) {
 		case 9167:
 			switch (player.dialogueAction) {

@@ -33,6 +33,7 @@ public class Woodcutting {
 		OAK(new int[] {1281, 3037}, 1356, 15, 38, 1521, 25, 20),
 		WILLOW(new int[] {1308, 5552, 5551, 5553}, 7399, 30, 68, 1519, 30, 8),
 		MAPLE(new int[] {1307}, 1343, 45, 100, 1517, 48, 8),
+		HOLLOW(new int[] {2289, 4060}, 2310, 45, 83, 3239, 43, 15),
 		YEW(new int[] {1309}, 7402, 60, 175, 1515, 79, 5),
 		MAGIC(new int[] {1306}, 7401, 75, 250, 1513, 150, 3),
 		EVERGREEN(new int[] {1319, 1318, 1315, 1316, 1332}, 1341, 1, 25, 1511, 11, 100),
@@ -243,6 +244,9 @@ public class Woodcutting {
 		int wcLevel = p.playerLevel[Constants.WOODCUTTING];
 		p.woodcuttingAxe = -1;
 		treeData tree = treeData.getTree(objectId);
+		if (tree == null) {
+			return;
+		}
 		p.turnPlayerTo(x, y);
 		if (tree.getLevelReq() > wcLevel) {
 			p.getPacketSender().sendMessage("You need a Woodcutting level of " + tree.getLevelReq() + " to cut this tree.");
@@ -365,15 +369,17 @@ public class Woodcutting {
 	}
 
 	public static boolean playerTrees(Player player, int tree) {
-		boolean trees2 = false;
-		for (int i = 0; i < trees.length; i++) {
-			for (int i1 = 0; i1 < 6; i1++) {
-				if (tree == trees[i1][i]) {
-					trees2 = true;
+		if (treeData.getTree(tree) != null) {
+			return true;
+		}
+		for (int[] category : trees) {
+			for (int id : category) {
+				if (tree == id) {
+					return true;
 				}
 			}
 		}
-		return trees2;
+		return false;
 	}
 
 	public static int[][] trees = {
@@ -383,7 +389,7 @@ public class Woodcutting {
 					1315, 1316, 1330, 1331, 1332, 1333, 1383, 1384, 2409, 2447,
 					2448, 3033, 3034, 3035, 3036, 3879, 3881, 3883, 3893, 3885,
 					3886, 3887, 3888, 3892, 3889, 3890, 3891, 3928, 3967, 3968,
-					4048, 4049, 4050, 4051, 4052, 4053, 4054, 4060, 5004, 5005,
+					4048, 4049, 4050, 4051, 4052, 4053, 4054, 5004, 5005,
 					5045, 5902, 5903, 5904, 8973, 8974, 10041, 10081, 10082,
 					10664, 11112, 11510, 12559, 12560, 12732, 12895, 12896,
 					13412, 13411, 13419, 13843, 13844, 13845, 13847, 13848,
@@ -411,7 +417,9 @@ public class Woodcutting {
 					8513, 13416, 13422, }, 
 			{ // MAGIC
 			1306, 8396, 8397, 8398, 8399, 8400, 8401, 8402, 8403, 8404, 8405,
-					8406, 8407, 8408, 8409, 13417, 13424, } };
+					8406, 8407, 8408, 8409, 13417, 13424, },
+			{ // HOLLOW
+			2289, 4060 } };
 
 	public static void cutDownTree(int respawnTime, int objectX, int objectY, int type, int stumpID, int treeID) {
 		new Object(stumpID, objectX, objectY, 0, type, 10, treeID, respawnTime);

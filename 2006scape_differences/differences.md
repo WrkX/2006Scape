@@ -78,3 +78,4 @@ Diese Datei ist das Inhaltsverzeichnis. Jeder Punkt verlinkt auf eine eigene Det
 73. [Geschlossene Issues sind nicht automatisch aktuelle Unterschiede](73.md)
 74. [2006Scape ist keine originale Jagex-Servercodebasis](74.md)
 75. [Die größten Unterschiede liegen oft in Engine-Details](75.md)
+76. [Splitbark-Loop und Fine Cloth sind unvollständig](76.md)

@@ -6,6 +6,7 @@ import com.rs2.game.content.quests.QuestAssistant;
 import com.rs2.game.content.minigames.trawler.Murphy;
 import com.rs2.game.content.quests.impl.RestlessGhost;
 import com.rs2.game.content.skills.core.Fishing;
+import com.rs2.game.content.skills.crafting.SplitbarkArmour;
 import com.rs2.game.content.skills.crafting.Tanning;
 import com.rs2.game.content.traveling.Sailing;
 import com.rs2.game.npcs.impl.Pets;
@@ -62,6 +63,9 @@ public class NpcActions {
             }
         }
         switch (npcType) {
+            case WIZARD_1263:
+                SplitbarkArmour.startDialogue(player);
+                break;
             case THORMAC:
                 player.getDialogueHandler().sendDialogues(3574, npcType);
                 break;
