@@ -6873,6 +6873,16 @@
     "maxHit": 0,
     "strength": 0,
     "attack": 0,
+    "x": 2984,
+    "y": 3339,
+    "id": 605,
+    "walk": 1,
+    "height": 2
+  },
+  {
+    "maxHit": 0,
+    "strength": 0,
+    "attack": 0,
     "x": 2997,
     "y": 3373,
     "id": 2290,
@@ -23623,8 +23633,8 @@
     "maxHit": 0,
     "strength": 0,
     "attack": 0,
-    "x": 2651,
-    "y": 2664,
+    "x": 2977,
+    "y": 3342,
     "id": 606,
     "walk": 1,
     "height": 0
