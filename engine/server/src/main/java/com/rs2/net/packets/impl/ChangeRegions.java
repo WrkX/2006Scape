@@ -20,6 +20,8 @@ public class ChangeRegions implements PacketType {
 		if (Constants.SOUND && player.musicOn) {
 			Music.playMusic(player);
 		}
+		GameEngine.objectHandler.updateObjects(player);
+		GameEngine.objectManager.loadObjects(player);
 		WorldObjectService.getInstance().rebuildObjects(player);
 		if (player instanceof com.rs2.game.players.Client) {
 			GlobalDropsHandler.load((com.rs2.game.players.Client) player);

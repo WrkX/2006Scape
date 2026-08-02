@@ -457,6 +457,21 @@ public class WorldObjectPrecedenceTest {
 		}
 	}
 
+	@Test public void bootstrapCacheDoesNotProjectOnRegionRebuild()
+			throws Exception {
+		com.rs2.game.players.Player player = Wp5PlayerSupport.player(89);
+		try {
+			WorldObjectService service = WorldObjectService.getInstance();
+			service.loadCacheObject(new Objects(1276, 3200, 3200, 0, 0, 10, 0));
+			Wp5PlayerSupport.recording(player).clearPackets();
+			service.rebuildObjects(player);
+			assertEquals(0, Wp5PlayerSupport.recording(player).flushCount);
+		} finally {
+			WorldObjectService.getInstance().resetForTesting();
+			Wp5PlayerSupport.cleanup(player);
+		}
+	}
+
 	@Test public void cacheRebuildPreservesIndependentSceneSlotsOnOneTile()
 			throws Exception {
 		com.rs2.game.players.Player player = Wp5PlayerSupport.player(89);

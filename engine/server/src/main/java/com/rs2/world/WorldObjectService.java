@@ -31,6 +31,8 @@ public final class WorldObjectService {
     private final Map<ObjectSlot, LayerObject> timedObjects = new HashMap<ObjectSlot, LayerObject>();
     private final Map<ObjectSlot, LayerObject> globalObjects = new HashMap<ObjectSlot, LayerObject>();
 	private final Map<ObjectSlot, LayerObject> cacheObjects = new HashMap<ObjectSlot, LayerObject>();
+	private final Map<ObjectSlot, Objects> projectedCacheRemovals =
+			new HashMap<ObjectSlot, Objects>();
     private final Map<Tile, ArrayDeque<DeferredObjectMutation>> deferredRegionObjects =
             new HashMap<Tile, ArrayDeque<DeferredObjectMutation>>();
 	private final Map<Tile, ArrayDeque<DeferredObjectMutation>> quarantinedDeferredObjects =
@@ -780,6 +782,7 @@ public final class WorldObjectService {
         timedObjects.clear();
         globalObjects.clear();
 		cacheObjects.clear();
+		projectedCacheRemovals.clear();
         deferredRegionObjects.clear();
 		quarantinedDeferredObjects.clear();
         footprintOwners.clear();
@@ -902,13 +905,17 @@ public final class WorldObjectService {
         }
     }
 
-	/** One participant-aware snapshot for all dynamic object rebuild output. */
+	/** One participant-aware snapshot for scripted and mutated object rebuild output.
+	 * Bootstrap map-cache objects are omitted; the client already owns static scenery. */
 	public synchronized void rebuildObjects(Player player) {
 		if (player == null || player.getOutStream() == null) return;
 		Map<ObjectSlot, ObjectSlot> slots = new HashMap<ObjectSlot, ObjectSlot>();
-		for (ObjectSlot slot : cacheObjects.keySet()) slots.put(slot, slot);
-		for (ObjectSlot slot : globalObjects.keySet()) slots.put(slot, slot);
-		for (ObjectSlot slot : timedObjects.keySet()) slots.put(slot, slot);
+		for (Map.Entry<ObjectSlot, LayerObject> entry : cacheObjects.entrySet()) {
+			if (entry.getValue().projectOnRegionChange) {
+				slots.put(entry.getKey(), entry.getKey());
+			}
+		}
+		for (ObjectSlot slot : projectedCacheRemovals.keySet()) slots.put(slot, slot);
 		for (OwnedObject owned : encounterObjects.values()) {
 			if (owned.lowerObject != null) slots.put(slot(owned.lowerObject),
 					slot(owned.lowerObject));
@@ -937,11 +944,17 @@ public final class WorldObjectService {
 				player.getPacketSender().createObjectSpawn(object.getObjectId(), tile.x,
 						tile.y, tile.plane, object.getObjectFace(), object.getObjectType());
 			} else if (!lowerSlot) {
-				LayerObject resolved = selected(objectSlot);
-				if (resolved != null) {
-					Objects object = resolved.object;
-					player.getPacketSender().createObjectSpawn(object.getObjectId(), tile.x,
-							tile.y, tile.plane, object.getObjectFace(), object.getObjectType());
+				Objects removed = projectedCacheRemovals.get(objectSlot);
+				if (removed != null) {
+					player.getPacketSender().createObjectSpawn(-1, tile.x, tile.y, tile.plane,
+							removed.getObjectFace(), removed.getObjectType());
+				} else {
+					LayerObject resolved = selected(objectSlot);
+					if (resolved != null && resolved.projectOnRegionChange) {
+						Objects object = resolved.object;
+						player.getPacketSender().createObjectSpawn(object.getObjectId(), tile.x,
+								tile.y, tile.plane, object.getObjectFace(), object.getObjectType());
+					}
 				}
 			}
 		}
@@ -1445,9 +1458,17 @@ public final class WorldObjectService {
 		ContributorReceipt receipt = Region.replaceObjectContributor(
 				prior == null ? null : prior.receipt, replacement, true, wasSelected);
 		Region.applyCacheBackingMutation(prior == null ? null : prior.object, replacement);
-		if (replacement == null) cacheObjects.remove(tile);
-		else cacheObjects.put(tile, new LayerObject(installToken, installVersion,
-				copy(replacement), copy(replacement), receipt));
+		if (replacement == null) {
+			Objects removed = prior != null ? copy(prior.object) : copy(mutation);
+			if (removed.getObjectId() >= 0) {
+				projectedCacheRemovals.put(tile, removed);
+			}
+			cacheObjects.remove(tile);
+		} else {
+			projectedCacheRemovals.remove(tile);
+			cacheObjects.put(tile, new LayerObject(installToken, installVersion,
+					copy(replacement), copy(replacement), receipt, true));
+		}
 		if (wasSelected && replacement == null) select(selected(tile));
 		return true;
 	}
@@ -1797,10 +1818,16 @@ public final class WorldObjectService {
         final Objects object;
         final java.lang.Object backing;
 		final ContributorReceipt receipt;
+		final boolean projectOnRegionChange;
         LayerObject(long token, long version, Objects object, java.lang.Object backing,
 				ContributorReceipt receipt) {
+			this(token, version, object, backing, receipt, false);
+        }
+		LayerObject(long token, long version, Objects object, java.lang.Object backing,
+				ContributorReceipt receipt, boolean projectOnRegionChange) {
             this.token = token; this.version = version;
 			this.object = object; this.backing = backing; this.receipt = receipt;
+			this.projectOnRegionChange = projectOnRegionChange;
         }
     }
 
