@@ -29,10 +29,6 @@ public class DesertHeat {
 	 */
 	private static int REGULAR_TIMER = 90000;
 	/**
-	 * Integer to check if player has waterskins
-	 */
-	private static int waterskin = -1;
-	/**
 	 * Waterskins before and after
 	 */
 	private static int[][] WATERSKINS = {
@@ -77,12 +73,24 @@ public class DesertHeat {
 		return (Boundary.isIn(player, Boundary.NO_HEAT));
 	}
 
+	public static void onLeaveDesert(Player player) {
+		player.lastDesert = 0;
+		player.desertHeatActive = false;
+	}
+
 	public static void callHeat(final Player player) {
 		if (!Boundary.isIn(player, Boundary.DESERT) 
 			|| player.playerLevel[Constants.HITPOINTS] <= 0
 			|| preventHeat(player)) {
 			return;
 		}
+		if (player.desertHeatActive) {
+			return;
+		}
+		if (player.lastDesert == 0) {
+			player.lastDesert = System.currentTimeMillis();
+		}
+		player.desertHeatActive = true;
 		CycleEventHandler.getSingleton().addEvent(player, new CycleEvent() {
 			@Override
 			public void execute(CycleEventContainer container) {
@@ -90,6 +98,7 @@ public class DesertHeat {
 					|| player.playerLevel[Constants.HITPOINTS] <= 0
 					|| player.disconnected 
 					|| preventHeat(player)) {
+					player.desertHeatActive = false;
 					container.stop();
 					return;
 				}
@@ -98,25 +107,28 @@ public class DesertHeat {
 					if (!checkWaterskin(player)) {
 						doDamage(player);
 					}
+					player.desertHeatActive = false;
 					container.stop();
 				} else if (player.playerLevel[Constants.HITPOINTS] <= 0) {
 					player.isDead = true;
+					player.desertHeatActive = false;
 					container.stop();
 				}
 			}
 			@Override
 			public void stop() {
-				
+				player.desertHeatActive = false;
 			}
 		}, 1);
 	}
 	
 	public static boolean checkWaterskin(final Player player) {
-	  for (int i = 0; i < WATERSKINS.length; i++) {
-	    	if (player.getItemAssistant().playerHasItem(WATERSKINS[i][1])) {
-	    		waterskin = i;
-           }
-        }
+		int waterskin = -1;
+		for (int i = 0; i < WATERSKINS.length; i++) {
+			if (player.getItemAssistant().playerHasItem(WATERSKINS[i][1])) {
+				waterskin = i;
+			}
+		}
 		if (waterskin == -1) {//empty waterskin
 			return false;
 		}

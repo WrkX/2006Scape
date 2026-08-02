@@ -956,6 +956,8 @@ public abstract class Player {
 	public void process() {
 		if (Boundary.isIn(this, Boundary.DESERT) && heightLevel == 0) {
 			DesertHeat.callHeat(this);
+		} else if (lastDesert != 0 || desertHeatActive) {
+			DesertHeat.onLeaveDesert(this);
 		}
 		if (playerEnergy < 100 && System.currentTimeMillis() - lastIncrease >= getPlayerAssistant().raiseTimer()) {
 			playerEnergy += 1;
@@ -1427,7 +1429,7 @@ public abstract class Player {
 			addStarter, accountFlagged, inPartyRoom, msbSpec,
 			hasBankPin, enterdBankpin, firstPinEnter, requestPinDelete,
 			secondPinEnter, thirdPinEnter, fourthPinEnter, hasBankpin,
-			isBanking, isTeleporting, desertWarning,
+			isBanking, isTeleporting, desertWarning, desertHeatActive,
 			isPotionMaking, isGrinding, hasStarter, isSpinning,
 			clickedSpinning, hasPaidBrim, playerStun, playerFletch, isWoodcutting, playerIsFiremaking,
 			hasNpc, playerIsFishing, isOperate, below459 = true,
