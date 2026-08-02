@@ -270,22 +270,45 @@ public class ShopHandler {
     }
 
     public static void closePlayerShop(Client player) {
-        for (int id = getEmptyshop(); id >= 0; id--) {
-			if (shopName[id].equals(player.properName + "'s Store")) {
-                for (int i = 0; i < MAX_SHOP_ITEMS; i++) {
-                    shopItems[id][i] = 0;
-                    shopItemsN[id][i] = 0;
-                    shopItemsSN[id][i] = 0;
-                    shopItemsDelay[id][i] = 0;
-                }
-                refreshshop(id);
-			}
+        String storeName = player.properName + "'s Store";
+        int id = findPlayerShopId(player.shopId, storeName);
+        if (id < 0) {
+            return;
         }
+        boolean wasPlayerShop = !staticShopConfigured[id]
+                && shopSModifier[id] == 0 && shopBModifier[id] == 0;
+        for (int i = 0; i < MAX_SHOP_ITEMS; i++) {
+            shopItems[id][i] = 0;
+            shopItemsN[id][i] = 0;
+            shopItemsSN[id][i] = 0;
+            shopItemsDelay[id][i] = 0;
+        }
+        shopName[id] = "";
+        shopSModifier[id] = 0;
+        shopBModifier[id] = 0;
+        player.shopId = 0;
+        if (wasPlayerShop && totalshops > 0) {
+            totalshops--;
+        }
+        refreshshop(id);
+    }
+
+    private static int findPlayerShopId(int preferredId, String storeName) {
+        if (preferredId >= 0 && preferredId < MAX_SHOPS
+                && storeName.equals(shopName[preferredId])) {
+            return preferredId;
+        }
+        for (int i = 0; i < MAX_SHOPS; i++) {
+            if (storeName.equals(shopName[i])) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     private static int getEmptyshop() {
         for (int i = 0; i < MAX_SHOPS; i++) {
-			if (shopName[i].equals("")) {
+			if (shopName[i] == null || shopName[i].equals("")) {
 				return i;
 			}
         }

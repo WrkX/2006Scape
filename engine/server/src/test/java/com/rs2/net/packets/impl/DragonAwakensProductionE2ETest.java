@@ -45,6 +45,7 @@ import com.rs2.game.players.PlayerHandler;
 import com.rs2.game.players.PlayerSave;
 import com.rs2.script.DialogueChain;
 import com.rs2.script.ScriptHost;
+import com.rs2.script.ScriptRuntimeTestFixture;
 import com.rs2.script.ScriptedPlayer;
 import com.rs2.script.quest.ScriptedQuest;
 import com.rs2.util.NpcDrop;
@@ -148,6 +149,10 @@ public class DragonAwakensProductionE2ETest {
 			CycleEventHandler.getSingleton().stopEvents(player);
 			CycleEventHandler.getSingleton().process();
 		}
+		// The compiled reload activated the Dragon Island area in the real
+		// regions; reset the runtime while those regions still carry its
+		// collision ledger so the next class starts from a clean world.
+		ScriptRuntimeTestFixture.reset();
 		PlayerHandler.players[PLAYER_SLOT] = previousPlayer;
 		System.arraycopy(previousNpcs, 0, NpcHandler.npcs, 0,
 				previousNpcs.length);

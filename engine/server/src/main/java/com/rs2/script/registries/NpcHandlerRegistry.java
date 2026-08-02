@@ -45,6 +45,18 @@ public final class NpcHandlerRegistry {
 	}
 
 	/**
+	 * Exact route record of one area NPC allocation: the npc id, ordinal
+	 * action, and the owning area spawn key. Only the live allocation of
+	 * that exact spawn carries this key; an equal-id legacy NPC has none.
+	 */
+	public static ExecutableRouteRecord getRecordAllocated(
+			RegistryStore.State state, int npcId, String action,
+			String areaId, String spawnKey) {
+		return RouteRegistry.get(state, ExecutableRouteKey.npcAllocated(
+				npcId, action, areaId, spawnKey));
+	}
+
+	/**
 	 * Removes every registered handler. Intended for hot-reload.
 	 */
 	public static void clear() {

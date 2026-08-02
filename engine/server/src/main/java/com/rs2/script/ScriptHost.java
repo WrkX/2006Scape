@@ -20,10 +20,10 @@ import org.graalvm.polyglot.Source;
 import org.graalvm.polyglot.Value;
 import org.graalvm.polyglot.io.IOAccess;
 
+import com.rs2.event.CycleEventHandler;
 import com.rs2.game.players.Player;
 import com.rs2.game.players.PlayerHandler;
 import com.rs2.script.activation.HookResult;
-import com.rs2.script.activation.NoOpProjectionAdapter;
 import com.rs2.script.activation.ProjectionAdapter;
 import com.rs2.script.activation.RuntimeActivationTransaction;
 import com.rs2.script.activation.RuntimeSnapshot;
@@ -112,7 +112,7 @@ public final class ScriptHost {
 
 	private ActiveState activeState;
 	private long nextGeneration;
-	private ProjectionAdapter projectionAdapter = NoOpProjectionAdapter
+	private ProjectionAdapter projectionAdapter = com.rs2.script.area.ScriptAreaRuntime
 			.getInstance();
 	private final List<String> diagnostics = new ArrayList<>();
 
@@ -287,7 +287,8 @@ public final class ScriptHost {
 	synchronized void setProjectionAdapterForTesting(
 			ProjectionAdapter adapter) {
 		projectionAdapter = adapter == null
-				? NoOpProjectionAdapter.getInstance() : adapter;
+				? com.rs2.script.area.ScriptAreaRuntime.getInstance()
+						: adapter;
 	}
 
 	private void replaceContext() {
@@ -346,6 +347,15 @@ public final class ScriptHost {
 			runPostCommit("close old-generation standalone boss sessions",
 					() -> com.rs2.script.boss.StandaloneBossService
 							.getInstance().closeGeneration(previousGeneration));
+			runPostCommit("publish area generation",
+					() -> com.rs2.script.area.ScriptAreaRuntime.getInstance()
+							.onGenerationPublished(published.generation()));
+			runPostCommit("close old-generation area sessions",
+					() -> com.rs2.script.area.ScriptAreaRuntime.getInstance()
+							.closeGeneration(previousGeneration));
+			runPostCommit("close old-generation scripted shops",
+					() -> com.rs2.script.shop.ScriptShopRuntime.getInstance()
+							.closeGeneration(previousGeneration));
 			runPostCommit("cancel old-generation tasks",
 					() -> ScriptScheduler.getInstance()
 							.cancelGeneration(previousGeneration));
@@ -406,15 +416,27 @@ public final class ScriptHost {
 				.closeGeneration(previousGeneration);
 		com.rs2.script.boss.StandaloneBossService.getInstance()
 				.closeGeneration(previousGeneration);
+		com.rs2.script.area.ScriptAreaRuntime.getInstance()
+				.onGenerationPublished(generation);
+		com.rs2.script.area.ScriptAreaRuntime.getInstance()
+				.closeGeneration(previousGeneration);
+		com.rs2.script.shop.ScriptShopRuntime.getInstance()
+				.closeGeneration(previousGeneration);
 		clearPendingScriptCallbacks();
 	}
 
 	synchronized void resetForTesting() {
 		clearPendingScriptCallbacks();
+		CycleEventHandler.getSingleton().resetForTesting();
 		ScriptEncounterService.getInstance().resetForTesting();
 		com.rs2.script.boss.StandaloneBossService.getInstance()
 				.resetForTesting();
-		projectionAdapter = NoOpProjectionAdapter.getInstance();
+		com.rs2.script.area.ScriptAreaRuntime.getInstance()
+				.resetForTesting();
+		com.rs2.script.shop.ScriptShopRuntime.getInstance()
+				.resetForTesting();
+		projectionAdapter = com.rs2.script.area.ScriptAreaRuntime
+				.getInstance();
 		diagnostics.clear();
 		activeState = null;
 	}

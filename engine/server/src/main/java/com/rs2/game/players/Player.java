@@ -1724,6 +1724,8 @@ public abstract class Player {
 	public boolean isMoving, walkingToItem;
 	public boolean isShopping, updateShop;
 	public int shopId;
+	/** Active scripted-shop session id, or {@code null} in a legacy shop. */
+	public String scriptShopId;
 	public int tradeStatus, tradeWith;
 	public boolean forcedChatUpdateRequired, inDuel, tradeAccepted, goodTrade,
 			inTrade, tradeRequested, tradeResetNeeded, tradeConfirmed,

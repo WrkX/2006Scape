@@ -122,9 +122,32 @@ public final class ScriptFunctions {
 	public Consumer<Value> getDefineArea() {
 		return def -> {
 			requireObject("defineArea", def);
-			String id = requireStringMember("defineArea", def, "id");
-			rejectDuplicateRecord("defineArea(" + id + ")",
-					DefinitionRegistry.put(DefinitionKind.AREA, id, def));
+			com.rs2.script.area.AreaDefinition area =
+					new com.rs2.script.area.AreaDefinitionParser(
+							ModuleScope.currentSource(),
+							ModuleScope.currentSchemaVersion()).parse(def);
+			rejectDuplicateRecord("defineArea(" + area.id() + ")",
+					com.rs2.script.area.AreaDefinitionRegistry.put(area));
+			com.rs2.script.area.ScriptAreaRuntime.getInstance()
+					.registerArea(area);
+		};
+	}
+
+	/**
+	 * Registers one canonical scripted shop: the guest payload is parsed
+	 * into a Java-owned typed descriptor with definition-backed items,
+	 * declared stock, prices, and restock policy. Opening routes are bound
+	 * to exact area NPC allocations by the area runtime.
+	 */
+	public Consumer<Value> getDefineShop() {
+		return def -> {
+			requireObject("defineShop", def);
+			com.rs2.script.shop.ShopDefinition shop =
+					new com.rs2.script.shop.ShopDefinitionParser(
+							ModuleScope.currentSource(),
+							ModuleScope.currentSchemaVersion()).parse(def);
+			rejectDuplicateRecord("defineShop(" + shop.id() + ")",
+					com.rs2.script.shop.ShopDefinitionRegistry.put(shop));
 		};
 	}
 

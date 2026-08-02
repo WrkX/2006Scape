@@ -2,8 +2,10 @@ package com.rs2.game.players;
 
 import static org.junit.Assert.assertEquals;
 
+import java.lang.reflect.Field;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -18,6 +20,7 @@ public class TradeInventorySlotsTest {
 	private static final int IRON_SWORD = 1293;
 
 	private Client player;
+	private org.apollo.cache.def.ItemDefinition[] previousItems;
 
 	@Before
 	public void setUp() {
@@ -31,7 +34,17 @@ public class TradeInventorySlotsTest {
 		player.outStream = new Stream(new byte[Constants.BUFFER_SIZE]);
 		player.outStream.packetEncryption =
 				new org.apollo.util.security.IsaacRandom(new int[4]);
+		previousItems = org.apollo.cache.def.ItemDefinition
+				.getDefinitions();
 		initItemDefinitions();
+	}
+
+	@After
+	public void restore() throws Exception {
+		Field field = org.apollo.cache.def.ItemDefinition.class
+				.getDeclaredField("definitions");
+		field.setAccessible(true);
+		field.set(null, previousItems);
 	}
 
 	private static void initItemDefinitions() {

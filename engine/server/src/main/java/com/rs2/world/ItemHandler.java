@@ -108,10 +108,44 @@ public class ItemHandler {
         return true;
     }
 
+    /**
+     * Arms a bounded public lifetime on exact staged identities: visible to
+     * everyone immediately and removed after {@code ticks} game cycles
+     * through the legacy global expiry path. Fails when any identity is
+     * already claimed or absent.
+     */
+    public synchronized boolean armPublicLifetime(List<GroundItem> exactItems,
+            int ticks) {
+        if (exactItems == null || exactItems.isEmpty() || ticks < 1
+                || ticks > 1000) return false;
+        for (GroundItem item : exactItems) {
+            if (!containsExact(item)) return false;
+        }
+        for (GroundItem item : exactItems) {
+            item.configureScript(item.getEncounterToken(), false, false, 0);
+            item.removeTicks = ticks;
+        }
+        return true;
+    }
+
     public synchronized void closeEncounterRewards(long encounterToken) {
         ArrayList<GroundItem> owned = new ArrayList<GroundItem>();
         for (GroundItem item : items) {
             if (item != null && item.getEncounterToken() == encounterToken
+                    && !item.isDetached()) owned.add(item);
+        }
+        if (!owned.isEmpty()) removeExact(owned);
+    }
+
+    /**
+     * Removes every unclaimed exact area-owned identity of one area token.
+     * Detached (expiry-armed) rewards are left for their private TTL; equal
+     * legacy or public identities are never touched.
+     */
+    public synchronized void closeAreaRewards(long areaToken) {
+        ArrayList<GroundItem> owned = new ArrayList<GroundItem>();
+        for (GroundItem item : items) {
+            if (item != null && item.getEncounterToken() == areaToken
                     && !item.isDetached()) owned.add(item);
         }
         if (!owned.isEmpty()) removeExact(owned);

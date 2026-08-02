@@ -1,26 +1,21 @@
 /**
- * Canonical drop tables for Dragon Island creatures.
+ * Canonical named drop tables of Dragon Island content.
  *
- * Phase 5 WP2 migration: the former author-side {@code LootTable} builder
- * objects were inert (nothing consumed them) and used fantasy item names
- * with no cache definition. They are now canonical schema-v1 named drop
- * tables registered through the bridge, using real 2006 item ids only.
+ * Phase 5 WP4 migration: the tables moved out of the area module so the
+ * loader can register drops, bosses, quests, and raids before the area
+ * definition that references them. All ids are definition-backed 2006
+ * items; the Dragon King boss, the Dragon Guardian and Elder Wizard spawns,
+ * and the Ancient Chest object projection reference them by name.
  *
- * Migrated entries (documented, not silent loss):
- * - "dragon_bones" -> 536 Dragon bones
- * - "dragon_scales", "dragon_token", "ancient_book", "draconic_visage",
- *   "staff_of_fire" variants without a real cache item were replaced by the
- *   closest real items below; "draconic_visage" (2007 item) was dropped.
- *
- * @module areas/dragon_island/drops
+ * @module drops/dragon-island
  */
 
-import { createDropTable } from "../../core/drop-tables.js";
+import { createDropTable } from "../core/drop-tables.js";
 
 /**
  * Dragon Guardian loot table.
  * Always drops dragon bones, with rune and dragon equipment as weighted
- * extras and a rare Dragon Token-equivalent (dragon med helm).
+ * extras and a rare dragon med helm.
  */
 createDropTable({
   id: "dragon_guardian_loot",
@@ -66,5 +61,22 @@ createDropTable({
     { itemId: 1215, minAmount: 1, maxAmount: 1, weight: 16, always: false },
     { itemId: 1305, minAmount: 1, maxAmount: 1, weight: 16, always: false },
     { itemId: 1149, minAmount: 1, maxAmount: 1, weight: 8, always: false },
+  ],
+});
+
+/**
+ * Ancient Chest loot table (first click of the area chest projection).
+ * Public delivery: the exact identities are visible to everyone and expire
+ * after the bounded public lifetime.
+ */
+createDropTable({
+  id: "ancient_chest_loot",
+  entries: [
+    { itemId: 995, minAmount: 2500, maxAmount: 10000, weight: 128, always: false },
+    { itemId: 536, minAmount: 5, maxAmount: 10, weight: 64, always: false },
+    { itemId: 1147, minAmount: 1, maxAmount: 1, weight: 32, always: false },
+    { itemId: 1127, minAmount: 1, maxAmount: 1, weight: 16, always: false },
+    { itemId: 1215, minAmount: 1, maxAmount: 1, weight: 16, always: false },
+    { itemId: 1305, minAmount: 1, maxAmount: 1, weight: 8, always: false },
   ],
 });

@@ -1358,7 +1358,11 @@ public class Region {
 		if (height > 3) {
 			height = 0; //this doesn't seem good
 		}
-		for (Region r : RegionFactory.getRegions()) {
+		Region[] loaded = RegionFactory.getRegions();
+		if (loaded == null) {
+			return 0;
+		}
+		for (Region r : loaded) {
 			if (r.id() == getRegionId(x,y)) {
 				return r.getClip(x, y, height);
 			}
@@ -1370,7 +1374,11 @@ public class Region {
 		if (height > 3) {
 			height = 0;
 		}
-		for (Region r : RegionFactory.getRegions()) {
+		Region[] loaded = RegionFactory.getRegions();
+		if (loaded == null) {
+			return 0;
+		}
+		for (Region r : loaded) {
 			if (r.id() == getRegionId(x,y)) {
 				return r.getProjectileClip(x, y, height);
 			}

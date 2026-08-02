@@ -18,6 +18,8 @@ import com.rs2.script.ScriptHost;
 import com.rs2.script.ScriptedNpc;
 import com.rs2.script.ScriptedPlayer;
 import com.rs2.script.registries.NpcHandlerRegistry;
+import com.rs2.script.route.ExecutableRouteRecord;
+import com.rs2.script.world.ScriptNpcService;
 import com.rs2.util.Misc;
 
 import org.graalvm.polyglot.Value;
@@ -1180,7 +1182,30 @@ public class NpcActions {
 
     private boolean dispatchScriptedClick(final int npcType, final String action) {
         return ScriptHost.getInstance().dispatchActive(
-                state -> NpcHandlerRegistry.getRecord(state, npcType, action),
+                state -> {
+                    // Exact allocation-bound area route first: a shop-
+                    // opening route belongs to one exact area NPC spawn.
+                    // The clicked NPC's live allocation resolves its spawn
+                    // key; an equal-id legacy NPC has no such key and falls
+                    // through to the plain npc/action lookup.
+                    Npc npcEntity = player.rememberNpcIndex >= 0
+                            && player.rememberNpcIndex < NpcHandler.npcs.length
+                            ? NpcHandler.npcs[player.rememberNpcIndex] : null;
+                    if (npcEntity != null && npcEntity.npcType == npcType) {
+                        String[] binding = ScriptNpcService.getInstance()
+                                .areaSpawnOf(npcEntity);
+                        if (binding != null) {
+                            ExecutableRouteRecord allocated = NpcHandlerRegistry
+                                    .getRecordAllocated(state, npcType,
+                                            action, binding[0], binding[1]);
+                            if (allocated != null) {
+                                return allocated;
+                            }
+                        }
+                    }
+                    return NpcHandlerRegistry.getRecord(state, npcType,
+                            action);
+                },
                 (generation, route) -> {
                     Npc npcEntity = player.rememberNpcIndex >= 0
                             && player.rememberNpcIndex < NpcHandler.npcs.length

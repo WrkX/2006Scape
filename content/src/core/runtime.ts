@@ -166,6 +166,12 @@ export interface ScriptedPresentation {
   setText(componentId: number, text: string): boolean;
   setItemModel(componentId: number, itemId: number, zoom: number): boolean;
   openStaticShop(shopId: number): boolean;
+  /**
+   * Opens one Java-owned scripted shop definition by its stable string id.
+   * The shop must be active in the current generation and the player must
+   * be a valid live identity outside trade/duel.
+   */
+  openScriptShop(shopId: string): boolean;
   stillGraphic(graphicId: number, x: number, y: number, plane: number, height: number, delay: number, audience: ScriptAudience): boolean;
   projectile(graphicId: number, fromX: number, fromY: number, toX: number, toY: number, plane: number, angle: number, speed: number, startHeight: number, endHeight: number, delay: number, audience: ScriptAudience): boolean;
   beginCamera(ticks: number): ScriptCameraSession | null;

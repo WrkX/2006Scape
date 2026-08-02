@@ -6,24 +6,32 @@ import com.rs2.game.objects.Objects;
 import com.rs2.script.ScriptedPosition;
 import com.rs2.world.WorldObjectService;
 
-/** Exact encounter-owned object identity. */
+/** Exact encounter- or area-owned object identity. */
 public final class ScriptObjectHandle {
     private final WorldObjectService service;
     private final WorldObjectService.Tile tile;
     private final long token;
     private final long version;
     private final long encounterToken;
+    private final long areaToken;
     private final int id, type, rotation;
 
     public ScriptObjectHandle(WorldObjectService service, WorldObjectService.Tile tile,
             long token, Objects object) {
-        this(service, tile, token, 0L, 0L, object);
+        this(service, tile, token, 0L, 0L, 0L, object);
     }
 
     public ScriptObjectHandle(WorldObjectService service, WorldObjectService.Tile tile,
             long token, long version, long encounterToken, Objects object) {
+        this(service, tile, token, version, encounterToken, 0L, object);
+    }
+
+    public ScriptObjectHandle(WorldObjectService service, WorldObjectService.Tile tile,
+            long token, long version, long encounterToken, long areaToken,
+            Objects object) {
         this.service = service; this.tile = tile; this.token = token;
         this.version = version; this.encounterToken = encounterToken;
+        this.areaToken = areaToken;
         this.id = object == null ? -1 : object.getObjectId();
         this.type = object == null ? -1 : object.getObjectType();
         this.rotation = object == null ? -1 : object.getObjectFace();
@@ -40,4 +48,5 @@ public final class ScriptObjectHandle {
     public long tokenValue() { return token; }
     public long versionValue() { return version; }
     public long encounterTokenValue() { return encounterToken; }
+    public long areaTokenValue() { return areaToken; }
 }

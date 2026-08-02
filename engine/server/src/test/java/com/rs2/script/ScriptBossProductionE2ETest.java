@@ -91,15 +91,23 @@ public class ScriptBossProductionE2ETest {
 
 	@Before
 	public void setUp() throws Exception {
+		// Reset must run while the previous test's regions still carry its
+		// collision ledger, so the reset can verify and clean it; regions
+		// are then replaced with this test's fixture set.
 		ScriptRuntimeTestFixture.reset();
 		ScriptEncounterService.installForTesting(SEED);
 		ScriptEncounterService.getInstance().resetForTesting();
 		Wp5PlayerSupport.ensureObjectDefinitions();
 		Wp5PlayerSupport.ensureItemDefinitions();
+		Wp5PlayerSupport.ensureNpcDefinitions();
 		Arrays.fill(PlayerHandler.players, null);
 		npcHandler = new NpcHandler();
 		Arrays.fill(NpcHandler.npcs, null);
-		setRegions(new Region[] { new Region(REGION_ID, false) });
+		setRegions(new Region[] {
+				new Region(REGION_ID, false),
+				new Region(Region.getRegionId(2830, 9630), false),
+				new Region(Region.getRegionId(2870, 9670), false)
+		});
 		GameEngine.itemHandler.items.clear();
 		GameEngine.itemHandler.resetProjectionsForTesting();
 		CycleEventHandler.getSingleton().stopEvents(null);

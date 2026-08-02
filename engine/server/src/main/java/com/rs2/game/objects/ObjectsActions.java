@@ -45,6 +45,7 @@ import com.rs2.script.ScriptHost;
 import com.rs2.script.ScriptedObject;
 import com.rs2.script.ScriptedPlayer;
 import com.rs2.script.registries.ObjectHandlerRegistry;
+import com.rs2.script.route.ExecutableRouteRecord;
 import com.rs2.util.Misc;
 import com.rs2.world.Boundary;
 import com.rs2.world.clip.Region;
@@ -3130,8 +3131,24 @@ public class ObjectsActions {
     private boolean dispatchScriptedClick(final int objectType,
             final String action, final Objects clickedObject) {
         return ScriptHost.getInstance().dispatchActive(
-                state -> ObjectHandlerRegistry.getRecord(
-                        state, objectType, action),
+                state -> {
+                    // Exact tile-position area route first: a generation-
+                    // owned object projection route only applies while the
+                    // tile still carries an area-owned object; a stale
+                    // cache object at the same id/action has no owner key.
+                    ExecutableRouteRecord exact = ObjectHandlerRegistry
+                            .getRecordAt(state, objectType, action,
+                                    player.objectX, player.objectY,
+                                    player.heightLevel);
+                    if (exact != null && com.rs2.world.WorldObjectService
+                            .getInstance().areaOwnerAt(player.objectX,
+                                    player.objectY, player.heightLevel) == 0L) {
+                        exact = null;
+                    }
+                    return exact != null ? exact
+                            : ObjectHandlerRegistry.getRecord(state,
+                                    objectType, action);
+                },
                 (generation, route) -> ScriptExecutor.executeRoute(
                         route, "object", String.valueOf(objectType), action,
                         new ScriptContext(new ScriptedPlayer(player, generation),

@@ -205,6 +205,7 @@ public class GameEngine {
 		IndexedFileSystem cache = new IndexedFileSystem(Paths.get(Constants.FILE_SYSTEM_DIR), true);
 		new ObjectDefinitionDecoder(cache).run();
 		new ItemDefinitionDecoder(cache).run();
+		shopHandler.loadShops();
 		
 		/**
 		 * Initialise Handlers
@@ -416,6 +417,8 @@ public class GameEngine {
 
 	static void processScriptLifecycleCycle() {
 		ScriptLifecycleService.getInstance().processGameTick();
+		com.rs2.script.area.ScriptAreaRuntime.getInstance().processGameTick();
+		com.rs2.script.shop.ScriptShopRuntime.getInstance().processGameTick();
 	}
 	
 	private static void checkAndLogDuration(String processName, long duration) {

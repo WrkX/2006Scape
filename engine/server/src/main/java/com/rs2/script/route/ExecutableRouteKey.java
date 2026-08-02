@@ -32,8 +32,33 @@ public final class ExecutableRouteKey {
 				objectId + "/" + action);
 	}
 
+	/**
+	 * Exact route of one generation-owned object projection: the projected
+	 * object id and action at one canonical tile. A cache or legacy object
+	 * with the same id/action at any other tile has no such key and falls
+	 * through to the plain {@link #object(int, String)} lookup.
+	 */
+	public static ExecutableRouteKey objectAt(int objectId, String action,
+			int x, int y, int plane) {
+		return new ExecutableRouteKey(RouteKind.OBJECT,
+				objectId + "/" + action + "@" + x + "," + y + "," + plane);
+	}
+
 	public static ExecutableRouteKey npc(int npcId, String action) {
 		return new ExecutableRouteKey(RouteKind.NPC, npcId + "/" + action);
+	}
+
+	/**
+	 * Exact route of one generation-owned area NPC allocation: the npc id,
+	 * ordinal action, and the owning area spawn key. Only a live allocation
+	 * of that exact spawn carries this key; an equal-id legacy NPC has no
+	 * such key and falls through to the plain {@link #npc(int, String)}
+	 * lookup.
+	 */
+	public static ExecutableRouteKey npcAllocated(int npcId, String action,
+			String areaId, String spawnKey) {
+		return new ExecutableRouteKey(RouteKind.NPC,
+				npcId + "/" + action + "#" + areaId + "/" + spawnKey);
 	}
 
 	public static ExecutableRouteKey item(int itemId, String action) {

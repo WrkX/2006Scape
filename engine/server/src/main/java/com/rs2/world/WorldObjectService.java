@@ -58,8 +58,8 @@ public final class WorldObjectService {
     public synchronized ResolvedWorldObject resolve(Player player, int x, int y, int plane) {
         Tile tile = new Tile(x, y, plane);
         OwnedObject owned = encounterObjects.get(tile);
-        if (owned != null && ScriptEncounterService.getInstance()
-                .canObserveOwnedObject(player, owned.encounterToken, x, y, plane)) {
+        if (owned != null && (owned.areaOwned() || ScriptEncounterService.getInstance()
+                .canObserveOwnedObject(player, owned.encounterToken, x, y, plane))) {
             return owned.tombstone ? null : new ResolvedWorldObject(copy(owned.object),
                     ResolvedWorldObject.Layer.ENCOUNTER, owned.version, owned.token);
         }
@@ -154,9 +154,10 @@ public final class WorldObjectService {
 
 	private ResolvedWorldObject resolveVisibleSlot(Player player, ObjectSlot key) {
 		OwnedObject owned = encounterObjects.get(key.tile());
-		boolean participant = owned != null && ScriptEncounterService.getInstance()
-				.canObserveOwnedObject(player, owned.encounterToken, key.x, key.y,
-						key.plane);
+		boolean participant = owned != null && (owned.areaOwned()
+				|| ScriptEncounterService.getInstance()
+						.canObserveOwnedObject(player, owned.encounterToken,
+								key.x, key.y, key.plane));
 		if (participant) {
 			if (owned.object != null && slot(owned.object).equals(key)) {
 				return new ResolvedWorldObject(copy(owned.object),
@@ -172,15 +173,131 @@ public final class WorldObjectService {
     public ScriptObjectHandle replace(long encounterToken, int x, int y,
             int plane, int expectedId, int expectedType, int expectedRotation,
             int replacementId, int replacementType, int replacementRotation) {
+        return replaceInternal(encounterToken, 0L, x, y, plane, expectedId,
+                expectedType, expectedRotation, replacementId,
+                replacementType, replacementRotation);
+    }
+
+    /**
+     * Area-owned object projection with the exact layered transaction. The
+     * tile must lie inside the open area session's bounds, the footprint
+     * must be authorized, and a tile already owned by another non-retired
+     * owner rejects. A same-area-id predecessor being retired in the current
+     * handoff is a shadow replacement and remains restorable.
+     */
+    public ScriptObjectHandle replaceArea(long areaToken, int x, int y,
+            int plane, int expectedId, int expectedType, int expectedRotation,
+            int replacementId, int replacementType, int replacementRotation) {
+        if (areaToken == 0L) {
+            return null;
+        }
+        return replaceInternal(0L, areaToken, x, y, plane, expectedId,
+                expectedType, expectedRotation, replacementId,
+                replacementType, replacementRotation);
+    }
+
+    public ScriptObjectHandle removeArea(long areaToken, int x, int y, int plane,
+            int expectedId, int expectedType, int expectedRotation) {
+        return replaceArea(areaToken, x, y, plane, expectedId, expectedType,
+                expectedRotation, -1, -1, -1);
+    }
+
+    /**
+     * Owner-neutral write authorization: an encounter token routes through
+     * the encounter service, an area token through the area runtime. A tile
+     * outside the owner's bounds/arena is never writable.
+     */
+    private boolean ownerAuthorized(long encounterToken, long areaToken,
+            int x, int y, int plane) {
+        if (areaToken != 0L) {
+            return com.rs2.script.area.ScriptAreaRuntime.getInstance()
+                    .canAreaObjectWrite(areaToken, x, y, plane);
+        }
+        return ScriptEncounterService.getInstance().isObjectWriteAuthorized(
+                encounterToken, x, y, plane);
+    }
+
+    /**
+     * Handoff reservation authority: while the area runtime holds the
+     * reserve-to-commit reservation of a tile, only the exact old or new
+     * owner session may write it. Consulted before taking this service's
+     * monitor (same lock discipline as {@link #ownerAuthorized}).
+     */
+    private boolean reservationAuthorized(long encounterToken,
+            long areaToken, int x, int y, int plane) {
+        return com.rs2.script.area.ScriptAreaRuntime.getInstance()
+                .tileReservationAllows(x, y, plane, areaToken,
+                        encounterToken);
+    }
+
+    private boolean ownerFootprintAuthorized(long encounterToken,
+            long areaToken, int x, int y, int plane, int objectId,
+            int rotation, int objectType) {
+        if (areaToken != 0L) {
+            return com.rs2.script.area.ScriptAreaRuntime.getInstance()
+                    .canAreaObjectFootprint(areaToken, x, y, plane, objectId,
+                            rotation, objectType);
+        }
+        return ScriptEncounterService.getInstance().isObjectFootprintAuthorized(
+                encounterToken, x, y, plane, objectId, rotation, objectType);
+    }
+
+    private boolean ownerReserveObjectMutation(long encounterToken,
+            long areaToken) {
+        if (areaToken != 0L) {
+            return com.rs2.script.area.ScriptAreaRuntime.getInstance()
+                    .reserveAreaObjectMutation(areaToken);
+        }
+        return ScriptEncounterService.getInstance()
+                .reserveObjectMutation(encounterToken);
+    }
+
+    private void ownerReleaseObjectMutation(long encounterToken,
+            long areaToken) {
+        if (areaToken != 0L) {
+            com.rs2.script.area.ScriptAreaRuntime.getInstance()
+                    .releaseAreaObjectMutation(areaToken);
+            return;
+        }
+        ScriptEncounterService.getInstance()
+                .releaseObjectMutation(encounterToken);
+    }
+
+    /**
+     * Same-owner validation for a tile already owned by another projection:
+     * an encounter never replaces a foreign encounter, and an area replaces
+     * a foreign owner only when that owner is the same-area-id predecessor
+     * being retired in the current handoff (a shadow replacement).
+     */
+    private boolean sameOwnerAllowed(OwnedObject previous, long encounterToken,
+            long areaToken, int x, int y, int plane) {
+        if (areaToken != 0L) {
+            if (previous.areaOwned()) {
+                return previous.areaToken == areaToken
+                        || com.rs2.script.area.ScriptAreaRuntime.getInstance()
+                                .canShadowReplace(previous.areaToken, areaToken,
+                                        x, y, plane);
+            }
+            return false;
+        }
+        return !previous.areaOwned()
+                && previous.encounterToken == encounterToken;
+    }
+
+    private ScriptObjectHandle replaceInternal(long encounterToken,
+            long areaToken, int x, int y, int plane, int expectedId,
+            int expectedType, int expectedRotation, int replacementId,
+            int replacementType, int replacementRotation) {
         if (!valid(x, y, plane) || !validShape(expectedId, expectedType, expectedRotation)
                 || !validShape(replacementId, replacementType, replacementRotation)) return null;
+        boolean areaOwned = areaToken != 0L;
         // Validate ownership before taking this service's monitor. Encounter
         // close takes the inverse (encounter -> object) lock order.
-        if (!ScriptEncounterService.getInstance().isObjectWriteAuthorized(
-                encounterToken, x, y, plane)) return null;
-        if (replacementId >= 0 && !ScriptEncounterService.getInstance()
-                .isObjectFootprintAuthorized(encounterToken, x, y, plane,
-                        replacementId, replacementRotation, replacementType)) return null;
+        if (!ownerAuthorized(encounterToken, areaToken, x, y, plane)) return null;
+        if (!reservationAuthorized(encounterToken, areaToken, x, y, plane)) return null;
+        if (replacementId >= 0 && !ownerFootprintAuthorized(encounterToken,
+                areaToken, x, y, plane, replacementId, replacementRotation,
+                replacementType)) return null;
         synchronized (this) {
         Tile tile = new Tile(x, y, plane);
         OwnedObject previous = encounterObjects.get(tile);
@@ -199,29 +316,32 @@ public final class WorldObjectService {
 		}
         if (emptyExpected ? current != null : current == null
                 || !current.matches(expectedId, x, y, plane, expectedType, expectedRotation)) return null;
-        if (previous != null && previous.encounterToken != encounterToken) return null;
+        if (previous != null && !sameOwnerAllowed(previous, encounterToken,
+                areaToken, x, y, plane)) return null;
         if (previous != null && previous.object != null
-                && !ScriptEncounterService.getInstance().isObjectFootprintAuthorized(
-                        encounterToken, x, y, plane, previous.object.getObjectId(),
-                        previous.object.getObjectFace(), previous.object.getObjectType())) return null;
+                && !ownerFootprintAuthorized(encounterToken, areaToken, x, y,
+                        plane, previous.object.getObjectId(),
+                        previous.object.getObjectFace(),
+                        previous.object.getObjectType())) return null;
         Objects replacement = replacementId == -1 ? null : new Objects(replacementId,
                 x, y, plane, replacementRotation, replacementType, 0);
         if (previous != null && previous.tombstone && replacement == null) {
             return new ScriptObjectHandle(this, tile, previous.token, previous.version,
-                    encounterToken, null);
+                    encounterToken, areaToken, null);
         }
         if (current == null && previous == null && replacement == null) return null;
-        if (!ScriptEncounterService.getInstance().reserveObjectMutation(encounterToken)) return null;
+        if (!ownerReserveObjectMutation(encounterToken, areaToken)) return null;
         long token = nextToken++;
         long version = nextVersion++;
         Objects lower = previous == null
                 ? (current == null ? null : current.getObject()) : previous.lowerObject;
 		ContributorReceipt lowerReceipt = previous == null
 				? receiptFor(current, tile) : previous.lowerReceipt;
-        OwnedObject owned = new OwnedObject(encounterToken, token, version, lower,
-				lowerReceipt, replacement, replacement == null);
+        OwnedObject owned = new OwnedObject(encounterToken, areaToken, token,
+                version, lower, lowerReceipt, replacement,
+                replacement == null);
         if (!canReserve(owned, previous)) {
-            ScriptEncounterService.getInstance().releaseObjectMutation(encounterToken);
+            ownerReleaseObjectMutation(encounterToken, areaToken);
             return null;
         }
         boolean previousRemoved = false;
@@ -237,7 +357,7 @@ public final class WorldObjectService {
             encounterObjects.put(tile, owned);
             installed = true;
         } catch (RuntimeException failure) {
-            ScriptEncounterService.getInstance().releaseObjectMutation(encounterToken);
+            ownerReleaseObjectMutation(encounterToken, areaToken);
             if (installed || collisionSnapshots.containsKey(Long.valueOf(owned.token))) {
                 try { removeCollision(owned); } catch (RuntimeException ignored) { }
             }
@@ -249,11 +369,13 @@ public final class WorldObjectService {
             if (previous == null) encounterObjects.remove(tile); else encounterObjects.put(tile, previous);
             return null;
         }
-        broadcast(current == null ? null : current.getObject(), replacement, encounterToken);
+        broadcast(current == null ? null : current.getObject(), replacement,
+                areaOwned ? areaToken : encounterToken, areaOwned);
         if (previous != null) {
-            ScriptEncounterService.getInstance().releaseObjectMutation(encounterToken);
+            ownerReleaseObjectMutation(encounterToken, areaToken);
         }
-        return new ScriptObjectHandle(this, tile, token, version, encounterToken, replacement);
+        return new ScriptObjectHandle(this, tile, token, version,
+                encounterToken, areaToken, replacement);
         }
     }
 
@@ -268,12 +390,16 @@ public final class WorldObjectService {
         return owned != null && owned.token == handle.tokenValue()
                 && owned.version == handle.versionValue()
                 && owned.encounterToken == handle.encounterTokenValue()
+                && owned.areaToken == handle.areaTokenValue()
                 && sameShape(owned.object, handle);
     }
 
     public boolean removeHandle(ScriptObjectHandle handle) {
-        if (handle == null || !ScriptEncounterService.getInstance().isObjectWriteAuthorized(
-                handle.encounterTokenValue(), handle.tile().x, handle.tile().y,
+        if (handle == null || !ownerAuthorized(handle.encounterTokenValue(),
+                handle.areaTokenValue(), handle.tile().x, handle.tile().y,
+                handle.tile().plane)) return false;
+        if (!reservationAuthorized(handle.encounterTokenValue(),
+                handle.areaTokenValue(), handle.tile().x, handle.tile().y,
                 handle.tile().plane)) return false;
         OwnedObject released;
         synchronized (this) {
@@ -286,7 +412,7 @@ public final class WorldObjectService {
             ResolvedWorldObject lower = resolveLower(handle.tile().x, handle.tile().y,
                     handle.tile().plane);
             broadcast(released.object, lower == null ? null : lower.getObject(),
-                    released.encounterToken);
+                    released.ownerToken(), released.areaOwned());
         }
         ScriptEncounterService.getInstance().releaseObjectMutation(released.encounterToken);
         return true;
@@ -298,17 +424,9 @@ public final class WorldObjectService {
             Iterator<Map.Entry<Tile, OwnedObject>> iterator = encounterObjects.entrySet().iterator();
             while (iterator.hasNext()) {
                 Map.Entry<Tile, OwnedObject> entry = iterator.next();
-                if (entry.getValue().encounterToken == encounterToken) {
-                    OwnedObject released = entry.getValue();
-                    Objects old = released.object;
-                    removeCollision(released);
-                    releaseFootprint(released);
-                    drainDeferred(released);
-					iterator.remove();
-                    ResolvedWorldObject restored = resolve(entry.getKey().x,
-                            entry.getKey().y, entry.getKey().plane);
-                    Objects lower = restored == null ? null : restored.getObject();
-                    broadcast(old, lower, encounterToken);
+                OwnedObject owned = entry.getValue();
+                if (!owned.areaOwned() && owned.encounterToken == encounterToken) {
+                    releaseOwned(entry, owned, encounterToken, false, iterator);
                     releasedCount++;
                 }
             }
@@ -316,6 +434,142 @@ public final class WorldObjectService {
         while (releasedCount-- > 0) {
             ScriptEncounterService.getInstance().releaseObjectMutation(encounterToken);
         }
+    }
+
+    /**
+     * Restores every area-owned projection of one area token. Only matching
+     * generation/source identities are touched; equal-id legacy content and
+     * other owners stay untouched.
+     */
+    public void closeArea(long areaToken) {
+        int releasedCount = 0;
+        synchronized (this) {
+            Iterator<Map.Entry<Tile, OwnedObject>> iterator = encounterObjects.entrySet().iterator();
+            while (iterator.hasNext()) {
+                Map.Entry<Tile, OwnedObject> entry = iterator.next();
+                OwnedObject owned = entry.getValue();
+                if (owned.areaOwned() && owned.areaToken == areaToken) {
+                    releaseOwned(entry, owned, areaToken, true, iterator);
+                    releasedCount++;
+                }
+            }
+        }
+        while (releasedCount-- > 0) {
+            com.rs2.script.area.ScriptAreaRuntime.getInstance()
+                    .releaseAreaObjectMutation(areaToken);
+        }
+    }
+
+    /**
+     * Retires every area-owned projection of one area token into a
+     * restorable record. Used by the activation transaction's undo ledger:
+     * the old projections stay exactly restorable through
+     * {@link #restoreAreaObjects(List)} until the handoff commits.
+     */
+    public synchronized List<AreaObjectRestore> retireAreaObjects(long areaToken) {
+        List<AreaObjectRestore> restores = new ArrayList<AreaObjectRestore>();
+        Iterator<Map.Entry<Tile, OwnedObject>> iterator = encounterObjects.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<Tile, OwnedObject> entry = iterator.next();
+            OwnedObject owned = entry.getValue();
+            if (!owned.areaOwned() || owned.areaToken != areaToken) {
+                continue;
+            }
+            removeCollision(owned);
+            releaseFootprint(owned);
+            drainDeferred(owned);
+            iterator.remove();
+            ResolvedWorldObject restored = resolve(entry.getKey().x,
+                    entry.getKey().y, entry.getKey().plane);
+            Objects lower = restored == null ? null : restored.getObject();
+            broadcast(owned.object, lower, owned.areaToken, true);
+            restores.add(new AreaObjectRestore(entry.getKey(), owned));
+        }
+        return restores;
+    }
+
+    /**
+     * Re-inserts retired area projections with their exact identity,
+     * collision, footprint, and output state. Idempotent per record.
+     */
+    public synchronized boolean restoreAreaObjects(List<AreaObjectRestore> restores) {
+        if (restores == null) {
+            return false;
+        }
+        boolean complete = true;
+        for (AreaObjectRestore restore : restores) {
+            if (restore == null || restore.owned == null
+                    || restore.owned.areaToken == 0L) {
+                complete = false;
+                continue;
+            }
+            if (encounterObjects.get(restore.tile) != null) {
+                complete = false;
+                continue;
+            }
+            encounterObjects.put(restore.tile, restore.owned);
+            try {
+                reserveFootprint(restore.owned);
+                addCollision(restore.owned);
+            } catch (RuntimeException failure) {
+                encounterObjects.remove(restore.tile);
+                releaseFootprint(restore.owned);
+                complete = false;
+                continue;
+            }
+            broadcast(restore.owned.object == null
+                    ? restore.owned.lowerObject : null,
+                    restore.owned.object, restore.owned.areaToken, true);
+        }
+        return complete;
+    }
+
+    /**
+     * Returns the exact area-owned projection at a tile, or {@code null}
+     * when the tile is not owned by {@code areaToken}. Used by area object
+     * host routes to compare-and-claim the resolver's exact identity.
+     */
+    public synchronized Objects resolveAreaProjection(long areaToken, int x,
+            int y, int plane) {
+        OwnedObject owned = encounterObjects.get(new Tile(x, y, plane));
+        return owned != null && owned.areaOwned() && owned.areaToken == areaToken
+                && !owned.tombstone ? owned.object : null;
+    }
+
+    /**
+     * Returns the owning area token of the tile, or {@code 0L} when the
+     * tile is not owned by an area projection. Used by the object dispatch
+     * to guard exact tile-position area routes against stale cache objects.
+     */
+    public synchronized long areaOwnerAt(int x, int y, int plane) {
+        OwnedObject owned = encounterObjects.get(new Tile(x, y, plane));
+        return owned != null && owned.areaOwned() && !owned.tombstone
+                ? owned.areaToken : 0L;
+    }
+
+    /** Live area-owned projection count of one area token. */
+    public synchronized int areaObjectCount(long areaToken) {
+        int count = 0;
+        for (OwnedObject owned : encounterObjects.values()) {
+            if (owned.areaOwned() && owned.areaToken == areaToken) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private void releaseOwned(Map.Entry<Tile, OwnedObject> entry,
+            OwnedObject owned, long ownerToken, boolean areaOwned,
+            Iterator<Map.Entry<Tile, OwnedObject>> iterator) {
+        Objects old = owned.object;
+        removeCollision(owned);
+        releaseFootprint(owned);
+        drainDeferred(owned);
+        iterator.remove();
+        ResolvedWorldObject restored = resolve(entry.getKey().x,
+                entry.getKey().y, entry.getKey().plane);
+        Objects lower = restored == null ? null : restored.getObject();
+        broadcast(old, lower, ownerToken, areaOwned);
     }
 
     public synchronized MutationResult applyTimedAdd(ObjectManager manager,
@@ -1382,8 +1636,10 @@ public final class WorldObjectService {
     }
 
     /** Projects an authoritative mutation to nearby clients without mutating
-     * the lower-layer stores. */
-    private static void broadcast(Objects oldObject, Objects newObject, long encounterToken) {
+     * the lower-layer stores. Area-owned projections are public: every
+     * nearby player observes them without a participant check. */
+    private static void broadcast(Objects oldObject, Objects newObject,
+            long ownerToken, boolean areaOwned) {
         int x = newObject != null ? newObject.getObjectX() : oldObject == null ? -1 : oldObject.getObjectX();
         int y = newObject != null ? newObject.getObjectY() : oldObject == null ? -1 : oldObject.getObjectY();
         int plane = newObject != null ? newObject.getObjectHeight() : oldObject == null ? -1 : oldObject.getObjectHeight();
@@ -1391,8 +1647,8 @@ public final class WorldObjectService {
         for (Player player : PlayerHandler.players) {
             if (player == null || player.heightLevel != plane || player.getOutStream() == null
                     || Math.max(Math.abs(player.absX - x), Math.abs(player.absY - y)) > 60) continue;
-            if (!ScriptEncounterService.getInstance().canObserveOwnedObject(
-                    player, encounterToken, x, y, plane)) continue;
+            if (!areaOwned && !ScriptEncounterService.getInstance()
+                    .canObserveOwnedObject(player, ownerToken, x, y, plane)) continue;
             if (oldObject != null) player.getPacketSender().createObjectSpawn(-1, x, y,
                     plane, oldObject.getObjectFace(), oldObject.getObjectType());
             if (newObject != null) player.getPacketSender().createObjectSpawn(
@@ -1449,16 +1705,18 @@ public final class WorldObjectService {
 	}
 
     private static final class OwnedObject {
-        final long encounterToken, token, version;
+        final long encounterToken, areaToken, token, version;
         final Tile origin;
         final Objects lowerObject;
 		final ContributorReceipt lowerReceipt;
         final Objects object;
         final boolean tombstone;
         final List<Tile> footprint;
-        OwnedObject(long encounterToken, long token, long version, Objects lowerObject,
-				ContributorReceipt lowerReceipt, Objects object, boolean tombstone) {
-            this.encounterToken = encounterToken; this.token = token; this.version = version;
+        OwnedObject(long encounterToken, long areaToken, long token, long version,
+                Objects lowerObject, ContributorReceipt lowerReceipt,
+                Objects object, boolean tombstone) {
+            this.encounterToken = encounterToken; this.areaToken = areaToken;
+            this.token = token; this.version = version;
             this.lowerObject = lowerObject == null ? null : copy(lowerObject);
 			this.lowerReceipt = lowerReceipt;
             this.object = object == null ? null : copy(object); this.tombstone = tombstone;
@@ -1471,11 +1729,57 @@ public final class WorldObjectService {
             addFootprint(union, object);
             this.footprint = new ArrayList<Tile>(union.keySet());
         }
+        boolean areaOwned() {
+            return areaToken != 0L;
+        }
+        long ownerToken() {
+            return areaOwned() ? areaToken : encounterToken;
+        }
         private static void addFootprint(Map<Tile, Tile> union, Objects value) {
             if (value == null) return;
             for (CollisionContribution contribution : collisionSnapshot(value)) {
                 union.put(contribution.tile, contribution.tile);
             }
+        }
+    }
+
+    /**
+     * Restorable identity of one retired area-owned projection. The record
+     * is immutable and re-insertion restores the exact collision, footprint,
+     * and output state through {@link #restoreAreaObjects(List)}.
+     */
+    public static final class AreaObjectRestore {
+        private final Tile tile;
+        private final OwnedObject owned;
+
+        AreaObjectRestore(Tile tile, OwnedObject owned) {
+            this.tile = tile;
+            this.owned = owned;
+        }
+
+        public int x() {
+            return tile.x;
+        }
+
+        public int y() {
+            return tile.y;
+        }
+
+        public int plane() {
+            return tile.plane;
+        }
+
+        public long areaToken() {
+            return owned.areaToken;
+        }
+
+        public long token() {
+            return owned.token;
+        }
+
+        /** The exact projected object, or {@code null} for a tombstone. */
+        public Objects object() {
+            return owned.object == null ? null : copy(owned.object);
         }
     }
 

@@ -40,6 +40,8 @@ public final class ScriptLifecycleService {
 
 	public void onLogin(Player player) {
 		ScriptEncounterService.getInstance().onPlayerLogin(player);
+		com.rs2.script.shop.ScriptShopRuntime.getInstance()
+				.onPlayerRemoved(player);
 		if (!ScriptHost.getInstance().executeInActiveGeneration(
 				new ScriptHost.ActiveGenerationOperation() {
 			@Override
@@ -71,6 +73,8 @@ public final class ScriptLifecycleService {
 
 	public void onPlayerRemoved(Player player) {
 		ScriptEncounterService.getInstance().onPlayerRemoved(player);
+		com.rs2.script.shop.ScriptShopRuntime.getInstance()
+				.onPlayerRemoved(player);
 		if (!ScriptHost.getInstance().executeInActiveGeneration(
 				new ScriptHost.ActiveGenerationOperation() {
 			@Override

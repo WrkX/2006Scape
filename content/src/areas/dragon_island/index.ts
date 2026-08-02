@@ -1,64 +1,67 @@
 /**
  * Dragon Island area definition.
  *
- * A custom island accessible by boat from Port Sarim.  Home to the
- * "Dragon Awakens" quest, a Dragon King boss, and the Temple of Zaros raid.
+ * A custom volcanic island.  Home to the "Dragon Awakens" quest, a Dragon
+ * King boss, and the Temple of Zaros raid.
+ *
+ * Phase 5 WP4 migration: the definition is now canonical schema-v1 with
+ * exact spawn keys, definition-backed ids, a named chest drop binding, and
+ * id references to the separately registered shop, quest, boss, and raid
+ * definitions. The island moved to the Crandor island region (2830..2870,
+ * 9630..9670): the 2006 cache carries real map data and objects there, so
+ * the layered object projections and collision transactions activate
+ * through real engine paths instead of empty map space. The Port Sarim
+ * boat (outside the area bounds) is legacy travel content and is no longer
+ * declared by the area.
  *
  * @module areas/dragon_island
  */
 
 import { createArea } from "../area-builder.js";
 import type { AreaObject } from "../types.js";
-import type { Shop } from "../../core/types.js";
 import { allNpcs } from "./npcs.js";
-import "./drops.js";
+import "./shops.js";
 
 // ─── Objects ─────────────────────────────────────────────────────────────────
 
 const islandObjects: readonly AreaObject[] = [
-  /** Boat at Port Sarim that transports players to the island. */
-  { id: 6665, x: 3029, y: 3217, plane: 0 },
   /** Return boat on Dragon Island dock. */
-  { id: 6665, x: 6985, y: 7000, plane: 0 },
-  /** Ancient chest near the volcano base. */
-  { id: 2213, x: 7050, y: 7050, plane: 0 },
+  { key: "return-boat", objectId: 6665, x: 2870, y: 9650, plane: 0 },
+  /** Ancient chest near the volcano base; one-shot public loot. */
+  {
+    key: "ancient-chest",
+    objectId: 2213,
+    x: 2850,
+    y: 9640,
+    plane: 0,
+    drops: [
+      {
+        action: "first",
+        dropTable: "ancient_chest_loot",
+        dropPolicy: "public",
+      },
+    ],
+  },
   /** Dragon altar at the mountain peak. */
-  { id: 409, x: 7065, y: 7075, plane: 0 },
+  { key: "dragon-altar", objectId: 409, x: 2862, y: 9645, plane: 0 },
   /** Rocks (mineable) near the volcano. */
-  { id: 2090, x: 7040, y: 7060, plane: 0 },
-  { id: 2090, x: 7045, y: 7065, plane: 0 },
-  { id: 2090, x: 7035, y: 7070, plane: 0 },
+  { key: "rocks-1", objectId: 2090, x: 2835, y: 9635, plane: 0 },
+  { key: "rocks-2", objectId: 2090, x: 2848, y: 9635, plane: 0 },
+  { key: "rocks-3", objectId: 2090, x: 2862, y: 9655, plane: 0 },
   /** Willow trees near the village. */
-  { id: 1308, x: 6990, y: 7020, plane: 0 },
-  { id: 1308, x: 6995, y: 7025, plane: 0 },
+  { key: "willow-1", objectId: 1308, x: 2832, y: 9655, plane: 0 },
+  { key: "willow-2", objectId: 1308, x: 2842, y: 9655, plane: 0 },
   /** Normal trees scattered around. */
-  { id: 1276, x: 6980, y: 7030, plane: 0 },
-  { id: 1278, x: 7015, y: 7020, plane: 0 },
+  { key: "tree-1", objectId: 1276, x: 2858, y: 9660, plane: 0 },
+  { key: "tree-2", objectId: 1278, x: 2830, y: 9640, plane: 0 },
 ];
-
-// ─── Shops ───────────────────────────────────────────────────────────────────
-
-const islandGeneralStore: Shop = {
-  id: "dragon_island_general",
-  name: "Island Supplies",
-  items: [
-    { id: "lobster", amount: 10, price: 150 },
-    { id: "swordfish", amount: 10, price: 200 },
-    { id: "cooked_karambwan", amount: 5, price: 400 },
-    { id: "prayer_potion", amount: 3, price: 2500 },
-    { id: "anti_dragon_shield", amount: 5, price: 500 },
-    { id: "tinderbox", amount: 10, price: 1 },
-    { id: "rope", amount: 10, price: 15 },
-  ],
-  shared: false,
-};
 
 // ─── Area Definition ─────────────────────────────────────────────────────────
 
 /**
- * Dragon Island — a custom volcanic island reachable by boat from Port Sarim.
+ * Dragon Island — a volcanic island in the Crandor region.
  *
- * Bounded region: x 6950-7100, y 6900-7100 (plane 0).
+ * Bounded region: x 2830-2870, y 9630-9670 (plane 0).
  * Home to dragon guardians, an elder wizard, fishing spots, shops,
  * the Dragon King boss, and the Temple of Zaros raid entrance.
  */
@@ -66,14 +69,18 @@ export const dragonIsland = createArea({
   id: "dragon_island",
   name: "Dragon Island",
   bounds: {
-    northWest: { x: 6950, y: 7100, plane: 0 },
-    southEast: { x: 7100, y: 6900, plane: 0 },
+    minX: 2830,
+    minY: 9630,
+    maxX: 2870,
+    maxY: 9670,
+    plane: 0,
   },
-  npcs: allNpcs as readonly import("../../core/types.js").NpcSpawn[],
+  npcs: allNpcs,
   objects: islandObjects,
-  drops: [],
-  shops: [islandGeneralStore],
-  quests: [],
+  shops: ["dragon_island_general"],
+  quests: ["dragon-awakens"],
+  bosses: ["dragon-king"],
+  raids: ["temple_of_zaros"],
 });
 
 // Register with the engine.

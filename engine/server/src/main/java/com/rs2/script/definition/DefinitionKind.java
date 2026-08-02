@@ -26,6 +26,9 @@ public enum DefinitionKind {
 	DROP_TABLE,
 
 	/** Java-owned named rewards keyed by stable string id. */
-	REWARD
+	REWARD,
+
+	/** Java-owned scripted shop definitions keyed by stable string id. */
+	SHOP
 
 }

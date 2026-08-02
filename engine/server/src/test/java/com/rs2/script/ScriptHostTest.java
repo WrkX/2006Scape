@@ -29,7 +29,6 @@ import org.apollo.cache.def.ObjectDefinition;
 
 import com.rs2.game.npcs.NpcHandler;
 import com.rs2.game.npcs.NpcList;
-import com.rs2.script.registries.AreaRegistry;
 import com.rs2.script.registries.BossRegistry;
 import com.rs2.script.registries.CommandHandlerRegistry;
 import com.rs2.script.registries.NpcHandlerRegistry;
@@ -73,8 +72,13 @@ public class ScriptHostTest {
 		assertTrue("Run pnpm build:content before Maven tests", contentDir.isDirectory());
 		setContentDir(contentDir);
 		ItemDefinition[] previousItems = ItemDefinition.getDefinitions();
+		ObjectDefinition[] previousObjects = ObjectDefinition.getDefinitions();
+		NpcList[] previousList = NpcHandler.NpcList.clone();
 		try {
 			Wp5PlayerSupport.ensureItemDefinitions();
+			Wp5PlayerSupport.ensureObjectDefinitions();
+			Wp5PlayerSupport.ensureNpcDefinitions();
+			Wp5PlayerSupport.ensureAreaRegions();
 
 			ScriptHost.getInstance().reload();
 
@@ -82,7 +86,10 @@ public class ScriptHostTest {
 			assertNotNull(BossRegistry.get(50));
 			assertNotNull(QuestRegistry.get("dragon-awakens"));
 			assertNotNull(RaidRegistry.get("temple_of_zaros"));
-			assertNotNull(AreaRegistry.get("dragon_island"));
+			assertNotNull(com.rs2.script.area.AreaDefinitionRegistry
+					.get("dragon_island"));
+			assertNotNull(com.rs2.script.shop.ShopDefinitionRegistry
+					.get("dragon_island_general"));
 			assertNotNull(NpcHandlerRegistry.get(1, "first"));
 			assertNotNull(CommandHandlerRegistry.get("hello"));
 			assertNotNull(ItemHandlerRegistry.getItem(14990, "first"));
@@ -130,8 +137,18 @@ public class ScriptHostTest {
 			assertEquals(995, wardenLoot.entries().get(1).itemId());
 			assertEquals(100, wardenLoot.entries().get(1).weight());
 			assertEquals(500, wardenLoot.entries().get(1).maxAmount());
+			assertNotNull(com.rs2.script.drop.DropTableRegistry
+					.get("ancient_chest_loot"));
 		} finally {
+			// The activated area owns live NPCs and object projections in
+			// shared engine statics; reset the runtime while the fixture
+			// regions still carry its collision ledger so later classes
+			// start from a clean world.
+			ScriptRuntimeTestFixture.reset();
 			setDefinitions(ItemDefinition.class, previousItems);
+			setDefinitions(ObjectDefinition.class, previousObjects);
+			System.arraycopy(previousList, 0, NpcHandler.NpcList, 0,
+					previousList.length);
 		}
 	}
 
@@ -142,8 +159,13 @@ public class ScriptHostTest {
 		assertTrue("Run pnpm build:content before Maven tests", contentDir.isDirectory());
 		setContentDir(contentDir);
 		ItemDefinition[] previousItems = ItemDefinition.getDefinitions();
+		ObjectDefinition[] previousObjects = ObjectDefinition.getDefinitions();
+		NpcList[] previousList = NpcHandler.NpcList.clone();
 		try {
 			Wp5PlayerSupport.ensureItemDefinitions();
+			Wp5PlayerSupport.ensureObjectDefinitions();
+			Wp5PlayerSupport.ensureNpcDefinitions();
+			Wp5PlayerSupport.ensureAreaRegions();
 
 			ScriptHost.getInstance().reload();
 
@@ -151,7 +173,10 @@ public class ScriptHostTest {
 			assertNotNull(BossRegistry.get(50));
 			assertNotNull(QuestRegistry.get("dragon-awakens"));
 			assertNotNull(RaidRegistry.get("temple_of_zaros"));
-			assertNotNull(AreaRegistry.get("dragon_island"));
+			assertNotNull(com.rs2.script.area.AreaDefinitionRegistry
+					.get("dragon_island"));
+			assertNotNull(com.rs2.script.shop.ShopDefinitionRegistry
+					.get("dragon_island_general"));
 			assertNotNull(NpcHandlerRegistry.get(1, "first"));
 			assertNotNull(CommandHandlerRegistry.get("hello"));
 			assertNotNull(ItemHandlerRegistry.getItem(14990, "first"));
@@ -202,7 +227,59 @@ public class ScriptHostTest {
 							com.rs2.script.definition.DefinitionKind.AREA,
 							"dragon_island");
 			assertNotNull(area);
-			assertTrue(area.isGuestPayload());
+			assertFalse("the compiled loader area must be a typed canonical "
+					+ "record", area.isGuestPayload());
+			com.rs2.script.area.AreaDefinition areaDefinition =
+					area.areaPayload();
+			assertNotNull(areaDefinition);
+			assertEquals("dragon_island", areaDefinition.id());
+			assertEquals(12, areaDefinition.npcs().size());
+			assertEquals(10, areaDefinition.objects().size());
+			assertEquals(1, areaDefinition.shops().size());
+			assertEquals("dragon_island_general",
+					areaDefinition.shops().get(0));
+			assertEquals(0, areaDefinition.schemaVersion());
+			assertEquals(com.rs2.script.definition.ModuleScope.LEGACY_SOURCE,
+					areaDefinition.source());
+			// Every canonical area NPC id is definition-backed.
+			for (com.rs2.script.area.AreaNpcSpawn spawn
+					: areaDefinition.npcs()) {
+				assertTrue("area npc " + spawn.npcId()
+						+ " must be definition-backed",
+						NpcHandler.hasNpcDefinition(spawn.npcId()));
+			}
+			// The exact tile-position chest route and the allocation-bound
+			// shop route are registered with the candidate.
+			com.rs2.script.route.ExecutableRouteRecord chestRoute =
+					ScriptHost.getInstance().readActiveRegistry(
+							state -> com.rs2.script.route.RouteRegistry.get(
+									state,
+									com.rs2.script.route.ExecutableRouteKey
+											.objectAt(2213, "first", 2850,
+													9640, 0)));
+			assertNotNull(chestRoute);
+			assertFalse("the chest route must be a Java host consumer",
+					chestRoute.isGuest());
+			com.rs2.script.route.ExecutableRouteRecord shopRoute =
+					ScriptHost.getInstance().readActiveRegistry(
+							state -> com.rs2.script.route.RouteRegistry.get(
+									state,
+									com.rs2.script.route.ExecutableRouteKey
+											.npcAllocated(1, "first",
+													"dragon_island",
+													"villager-shopkeeper")));
+			assertNotNull(shopRoute);
+			assertFalse("the shop route must be a Java host consumer",
+					shopRoute.isGuest());
+			com.rs2.script.definition.DefinitionRecord shop =
+					com.rs2.script.definition.DefinitionRegistry.get(
+							com.rs2.script.definition.DefinitionKind.SHOP,
+							"dragon_island_general");
+			assertNotNull(shop);
+			assertFalse(shop.isGuestPayload());
+			assertEquals(7, shop.shopPayload().items().size());
+			assertTrue(shop.shopPayload().buys());
+			assertEquals(250, shop.shopPayload().restockTicks());
 			assertNotNull(com.rs2.script.drop.DropTableRegistry
 					.get("dragon_king_loot"));
 			assertNotNull(com.rs2.script.drop.DropTableRegistry
@@ -243,7 +320,15 @@ public class ScriptHostTest {
 			assertTrue(ScriptHost.getInstance().getRuntimeReport()
 					.routeCount() > 0);
 		} finally {
+			// The activated area owns live NPCs and object projections in
+			// shared engine statics; reset the runtime while the fixture
+			// regions still carry its collision ledger so later classes
+			// start from a clean world.
+			ScriptRuntimeTestFixture.reset();
 			setDefinitions(ItemDefinition.class, previousItems);
+			setDefinitions(ObjectDefinition.class, previousObjects);
+			System.arraycopy(previousList, 0, NpcHandler.NpcList, 0,
+					previousList.length);
 		}
 	}
 
@@ -469,7 +554,9 @@ public class ScriptHostTest {
 				+ "defineQuest({id:'stable-quest',name:'Stable Quest',"
 				+ "summary:'Stable.',stages:[{stage:0,objective:'Stay stable.'}]});"
 				+ "defineRaid({ id: 'stable-raid' });"
-				+ "defineArea({ id: 'stable-area' });"
+				+ "defineArea({ id: 'stable-area', name: 'Stable',"
+				+ "bounds:{minX:100,minY:100,maxX:110,maxY:110,plane:0},"
+				+ "npcs:[],objects:[],shops:[],quests:[],bosses:[],raids:[]});"
 				+ "onNpc(9101, 'first', function () {});"
 				+ "onObject(9102, 'first', function () {});"
 				+ "onCommand('stable-command', function () {});"
@@ -739,12 +826,16 @@ public class ScriptHostTest {
 		Files.write(loader, (
 				canonicalBossJs(9400, "candidate-boss", "candidate-boss-cmd")
 				+ "defineRaid({id:'candidate-raid'});"
-				+ "defineArea({id:'candidate-area'});"
+				+ "defineArea({id:'candidate-area',name:'Candidate',"
+				+ "bounds:{minX:100,minY:100,maxX:110,maxY:110,plane:0},"
+				+ "npcs:[],objects:[],shops:[],quests:[],bosses:[],raids:[]});"
 				+ "onNpc(9401,'first',function(){});"
 				+ "onObject(9402,'first',function(){});"
 				+ "onCommand('candidate-command',function(){});"
 				+ "onItem(9403,'first',function(){});"
-				+ "defineArea({id:'candidate-area'});")
+				+ "defineArea({id:'candidate-area',name:'Candidate',"
+				+ "bounds:{minX:100,minY:100,maxX:110,maxY:110,plane:0},"
+				+ "npcs:[],objects:[],shops:[],quests:[],bosses:[],raids:[]});")
 				.getBytes(StandardCharsets.UTF_8));
 		host.reload();
 
@@ -752,7 +843,8 @@ public class ScriptHostTest {
 		assertTrue(generation == host.getActiveGeneration());
 		assertNull(BossRegistry.get(9400));
 		assertNull(RaidRegistry.get("candidate-raid"));
-		assertNull(AreaRegistry.get("candidate-area"));
+		assertNull(com.rs2.script.area.AreaDefinitionRegistry
+				.get("candidate-area"));
 		assertNull(NpcHandlerRegistry.get(9401, "first"));
 		assertNull(ObjectHandlerRegistry.get(9402, "first"));
 		assertNull(CommandHandlerRegistry.get("candidate-command"));
@@ -784,7 +876,7 @@ public class ScriptHostTest {
 		private final com.rs2.script.boss.BossDefinition boss;
 		private final QuestDefinition quest;
 		private final Value raid;
-		private final Value area;
+		private final com.rs2.script.area.AreaDefinition area;
 		private final Value npc;
 		private final Value object;
 		private final Value command;
@@ -798,7 +890,8 @@ public class ScriptHostTest {
 			boss = BossRegistry.get(9100);
 			quest = QuestRegistry.get("stable-quest");
 			raid = RaidRegistry.get("stable-raid");
-			area = AreaRegistry.get("stable-area");
+			area = com.rs2.script.area.AreaDefinitionRegistry
+					.get("stable-area");
 			npc = NpcHandlerRegistry.get(9101, "first");
 			object = ObjectHandlerRegistry.get(9102, "first");
 			command = CommandHandlerRegistry.get("stable-command");
@@ -830,7 +923,8 @@ public class ScriptHostTest {
 			assertSame(boss, BossRegistry.get(9100));
 			assertSame(quest, QuestRegistry.get("stable-quest"));
 			assertSame(raid, RaidRegistry.get("stable-raid"));
-			assertSame(area, AreaRegistry.get("stable-area"));
+			assertSame(area, com.rs2.script.area.AreaDefinitionRegistry
+					.get("stable-area"));
 			assertSame(npc, NpcHandlerRegistry.get(9101, "first"));
 			assertSame(object, ObjectHandlerRegistry.get(9102, "first"));
 			assertSame(command, CommandHandlerRegistry.get("stable-command"));

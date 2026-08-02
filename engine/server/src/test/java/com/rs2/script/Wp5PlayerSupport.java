@@ -3,6 +3,7 @@ package com.rs2.script;
 import java.lang.reflect.Field;
 
 import com.rs2.Constants;
+import com.rs2.game.npcs.NpcHandler;
 import com.rs2.game.players.Player;
 import com.rs2.game.players.Client;
 import com.rs2.game.players.PlayerHandler;
@@ -80,7 +81,7 @@ final class Wp5PlayerSupport {
      * definition-backed IDs so strict object validation remains exercised. */
     public static synchronized void ensureObjectDefinitions() {
         ObjectDefinition[] existing = ObjectDefinition.getDefinitions();
-        int required = 2231;
+        int required = 7000;
         int length = existing == null ? required : Math.max(required, existing.length);
         ObjectDefinition[] definitions = existing;
         boolean missing = existing == null || existing.length < required;
@@ -109,12 +110,11 @@ final class Wp5PlayerSupport {
 
 	public static synchronized void ensureItemDefinitions() throws Exception {
 		ItemDefinition[] existing = ItemDefinition.getDefinitions();
-		if (existing != null && existing.length > 995 && existing[995] != null
-				&& existing.length > 536 && existing[536] != null
-				&& existing.length > 1387 && existing[1387] != null) return;
-		int length = existing == null ? 1500 : Math.max(1500, existing.length);
-		ItemDefinition[] definitions = new ItemDefinition[length];
-		if (existing != null) System.arraycopy(existing, 0, definitions, 0, existing.length);
+		if (existing != null && existing.length == 3200
+				&& existing[995] != null && existing[536] != null
+				&& existing[1387] != null && existing[3144] != null
+				&& existing[994] == null) return;
+		ItemDefinition[] definitions = new ItemDefinition[3200];
 		for (int id : CONTENT_ITEM_IDS) {
 			ItemDefinition definition = new ItemDefinition(id);
 			definition.setStackable(id == 995 || id == 560 || id == 565
@@ -129,8 +129,63 @@ final class Wp5PlayerSupport {
 	/** Every item id referenced by the compiled content modules. */
 	private static final int[] CONTENT_ITEM_IDS = {
 			526, 536, 560, 565, 577, 579, 995, 1079, 1127, 1147, 1149,
-			1163, 1215, 1305, 1387
+			1163, 1215, 1305, 1387,
+			// Dragon Island scripted shop stock.
+			372, 379, 590, 954, 1540, 2434, 3144
 	};
+
+	/**
+	 * Loads the production {@code data/cfg/npc.json} definition list so the
+	 * compiled area content passes the strict definition-backed spawn
+	 * validation and the area runtime can allocate real NPC spawns. The
+	 * test working directory is the server module, matching the production
+	 * loader path.
+	 */
+	public static synchronized void ensureNpcDefinitions() {
+		if (NpcHandler.hasNpcDefinitions()) {
+			return;
+		}
+		new NpcHandler().loadNPCList();
+	}
+
+	/**
+	 * Ensures the map regions of the compiled Dragon Island fixture exist in
+	 * the region table. The layered object transaction writes its collision
+	 * through the region grid, so a missing region object would silently
+	 * no-op the write and fail the apply verification. Production loads the
+	 * regions from the cache map index; hermetic tests materialize empty
+	 * region shells.
+	 */
+	public static synchronized void ensureAreaRegions() throws Exception {
+		int[] regionIds = {
+				Region.getRegionId(2830, 9630),
+				Region.getRegionId(2870, 9670)
+		};
+		Field field = RegionFactory.class.getDeclaredField("regions");
+		field.setAccessible(true);
+		Region[] existing = (Region[]) field.get(null);
+		for (int regionId : regionIds) {
+			boolean present = false;
+			if (existing != null) {
+				for (Region region : existing) {
+					if (region != null && region.id() == regionId) {
+						present = true;
+						break;
+					}
+				}
+			}
+			if (present) {
+				continue;
+			}
+			Region[] updated = existing == null
+					? new Region[] { new Region(regionId, false) }
+					: java.util.Arrays.copyOf(existing,
+							existing.length + 1);
+			updated[updated.length - 1] = new Region(regionId, false);
+			field.set(null, updated);
+			existing = updated;
+		}
+	}
     static ScriptedPlayer scripted(Player player) { return new ScriptedPlayer(player, 1L); }
 	static RecordingPlayer recording(Player player) { return (RecordingPlayer) player; }
 	static final class RecordingPlayer extends Client {

@@ -4,16 +4,21 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
 public class CycleEventHandlerTest {
 
 	private final Object owner = new Object();
 
+	@Before
+	public void setUp() {
+		CycleEventHandler.getSingleton().resetForTesting();
+	}
+
 	@After
 	public void tearDown() {
-		CycleEventHandler.getSingleton().stopEvents(owner);
-		CycleEventHandler.getSingleton().process();
+		CycleEventHandler.getSingleton().resetForTesting();
 	}
 
 	@Test

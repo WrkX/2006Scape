@@ -123,6 +123,14 @@ public final class DefinitionRecord {
 		return (com.rs2.script.boss.BossDefinition) typedPayload;
 	}
 
+	public com.rs2.script.area.AreaDefinition areaPayload() {
+		return (com.rs2.script.area.AreaDefinition) typedPayload;
+	}
+
+	public com.rs2.script.shop.ShopDefinition shopPayload() {
+		return (com.rs2.script.shop.ShopDefinition) typedPayload;
+	}
+
 	@Override
 	public String toString() {
 		return kind.name().toLowerCase(java.util.Locale.ROOT) + ":" + key

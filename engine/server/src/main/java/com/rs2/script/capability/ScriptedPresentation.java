@@ -105,6 +105,14 @@ public final class ScriptedPresentation {
     }
 
     @HostAccess.Export
+    public boolean openScriptShop(String shopId) {
+        if (shopId == null || shopId.length() > 64 || !mutate()
+                || player.getOutStream() == null) return false;
+        return com.rs2.script.shop.ScriptShopRuntime.getInstance()
+                .open(player, shopId);
+    }
+
+    @HostAccess.Export
     public boolean stillGraphic(double graphicValue, double xValue, double yValue,
             double planeValue, double heightValue, double delayValue, String audience) {
         Integer graphic = integral(graphicValue, 0, 65535);

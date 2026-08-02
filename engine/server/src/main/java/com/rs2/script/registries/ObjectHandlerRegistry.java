@@ -45,6 +45,17 @@ public final class ObjectHandlerRegistry {
 	}
 
 	/**
+	 * Exact tile-position route record of one generation-owned object
+	 * projection, or {@code null}. Cache or legacy objects at the same
+	 * id/action on any other tile have no such key.
+	 */
+	public static ExecutableRouteRecord getRecordAt(RegistryStore.State state,
+			int objectId, String action, int x, int y, int plane) {
+		return RouteRegistry.get(state, ExecutableRouteKey.objectAt(objectId,
+				action, x, y, plane));
+	}
+
+	/**
 	 * Removes every registered handler. Intended for hot-reload.
 	 */
 	public static void clear() {

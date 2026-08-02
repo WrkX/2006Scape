@@ -98,21 +98,54 @@ public class ShopAssistant {
 	}
 
 	public int getItemShopValue(int ItemID, int Type, boolean isSelling) {
-		double ShopValue = 1;
-		double TotPrice = 0;
-		double sellingRatio = isSelling ? 0.85 : 1;
+		double baseValue = 1;
 		if (ItemDefinition.lookup(ItemID) != null) {
-			ShopValue = ItemDefinition.lookup(ItemID).getValue() * sellingRatio;
+			baseValue = ItemDefinition.lookup(ItemID).getValue();
 		}
 
-		TotPrice = ShopValue;
+		if (!isSelling) {
+			return (int) Math.max(1, Math.floor(baseValue * getShopBuyMultiplier(player.shopId)));
+		}
 
+		double sellMultiplier = getShopSellMultiplier(player.shopId);
+		if (sellMultiplier >= 0) {
+			return (int) Math.max(1, Math.floor(baseValue * sellMultiplier));
+		}
+
+		double totPrice = baseValue * 0.85;
 		// General store pays less for items
-		if (isSelling && ShopHandler.shopBModifier[player.shopId] == 1) {
-			TotPrice *= 0.90;
+		if (ShopHandler.shopBModifier[player.shopId] == 1) {
+			totPrice *= 0.90;
 		}
-		// Minimum value of 1
-		return (int) Math.max(1, Math.floor(TotPrice));
+		return (int) Math.max(1, Math.floor(totPrice));
+	}
+
+	/** OSRS buy-from-shop multiplier (percentage of item base value). */
+	static double getShopBuyMultiplier(int shopId) {
+		switch (shopId) {
+			case 190: // Fishing Guild Shop (Roachey)
+			case 226: // Rasolo the Wandering Merchant
+				return 2.0;
+			case 220: // Khazard General Store
+				return 1.4;
+			default:
+				return 1.0;
+		}
+	}
+
+	/**
+	 * OSRS sell-to-shop multiplier (percentage of item base value).
+	 * Returns -1 to use the default general-store calculation.
+	 */
+	static double getShopSellMultiplier(int shopId) {
+		switch (shopId) {
+			case 220: // Khazard General Store
+				return 0.40;
+			case 226: // Rasolo the Wandering Merchant
+				return 0.05;
+			default:
+				return -1;
+		}
 	}
 
 	public int getItemShopValue(int itemId) {
@@ -125,6 +158,11 @@ public class ShopAssistant {
 	 **/
 
 	public void buyFromShopPrice(int itemID) {
+		if (player.isShopping && player.scriptShopId != null) {
+			com.rs2.script.shop.ScriptShopRuntime.getInstance()
+					.buyPriceMessage(player, itemID);
+			return;
+		}
 		int ShopValue = (int) Math.floor(getItemShopValue(itemID, 0, false));
 		int SpecialValue = getTokkulValue(itemID);
 		String ShopAdd = "";
@@ -291,6 +329,11 @@ public class ShopAssistant {
 	 * Sell item to shop (Shop Price)
 	 **/
 	public void sellToShopPrice(int removeId, int removeSlot) {
+		if (player.isShopping && player.scriptShopId != null) {
+			com.rs2.script.shop.ScriptShopRuntime.getInstance()
+					.sellPriceMessage(player, removeId);
+			return;
+		}
 		int unNotedItemID = getUnNoted(removeId);
 		String itemName = DeprecatedItems.getItemName(unNotedItemID);
 		for (int i : ItemConstants.ITEM_SELLABLE) {
@@ -351,6 +394,10 @@ public class ShopAssistant {
 	}
 
 	public boolean sellItem(int itemID, int fromSlot, int amount) {
+		if (player.isShopping && player.scriptShopId != null) {
+			return com.rs2.script.shop.ScriptShopRuntime.getInstance()
+					.sell(player, itemID, amount);
+		}
 		int unNotedItemID = getUnNoted(itemID);
 		String itemName = DeprecatedItems.getItemName(itemID).toLowerCase();
 		for (int i : ItemConstants.ITEM_SELLABLE) {
@@ -505,6 +552,10 @@ public class ShopAssistant {
 	private static final int FISHING_ITEMS[] = {383, 371, 377, 359, 321, 341, 353, 345, 327, 317};
 
 	public boolean buyItem(int itemID, int fromSlot, int amount) {
+		if (player.isShopping && player.scriptShopId != null) {
+			return com.rs2.script.shop.ScriptShopRuntime.getInstance()
+					.buy(player, itemID, amount);
+		}
 		int shopID = player.shopId;
 		int notedItemID = getNoted(itemID);
 		boolean isPlayerShop = ShopHandler.shopBModifier[player.shopId] == 0;

@@ -773,6 +773,11 @@ public final class ScriptEncounterService {
 		return encounter == null ? 0L : encounter.ordinal;
 	}
 
+	/** Process seed used to derive every owned RNG (encounter and area). */
+	public synchronized long processSeed() {
+		return processSeed;
+	}
+
 	/** Owner token used by the focused drop-transaction tests. */
 	public synchronized long ownerTokenForTesting(Player player) {
 		Long ownerToken = player == null ? null : ownerTokens.get(player);
@@ -1753,7 +1758,8 @@ public final class ScriptEncounterService {
 		}
 	}
 
-	static boolean isAuthoritativeLive(Player player,
+	/** Exact live-identity check shared by every script facade and route. */
+	public static boolean isAuthoritativeLive(Player player,
 			boolean requireOutput) {
 		if (player == null || player.playerId < 0
 				|| player.playerId >= PlayerHandler.players.length) {

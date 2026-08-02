@@ -140,4 +140,9 @@ public class ScriptedNpc {
     public ScriptedPosition getPosition() {
         return new ScriptedPosition(x, y, plane);
     }
+
+    /** Exact backing NPC identity for Java host consumers; never guest-visible. */
+    public Npc backingNpc() {
+        return npc;
+    }
 }

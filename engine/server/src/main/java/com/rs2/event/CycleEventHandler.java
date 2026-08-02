@@ -104,6 +104,19 @@ public class CycleEventHandler {
 	}
 
 	/**
+	 * Clears all cycle events. Test-only; do not use in production code.
+	 */
+	public void resetForTesting() {
+		for (int i = events.size() - 1; i >= 0; i--) {
+			CycleEventContainer c = events.get(i);
+			if (c.isRunning()) {
+				c.stop();
+			}
+			events.remove(i);
+		}
+	}
+
+	/**
 	 * Stops all events for a specific owner and id
 	 * 
 	 * @param owner

@@ -20,6 +20,8 @@ public class ClickingStuff implements PacketType {
 	         player.isBanking = false;
 		if(player.isShopping)
 	        player.isShopping = false;
+		if (player.scriptShopId != null)
+	        player.scriptShopId = null;
 		if (player.inTrade) {
 			Player opponent = (Player) PlayerHandler.players[player.tradeWith];
 			if (!player.acceptedTrade || !opponent.inTrade || opponent == null) {

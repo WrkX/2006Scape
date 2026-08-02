@@ -17,7 +17,7 @@ public final class ScriptNpcHandle {
     private final int maxHp;
     private ScriptedPosition lastPosition;
 
-    ScriptNpcHandle(ScriptNpcService service, long token) {
+    public ScriptNpcHandle(ScriptNpcService service, long token) {
         this.service = service;
         this.token = token;
         Npc npc = service.current(this);
@@ -28,7 +28,8 @@ public final class ScriptNpcHandle {
                 : new ScriptedPosition(npc.absX, npc.absY, npc.heightLevel);
     }
 
-    long tokenValue() {
+    /** Exact allocation identity; not guest-visible (no {@code @HostAccess}). */
+    public long tokenValue() {
         return token;
     }
 
