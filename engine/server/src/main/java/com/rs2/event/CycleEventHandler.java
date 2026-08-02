@@ -76,6 +76,10 @@ public class CycleEventHandler {
 		List<CycleEventContainer> remove = new ArrayList<CycleEventContainer>();
 		for (CycleEventContainer c : eventsCopy) {
 			if (c != null) {
+				if (!c.isRunning()) {
+					remove.add(c);
+					continue;
+				}
 				if (c.needsExecution() && c.isRunning()) {
 					c.execute();
 					if (!c.isRunning()) {
@@ -105,9 +109,11 @@ public class CycleEventHandler {
 	 * @param owner
 	 */
 	public void stopEvents(Object owner) {
-		for (CycleEventContainer c : events) {
+		for (int i = events.size() - 1; i >= 0; i--) {
+			CycleEventContainer c = events.get(i);
 			if (c.getOwner() == owner) {
 				c.stop();
+				events.remove(i);
 			}
 		}
 	}
@@ -119,9 +125,11 @@ public class CycleEventHandler {
 	 * @param id
 	 */
 	public void stopEvents(Object owner, int id) {
-		for (CycleEventContainer c : events) {
+		for (int i = events.size() - 1; i >= 0; i--) {
+			CycleEventContainer c = events.get(i);
 			if (c.getOwner() == owner && id == c.getID()) {
 				c.stop();
+				events.remove(i);
 			}
 		}
 	}
@@ -132,9 +140,11 @@ public class CycleEventHandler {
 	 * @param id
 	 */
 	public void stopEvents(int id) {
-		for (CycleEventContainer c : events) {
+		for (int i = events.size() - 1; i >= 0; i--) {
+			CycleEventContainer c = events.get(i);
 			if (id == c.getID()) {
 				c.stop();
+				events.remove(i);
 			}
 		}
 	}
