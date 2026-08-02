@@ -2497,6 +2497,40 @@ public class ItemAssistant {
 		return freeS;
 	}
 
+	/**
+	 * Inventory slots needed to receive a trade offer. Stackable and noted items
+	 * reuse an existing slot when the player already carries that item.
+	 */
+	public int tradeReceiveSlotsRequired(java.util.List<GameItem> offeredItems) {
+		int slotsRequired = 0;
+		for (GameItem item : offeredItems) {
+			if (item.id <= 0) {
+				continue;
+			}
+			ItemDefinition def = ItemDefinition.lookup(item.id);
+			if (def.isStackable() || def.isNote()) {
+				if (!playerHasItem(item.id)) {
+					slotsRequired++;
+				} else if (wouldOverflowExistingStack(item.id, item.amount)) {
+					slotsRequired++;
+				}
+			} else {
+				slotsRequired++;
+			}
+		}
+		return slotsRequired;
+	}
+
+	private boolean wouldOverflowExistingStack(int itemId, int amount) {
+		int lookupId = itemId + 1;
+		for (int i = 0; i < player.playerItems.length; i++) {
+			if (player.playerItems[i] == lookupId) {
+				return (long) player.playerItemsN[i] + amount > Constants.MAXITEM_AMOUNT;
+			}
+		}
+		return false;
+	}
+
 	public int findItem(int id, int[] items, int[] amounts) {
 		for (int i = 0; i < player.playerItems.length; i++) {
 			if (items[i] - 1 == id && amounts[i] > 0) {

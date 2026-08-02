@@ -1380,44 +1380,25 @@ public class ClickingButtons implements PacketType {
 			player.goodTrade = true;
 			ot.goodTrade = true;
 
-			for (GameItem item : player.getTrading().offeredItems) {
-				if (item.id > 0) {
-					if (ot.getItemAssistant().freeSlots() < player.getTrading().offeredItems
-							.size()) {
-						player.getPacketSender().sendMessage(
-								ot.playerName
-										+ " only has "
-										+ ot.getItemAssistant().freeSlots()
-										+ " free slots, please remove "
-										+ (player.getTrading().offeredItems
-												.size() - ot.getItemAssistant()
-												.freeSlots()) + " items.");
-						ot.getPacketSender().sendMessage(
-								player.playerName
-										+ " has to remove "
-										+ (player.getTrading().offeredItems
-												.size() - ot.getItemAssistant()
-												.freeSlots())
-										+ " items or you could offer them "
-										+ (player.getTrading().offeredItems
-												.size() - ot.getItemAssistant()
-												.freeSlots()) + " items.");
-						player.goodTrade = false;
-						ot.goodTrade = false;
-						player.getPacketSender().sendString(
-								"Not enough inventory spaces.", 3431);
-						ot.getPacketSender().sendString(
-								"Not enough inventory spaces.", 3431);
-						break;
-					} else {
-						player.getPacketSender().sendString(
-								"Waiting for other player...", 3431);
-						ot.getPacketSender().sendString(
-								"Other player has accepted.", 3431);
-						player.goodTrade = true;
-						ot.goodTrade = true;
-					}
-				}
+			int slotsRequired = ot.getItemAssistant().tradeReceiveSlotsRequired(
+					player.getTrading().offeredItems);
+			int freeSlots = ot.getItemAssistant().freeSlots();
+			if (freeSlots < slotsRequired) {
+				int deficit = slotsRequired - freeSlots;
+				player.getPacketSender().sendMessage(
+						ot.playerName + " only has " + freeSlots
+								+ " free slots, please remove " + deficit
+								+ " items.");
+				ot.getPacketSender().sendMessage(
+						player.playerName + " has to remove " + deficit
+								+ " items or you could offer them " + deficit
+								+ " items.");
+				player.goodTrade = false;
+				ot.goodTrade = false;
+				player.getPacketSender().sendString(
+						"Not enough inventory spaces.", 3431);
+				ot.getPacketSender().sendString(
+						"Not enough inventory spaces.", 3431);
 			}
 			if (player.inTrade && !player.tradeConfirmed && ot.goodTrade
 					&& player.goodTrade) {
