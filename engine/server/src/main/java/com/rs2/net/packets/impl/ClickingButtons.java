@@ -1558,8 +1558,10 @@ public class ClickingButtons implements PacketType {
 
 	static boolean executeScriptButton(Player player, int buttonId) {
 		return ScriptHost.getInstance().dispatchActive(
-				state -> InteractionHandlerRegistry.getButton(state, buttonId),
-				(generation, handler) -> ScriptExecutor.execute(handler,
+				state -> InteractionHandlerRegistry.getButtonRecord(
+						state, buttonId),
+				(generation, route) -> ScriptExecutor.executeRoute(
+						route,
 						"button", String.valueOf(buttonId), "button",
 						new ButtonScriptContext(
 								new ScriptedPlayer(player, generation), buttonId)))

@@ -89,8 +89,10 @@ public class ItemOnPlayer implements PacketType {
 	static boolean executeScriptItemOnPlayer(Player player, Player target,
 			int itemId, int slot) {
 		return ScriptHost.getInstance().dispatchActive(
-				state -> InteractionHandlerRegistry.getItemOnPlayer(state, itemId),
-				(generation, handler) -> ScriptExecutor.execute(handler,
+				state -> InteractionHandlerRegistry.getItemOnPlayerRecord(
+						state, itemId),
+				(generation, route) -> ScriptExecutor.executeRoute(
+						route,
 						"item-on-player", String.valueOf(itemId),
 						"item-on-player", new ItemOnPlayerScriptContext(
 								new ScriptedPlayer(player, generation),

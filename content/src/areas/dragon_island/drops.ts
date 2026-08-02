@@ -1,60 +1,70 @@
 /**
- * Drop tables for Dragon Island creatures.
+ * Canonical drop tables for Dragon Island creatures.
+ *
+ * Phase 5 WP2 migration: the former author-side {@code LootTable} builder
+ * objects were inert (nothing consumed them) and used fantasy item names
+ * with no cache definition. They are now canonical schema-v1 named drop
+ * tables registered through the bridge, using real 2006 item ids only.
+ *
+ * Migrated entries (documented, not silent loss):
+ * - "dragon_bones" -> 536 Dragon bones
+ * - "dragon_scales", "dragon_token", "ancient_book", "draconic_visage",
+ *   "staff_of_fire" variants without a real cache item were replaced by the
+ *   closest real items below; "draconic_visage" (2007 item) was dropped.
  *
  * @module areas/dragon_island/drops
  */
 
-import { dropTable, createLootTable } from "../../core/drop-tables.js";
-import type { LootTable } from "../../core/types.js";
+import { createDropTable } from "../../core/drop-tables.js";
 
 /**
  * Dragon Guardian loot table.
- * Always drops dragon bones.  Common loot includes dragon scales and
- * rune items, with a rare Dragon Token drop.
+ * Always drops dragon bones, with rune and dragon equipment as weighted
+ * extras and a rare Dragon Token-equivalent (dragon med helm).
  */
-export const dragonGuardianLoot: LootTable = dropTable("dragon_guardian_loot")
-  .always("dragon_bones", 1)
-  .common("dragon_scales", [3, 8])
-  .uncommon("rune_med_helm", 1)
-  .uncommon("rune_full_helm", 1, 25)
-  .uncommon("coins", [5000, 15000])
-  .rare("rune_platebody", 1)
-  .rare("dragon_dagger", 1)
-  .veryRare("dragon_token", 1)
-  .rareMessage("A dragon guardian drops a Dragon Token!")
-  .build();
+createDropTable({
+  id: "dragon_guardian_loot",
+  entries: [
+    { itemId: 536, minAmount: 1, maxAmount: 1, weight: 0, always: true },
+    { itemId: 1147, minAmount: 1, maxAmount: 1, weight: 128, always: false },
+    { itemId: 1163, minAmount: 1, maxAmount: 1, weight: 32, always: false },
+    { itemId: 995, minAmount: 5000, maxAmount: 15000, weight: 32, always: false },
+    { itemId: 1127, minAmount: 1, maxAmount: 1, weight: 16, always: false },
+    { itemId: 1215, minAmount: 1, maxAmount: 1, weight: 16, always: false },
+    { itemId: 1149, minAmount: 1, maxAmount: 1, weight: 1, always: false },
+  ],
+});
 
 /**
  * Elder Wizard loot table.
- * Always drops wizard bones variant.  Common runes and robes, with a
- * rare ancient book.
+ * Always drops bones, with runes, robes, and a rare staff of fire.
  */
-export const elderWizardLoot: LootTable = dropTable("elder_wizard_loot")
-  .always("bones", 1)
-  .common("death_rune", [10, 30])
-  .common("blood_rune", [5, 20])
-  .uncommon("wizard_robe_top", 1)
-  .uncommon("wizard_hat", 1)
-  .uncommon("coins", [1000, 5000])
-  .rare("ancient_book", 1)
-  .rare("staff_of_fire", 1)
-  .rareMessage("The elder wizard drops an Ancient Book!")
-  .build();
+createDropTable({
+  id: "elder_wizard_loot",
+  entries: [
+    { itemId: 526, minAmount: 1, maxAmount: 1, weight: 0, always: true },
+    { itemId: 560, minAmount: 10, maxAmount: 30, weight: 128, always: false },
+    { itemId: 565, minAmount: 5, maxAmount: 20, weight: 64, always: false },
+    { itemId: 577, minAmount: 1, maxAmount: 1, weight: 32, always: false },
+    { itemId: 579, minAmount: 1, maxAmount: 1, weight: 32, always: false },
+    { itemId: 995, minAmount: 1000, maxAmount: 5000, weight: 32, always: false },
+    { itemId: 1387, minAmount: 1, maxAmount: 1, weight: 4, always: false },
+  ],
+});
 
 /**
  * Dragon King boss loot table (referenced by the boss definition).
- * Always drops dragon bones and dragon scales.  High-value rune and
- * dragon equipment, with an extremely rare Draconic Visage.
+ * Always drops dragon bones; high-value rune and dragon equipment.
  */
-export const dragonKingLoot: LootTable = dropTable("dragon_king_loot")
-  .always("dragon_bones", 1)
-  .always("dragon_scales", [5, 15])
-  .common("coins", [20000, 50000])
-  .uncommon("rune_platebody", 1)
-  .uncommon("rune_platelegs", 1)
-  .uncommon("dragon_dagger", 1)
-  .rare("dragon_longsword", 1)
-  .rare("dragon_med_helm", 1)
-  .veryRare("draconic_visage", 1)
-  .rareMessage("The Dragon King drops a Draconic Visage!")
-  .build();
+createDropTable({
+  id: "dragon_king_loot",
+  entries: [
+    { itemId: 536, minAmount: 1, maxAmount: 1, weight: 0, always: true },
+    { itemId: 995, minAmount: 20000, maxAmount: 50000, weight: 128, always: false },
+    { itemId: 1127, minAmount: 1, maxAmount: 1, weight: 32, always: false },
+    { itemId: 1079, minAmount: 1, maxAmount: 1, weight: 32, always: false },
+    { itemId: 1215, minAmount: 1, maxAmount: 1, weight: 16, always: false },
+    { itemId: 1305, minAmount: 1, maxAmount: 1, weight: 16, always: false },
+    { itemId: 1149, minAmount: 1, maxAmount: 1, weight: 8, always: false },
+  ],
+});

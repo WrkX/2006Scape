@@ -78,7 +78,7 @@ final class Wp5PlayerSupport {
 
     /** The production cache is intentionally absent in the lightweight gate; provide
      * definition-backed IDs so strict object validation remains exercised. */
-    private static synchronized void ensureObjectDefinitions() {
+    public static synchronized void ensureObjectDefinitions() {
         ObjectDefinition[] existing = ObjectDefinition.getDefinitions();
         int required = 2231;
         int length = existing == null ? required : Math.max(required, existing.length);
@@ -107,21 +107,30 @@ final class Wp5PlayerSupport {
 		ObjectDefinition.lookup(2214).setImpenetrable(false);
     }
 
-	private static synchronized void ensureItemDefinitions() throws Exception {
+	public static synchronized void ensureItemDefinitions() throws Exception {
 		ItemDefinition[] existing = ItemDefinition.getDefinitions();
 		if (existing != null && existing.length > 995 && existing[995] != null
-				&& existing.length > 536 && existing[536] != null) return;
-		int length = existing == null ? 996 : Math.max(996, existing.length);
+				&& existing.length > 536 && existing[536] != null
+				&& existing.length > 1387 && existing[1387] != null) return;
+		int length = existing == null ? 1500 : Math.max(1500, existing.length);
 		ItemDefinition[] definitions = new ItemDefinition[length];
 		if (existing != null) System.arraycopy(existing, 0, definitions, 0, existing.length);
-		definitions[995] = new ItemDefinition(995);
-		definitions[995].setStackable(true);
-		definitions[536] = new ItemDefinition(536);
-		definitions[536].setStackable(false);
+		for (int id : CONTENT_ITEM_IDS) {
+			ItemDefinition definition = new ItemDefinition(id);
+			definition.setStackable(id == 995 || id == 560 || id == 565
+					|| id == 1387);
+			definitions[id] = definition;
+		}
 		Field field = ItemDefinition.class.getDeclaredField("definitions");
 		field.setAccessible(true);
 		field.set(null, definitions);
 	}
+
+	/** Every item id referenced by the compiled content modules. */
+	private static final int[] CONTENT_ITEM_IDS = {
+			526, 536, 560, 565, 577, 579, 995, 1079, 1127, 1147, 1149,
+			1163, 1215, 1305, 1387
+	};
     static ScriptedPlayer scripted(Player player) { return new ScriptedPlayer(player, 1L); }
 	static RecordingPlayer recording(Player player) { return (RecordingPlayer) player; }
 	static final class RecordingPlayer extends Client {

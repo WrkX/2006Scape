@@ -55,9 +55,10 @@ public class MagicOnObject implements PacketType {
 			ResolvedWorldObject target) {
 		int objectId = target.getObject().getObjectId();
 		return ScriptHost.getInstance().dispatchActive(
-				state -> InteractionHandlerRegistry.getMagicOnObject(
+				state -> InteractionHandlerRegistry.getMagicOnObjectRecord(
 						state, spellId, objectId),
-				(generation, handler) -> ScriptExecutor.execute(handler,
+				(generation, route) -> ScriptExecutor.executeRoute(
+						route,
 						"magic-on-object", spellId + ":" + objectId,
 						"magic-on-object", new MagicOnObjectScriptContext(
 								new ScriptedPlayer(player, generation),

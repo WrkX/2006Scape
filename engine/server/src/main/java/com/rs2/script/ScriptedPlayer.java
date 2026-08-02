@@ -239,6 +239,43 @@ public class ScriptedPlayer {
                 this, id, minX, minY, maxX, maxY, plane);
     }
 
+    /**
+     * Grants the named reward through the shared player-local transaction.
+     * The reward must be registered in the active generation; the result is
+     * a narrow facade (reward id plus result code), never a registry map or
+     * inventory array.
+     */
+    @HostAccess.Export
+    public com.rs2.script.reward.RewardGrantResult grantReward(String rewardId) {
+        com.rs2.script.reward.RewardDefinition reward =
+                com.rs2.script.reward.RewardRegistry.get(rewardId);
+        if (reward == null) {
+            return new com.rs2.script.reward.RewardGrantResult(rewardId,
+                    com.rs2.script.reward.RewardGrantResult.Code.NOT_FOUND);
+        }
+        com.rs2.script.reward.PlayerRewardTransaction.Result result =
+                com.rs2.script.reward.PlayerRewardTransaction.apply(player,
+                        reward, null, null);
+        return new com.rs2.script.reward.RewardGrantResult(rewardId,
+                toGrantCode(result));
+    }
+
+    private static com.rs2.script.reward.RewardGrantResult.Code toGrantCode(
+            com.rs2.script.reward.PlayerRewardTransaction.Result result) {
+        switch (result) {
+            case OK:
+                return com.rs2.script.reward.RewardGrantResult.Code.REWARDED;
+            case INVENTORY_FULL:
+                return com.rs2.script.reward.RewardGrantResult.Code.INVENTORY_FULL;
+            case XP_CAP:
+                return com.rs2.script.reward.RewardGrantResult.Code.XP_CAP;
+            case QUEST_POINTS_OVERFLOW:
+                return com.rs2.script.reward.RewardGrantResult.Code.QUEST_POINTS_OVERFLOW;
+            default:
+                return com.rs2.script.reward.RewardGrantResult.Code.REWARD_FAILED;
+        }
+    }
+
     /** Engine-only backing identity; HostAccess.EXPLICIT keeps it guest-hidden. */
     public Player backingPlayer() {
         return player;

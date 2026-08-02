@@ -12,6 +12,7 @@
  */
 
 import { createRaid, createRaidRoom, createBossRoom } from "../../raids/raid-builder.js";
+import { createDropTable } from "../../core/drop-tables.js";
 import type { RoomContext, RoomResult } from "../../raids/types.js";
 import type { BossContext } from "../../core/boss.js";
 
@@ -145,3 +146,20 @@ const templeOfZarosRaid = createRaid("temple_of_zaros", {
 });
 
 defineRaid(templeOfZarosRaid);
+
+/**
+ * Canonical named reward table referenced by the raid definition's
+ * {@code rewardTable}. Phase 5 WP5 consumes this record with the raid
+ * runtime; the registration proves the reference is not silent data loss.
+ */
+createDropTable({
+  id: "zaros_raid_loot",
+  entries: [
+    { itemId: 995, minAmount: 50000, maxAmount: 200000, weight: 0, always: true },
+    { itemId: 1149, minAmount: 1, maxAmount: 1, weight: 128, always: false },
+    { itemId: 1127, minAmount: 1, maxAmount: 1, weight: 64, always: false },
+    { itemId: 1305, minAmount: 1, maxAmount: 1, weight: 32, always: false },
+    { itemId: 1215, minAmount: 1, maxAmount: 1, weight: 32, always: false },
+    { itemId: 1079, minAmount: 1, maxAmount: 1, weight: 16, always: false },
+  ],
+});

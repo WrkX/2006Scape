@@ -3,6 +3,7 @@ package com.rs2.net.packets.impl;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.HostAccess;
@@ -12,6 +13,8 @@ import org.junit.Test;
 import com.rs2.game.players.Player;
 import com.rs2.script.registries.CommandHandlerRegistry;
 import com.rs2.script.ScriptRuntimeTestFixture;
+import com.rs2.script.route.ExecutableRouteKey;
+import com.rs2.script.route.RouteRegistry;
 
 public class CommandsTest {
 
@@ -68,5 +71,45 @@ public class CommandsTest {
 				"EcHo one  two", new String[] {"one", "two"}));
 		assertEquals("echo|EcHo one  two|one,two|2",
 				context.getBindings("js").getMember("commandMetadata").asString());
+	}
+
+	@Test
+	public void hostCommandRouteIsInvokedAndConsumedThroughProductionDispatch() {
+		context = Context.create("js");
+		Player player = new Player(-1) { };
+		java.util.concurrent.atomic.AtomicInteger calls =
+				new java.util.concurrent.atomic.AtomicInteger();
+		ScriptRuntimeTestFixture.publish(context, () ->
+				RouteRegistry.putHost(ExecutableRouteKey.command("host-cmd"),
+						calls::incrementAndGet));
+
+		assertTrue(Commands.executeScriptCommand(player, "host-cmd"));
+		assertEquals(1, calls.get());
+		assertFalse(Commands.executeScriptCommand(player, "missing"));
+		assertEquals(1, calls.get());
+	}
+
+	@Test
+	public void throwingHostRouteIsContainedAndStillConsumed() {
+		context = Context.create("js");
+		Player player = new Player(-1) { };
+		ScriptRuntimeTestFixture.publish(context, () ->
+				RouteRegistry.putHost(ExecutableRouteKey.command("boom-host"),
+						() -> { throw new IllegalStateException("host boom"); }));
+
+		assertTrue(Commands.executeScriptCommand(player, "boom-host"));
+	}
+
+	@Test
+	public void reservedAdminAliasCannotBeRegisteredAsHostRoute() {
+		context = Context.create("js");
+		try {
+			ScriptRuntimeTestFixture.publish(context, () ->
+					RouteRegistry.putHost(ExecutableRouteKey.command("reload"),
+							() -> { }));
+			fail("reserved alias should reject a host route");
+		} catch (RuntimeException expected) {
+			assertTrue(expected.getMessage().contains("reserved"));
+		}
 	}
 }

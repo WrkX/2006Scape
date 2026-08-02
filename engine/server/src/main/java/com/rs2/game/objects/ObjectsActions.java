@@ -3157,9 +3157,10 @@ public class ObjectsActions {
     private boolean dispatchScriptedClick(final int objectType,
             final String action, final Objects clickedObject) {
         return ScriptHost.getInstance().dispatchActive(
-                state -> ObjectHandlerRegistry.get(state, objectType, action),
-                (generation, handler) -> ScriptExecutor.execute(
-                        handler, "object", String.valueOf(objectType), action,
+                state -> ObjectHandlerRegistry.getRecord(
+                        state, objectType, action),
+                (generation, route) -> ScriptExecutor.executeRoute(
+                        route, "object", String.valueOf(objectType), action,
                         new ScriptContext(new ScriptedPlayer(player, generation),
                                 new ScriptedObject(clickedObject), action)))
                 == ScriptHost.DispatchResult.CONSUMED;

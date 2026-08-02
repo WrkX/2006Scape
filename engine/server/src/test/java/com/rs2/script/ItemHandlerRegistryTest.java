@@ -116,16 +116,26 @@ public class ItemHandlerRegistryTest {
 	}
 
 	@Test
-	public void directRegistryPutReportsDuplicateWithoutThrowingOrReplacing() {
+	public void directRegistryPutRejectsDuplicateWithBothRecordsIdentified() {
 		context = Context.create("js");
 		Value first = context.eval("js", "(function () {})");
 		Value second = context.eval("js", "(function () {})");
 		RegistryStore.State candidate = RegistryStore.beginStaging();
-
-		assertNull(ItemHandlerRegistry.putItemOnItem(100, 200, first));
-		assertSame(first, ItemHandlerRegistry.putItemOnItem(200, 100, second));
-		ScriptHost.getInstance().publishForTesting(context, candidate);
-		assertSame(first, ItemHandlerRegistry.getItemOnItem(100, 200));
+		try {
+			ItemHandlerRegistry.putItemOnItem(100, 200, first);
+			try {
+				ItemHandlerRegistry.putItemOnItem(200, 100, second);
+				fail("symmetric duplicate should reject the candidate");
+			} catch (IllegalArgumentException expected) {
+				assertTrue(expected.getMessage().contains("duplicate registration"));
+				assertTrue(expected.getMessage().contains("item_on_item:100:200"));
+				assertTrue(expected.getMessage().contains("existing record"));
+			}
+			ScriptHost.getInstance().publishForTesting(context, candidate);
+			assertSame(first, ItemHandlerRegistry.getItemOnItem(100, 200));
+		} finally {
+			RegistryStore.rollback(candidate);
+		}
 	}
 
 	private static void expectRegistrationFailure(Runnable registration,

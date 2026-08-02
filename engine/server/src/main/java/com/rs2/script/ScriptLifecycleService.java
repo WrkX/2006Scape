@@ -182,14 +182,14 @@ public final class ScriptLifecycleService {
 		}
 		final PlayerDeathScriptContext context = new PlayerDeathScriptContext(
 				ticket.player(), ticket.killer(), ticket.position());
-		ScriptHost.getInstance().dispatchActive(
-				new ScriptHost.RegistryLookup() {
+		ScriptHost.getInstance().dispatchObserverActive(
+				new ScriptHost.ObserverLookup() {
 					@Override
 					public Value find(com.rs2.script.registries.RegistryStore.State state) {
 						return LifecycleRegistry.getPlayerDeath(state);
 					}
 				},
-				new ScriptHost.RegisteredInvocation() {
+				new ScriptHost.ObserverInvocation() {
 					@Override
 					public void invoke(long generation, Value handler) {
 						ScriptExecutor.execute(handler, "player",

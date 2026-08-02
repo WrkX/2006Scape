@@ -1,5 +1,6 @@
 package com.rs2.script;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -49,14 +50,18 @@ public class ScriptHostTest {
 	}
 
 	@Test
-	public void currentCompiledLoaderRegistersEverySupportedCategory() {
+	public void currentCompiledLoaderRegistersEverySupportedCategory()
+			throws Exception {
 		File contentDir = findCompiledContent();
 		assertTrue("Run pnpm build:content before Maven tests", contentDir.isDirectory());
 		setContentDir(contentDir);
+		ItemDefinition[] previousItems = ItemDefinition.getDefinitions();
+		try {
+			Wp5PlayerSupport.ensureItemDefinitions();
 
-		ScriptHost.getInstance().reload();
+			ScriptHost.getInstance().reload();
 
-		assertNotNull(BossRegistry.get(12001));
+			assertNotNull(BossRegistry.get(12001));
 		assertNotNull(QuestRegistry.get("dragon-awakens"));
 		assertNotNull(RaidRegistry.get("temple_of_zaros"));
 		assertNotNull(AreaRegistry.get("dragon_island"));
@@ -72,6 +77,193 @@ public class ScriptHostTest {
 				"enter", "bridge-example-lumbridge-courtyard"));
 		assertNotNull(LifecycleRegistry.getAreaHandler(
 				"leave", "bridge-example-lumbridge-courtyard"));
+
+		com.rs2.script.definition.DefinitionRecord dropTable =
+				com.rs2.script.definition.DefinitionRegistry.get(
+						com.rs2.script.definition.DefinitionKind.DROP_TABLE,
+						"dragon_king_loot");
+		assertNotNull(dropTable);
+		assertEquals(0, dropTable.schemaVersion());
+		assertEquals(com.rs2.script.definition.ModuleScope.LEGACY_SOURCE,
+				dropTable.source());
+		assertNotNull(com.rs2.script.drop.DropTableRegistry
+				.get("dragon_guardian_loot"));
+		assertNotNull(com.rs2.script.drop.DropTableRegistry
+				.get("elder_wizard_loot"));
+		assertNotNull(com.rs2.script.drop.DropTableRegistry
+				.get("zaros_raid_loot"));
+		assertEquals(7, com.rs2.script.drop.DropTableRegistry
+				.get("dragon_guardian_loot").entries().size());
+		assertEquals(7, com.rs2.script.drop.DropTableRegistry
+				.get("elder_wizard_loot").entries().size());
+		assertEquals(7, com.rs2.script.drop.DropTableRegistry
+				.get("dragon_king_loot").entries().size());
+		assertEquals(6, com.rs2.script.drop.DropTableRegistry
+				.get("zaros_raid_loot").entries().size());
+		} finally {
+			setDefinitions(ItemDefinition.class, previousItems);
+		}
+	}
+
+	@Test
+	public void compiledLoaderRecordsEveryCategoryAsSourceAwareEnvelopes()
+			throws Exception {
+		File contentDir = findCompiledContent();
+		assertTrue("Run pnpm build:content before Maven tests", contentDir.isDirectory());
+		setContentDir(contentDir);
+		ItemDefinition[] previousItems = ItemDefinition.getDefinitions();
+		try {
+			Wp5PlayerSupport.ensureItemDefinitions();
+
+			ScriptHost.getInstance().reload();
+
+			assertNotNull(BossRegistry.get(12001));
+			assertNotNull(QuestRegistry.get("dragon-awakens"));
+			assertNotNull(RaidRegistry.get("temple_of_zaros"));
+			assertNotNull(AreaRegistry.get("dragon_island"));
+			assertNotNull(NpcHandlerRegistry.get(1, "first"));
+			assertNotNull(CommandHandlerRegistry.get("hello"));
+			assertNotNull(ItemHandlerRegistry.getItem(14990, "first"));
+			assertNotNull(ItemHandlerRegistry.getItemOnItem(14990, 14991));
+			assertNotNull(ItemHandlerRegistry.getItemOnObject(14990, 14992));
+			assertNotNull(ItemHandlerRegistry.getItemOnNpc(14990, 14993));
+			assertNotNull(LifecycleRegistry.getNpcDeath(14994));
+			assertNotNull(LifecycleRegistry.getItemPickup(14995));
+			assertNotNull(LifecycleRegistry.getAreaHandler(
+					"enter", "bridge-example-lumbridge-courtyard"));
+			assertNotNull(LifecycleRegistry.getAreaHandler(
+					"leave", "bridge-example-lumbridge-courtyard"));
+
+			com.rs2.script.definition.DefinitionRecord boss =
+					com.rs2.script.definition.DefinitionRegistry.get(
+							com.rs2.script.definition.DefinitionKind.BOSS,
+							"12001");
+			assertNotNull(boss);
+			assertEquals(0, boss.schemaVersion());
+			assertEquals(com.rs2.script.definition.ModuleScope.LEGACY_SOURCE,
+					boss.source());
+			com.rs2.script.definition.DefinitionRecord quest =
+					com.rs2.script.definition.DefinitionRegistry.get(
+							com.rs2.script.definition.DefinitionKind.QUEST,
+							"dragon-awakens");
+			assertNotNull(quest);
+			assertNotNull(quest.questPayload());
+			com.rs2.script.definition.DefinitionRecord raid =
+					com.rs2.script.definition.DefinitionRegistry.get(
+							com.rs2.script.definition.DefinitionKind.RAID,
+							"temple_of_zaros");
+			assertNotNull(raid);
+			assertTrue(raid.isGuestPayload());
+			com.rs2.script.definition.DefinitionRecord area =
+					com.rs2.script.definition.DefinitionRegistry.get(
+							com.rs2.script.definition.DefinitionKind.AREA,
+							"dragon_island");
+			assertNotNull(area);
+			assertTrue(area.isGuestPayload());
+			assertNotNull(com.rs2.script.drop.DropTableRegistry
+					.get("dragon_king_loot"));
+
+			assertEquals(0, ScriptHost.getInstance().getRuntimeReport()
+					.moduleCount());
+			assertTrue(ScriptHost.getInstance().getRuntimeReport()
+					.routeCount() > 0);
+		} finally {
+			setDefinitions(ItemDefinition.class, previousItems);
+		}
+	}
+
+	@Test
+	public void moduleScopeRecordsManifestAndSourceAwareEnvelopes()
+			throws Exception {
+		Path root = Files.createTempDirectory("script-host-module-scope");
+		Path loader = root.resolve("loader.js");
+		setContentDir(root.toFile());
+		Files.write(loader, (
+				"registerContentModule({id:'demo-module',schemaVersion:1},"
+						+ "function () {"
+						+ "defineBoss({npcId:9500});"
+						+ "defineRaid({id:'demo-raid'});"
+						+ "onCommand('demo-command', function () {});"
+						+ "});"
+						+ "onCommand('legacy-command', function () {});")
+				.getBytes(StandardCharsets.UTF_8));
+		ScriptHost host = ScriptHost.getInstance();
+		host.reload();
+
+		assertNotNull(CommandHandlerRegistry.get("demo-command"));
+		assertNotNull(CommandHandlerRegistry.get("legacy-command"));
+		assertEquals(1, host.getRuntimeReport().moduleCount());
+		com.rs2.script.definition.DefinitionRecord boss =
+				com.rs2.script.definition.DefinitionRegistry.get(
+						com.rs2.script.definition.DefinitionKind.BOSS, "9500");
+		assertNotNull(boss);
+		assertEquals("demo-module", boss.source());
+		assertEquals(1, boss.schemaVersion());
+		com.rs2.script.definition.DefinitionRecord raid =
+				com.rs2.script.definition.DefinitionRegistry.get(
+						com.rs2.script.definition.DefinitionKind.RAID,
+						"demo-raid");
+		assertNotNull(raid);
+		assertEquals("demo-module", raid.source());
+		com.rs2.script.definition.DefinitionRecord legacy =
+				com.rs2.script.definition.DefinitionRegistry.get(
+						com.rs2.script.definition.DefinitionKind.BOSS, "12001");
+		assertNull(legacy);
+		com.rs2.script.route.ExecutableRouteRecord legacyCommand =
+				ScriptHost.getInstance().readActiveRegistry(state ->
+						com.rs2.script.route.RouteRegistry.get(state,
+								com.rs2.script.route.ExecutableRouteKey
+										.command("legacy-command")));
+		assertNotNull(legacyCommand);
+		assertEquals(com.rs2.script.definition.ModuleScope.LEGACY_SOURCE,
+				legacyCommand.source());
+	}
+
+	@Test
+	public void nestedAndDuplicateModuleScopesRejectTheCandidate()
+			throws Exception {
+		Path root = Files.createTempDirectory("script-host-module-reject");
+		Path loader = root.resolve("loader.js");
+		setContentDir(root.toFile());
+		Files.write(loader, (
+				"onCommand('stable-module-base', function () {});")
+				.getBytes(StandardCharsets.UTF_8));
+		ScriptHost host = ScriptHost.getInstance();
+		host.reload();
+		Context stable = host.getContext();
+		long generation = host.getActiveGeneration();
+
+		Files.write(loader, (
+				"registerContentModule({id:'outer',schemaVersion:1},"
+						+ "function () {"
+						+ "registerContentModule({id:'inner',schemaVersion:1},"
+						+ "function () { onCommand('inner-cmd', function () {}); });"
+						+ "});").getBytes(StandardCharsets.UTF_8));
+		host.reload();
+		assertSame(stable, host.getContext());
+		assertEquals(generation, host.getActiveGeneration());
+		assertNull(CommandHandlerRegistry.get("inner-cmd"));
+
+		Files.write(loader, (
+				"registerContentModule({id:'same',schemaVersion:1},"
+						+ "function () { onCommand('a', function () {}); });"
+						+ "registerContentModule({id:'same',schemaVersion:1},"
+						+ "function () { onCommand('b', function () {}); });")
+				.getBytes(StandardCharsets.UTF_8));
+		host.reload();
+		assertSame(stable, host.getContext());
+		assertEquals(generation, host.getActiveGeneration());
+		assertNull(CommandHandlerRegistry.get("a"));
+		assertNull(CommandHandlerRegistry.get("b"));
+
+		Files.write(loader, (
+				"registerContentModule({id:'bad',schemaVersion:0},"
+						+ "function () { onCommand('c', function () {}); });")
+				.getBytes(StandardCharsets.UTF_8));
+		host.reload();
+		assertSame(stable, host.getContext());
+		assertEquals(generation, host.getActiveGeneration());
+		assertNull(CommandHandlerRegistry.get("c"));
 	}
 
 	@Test

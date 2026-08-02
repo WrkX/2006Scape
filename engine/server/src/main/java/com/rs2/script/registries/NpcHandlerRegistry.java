@@ -1,53 +1,54 @@
 package com.rs2.script.registries;
 
-import java.util.Map;
 import org.graalvm.polyglot.Value;
 import com.rs2.script.ScriptHost;
+import com.rs2.script.route.ExecutableRouteKey;
+import com.rs2.script.route.ExecutableRouteRecord;
+import com.rs2.script.route.RouteKind;
+import com.rs2.script.route.RouteRegistry;
 
 /**
- * Stores script handlers for NPC interactions keyed by npc id and action
- * string (e.g. "first", "second", "third", "talk", "trade", "attack").
+ * Typed facade over the unified route registry for NPC interaction handlers
+ * keyed by npc id and ordinal action ("first" .. "third").
  */
 public final class NpcHandlerRegistry {
 
 	/**
 	 * Registers {@code handler} for the {@code (npcId, action)} pair.
 	 */
-	public static Value put(int npcId, String action, Value handler) {
-		Map<Integer, Map<String, Value>> handlers = RegistryStore.writable().npcHandlers;
-		Map<String, Value> byAction = handlers.get(npcId);
-		if (byAction == null) {
-			byAction = new java.util.HashMap<String, Value>();
-			Map<String, Value> existing = handlers.putIfAbsent(npcId, byAction);
-			if (existing != null) {
-				byAction = existing;
-			}
-		}
-		return byAction.putIfAbsent(action, handler);
+	public static void put(int npcId, String action, Value handler) {
+		RouteRegistry.put(ExecutableRouteKey.npc(npcId, action), handler);
 	}
 
 	/**
-	 * Returns the handler registered for {@code (npcId, action)} or
-	 * {@code null} if none is registered.
+	 * Returns the guest handler registered for {@code (npcId, action)} or
+	 * {@code null} when no guest route exists.
 	 */
 	public static Value get(int npcId, String action) {
 		return ScriptHost.getInstance().readActiveRegistry(
 				state -> get(state, npcId, action));
 	}
 
-	public static Value get(RegistryStore.State state, int npcId, String action) {
-		Map<String, Value> byAction = state.npcHandlers.get(npcId);
-		if (byAction == null) {
-			return null;
-		}
-		return byAction.get(action);
+	public static Value get(RegistryStore.State state, int npcId,
+			String action) {
+		ExecutableRouteRecord record = RouteRegistry.get(state,
+				ExecutableRouteKey.npc(npcId, action));
+		return record == null || !record.isGuest() ? null
+				: record.guestInvoker();
+	}
+
+	/** Exact route record of the npc/action key, or {@code null}. */
+	public static ExecutableRouteRecord getRecord(RegistryStore.State state,
+			int npcId, String action) {
+		return RouteRegistry.get(state,
+				ExecutableRouteKey.npc(npcId, action));
 	}
 
 	/**
 	 * Removes every registered handler. Intended for hot-reload.
 	 */
 	public static void clear() {
-		RegistryStore.writable().npcHandlers.clear();
+		RouteRegistry.clear(RegistryStore.writable(), RouteKind.NPC);
 	}
 
 	private NpcHandlerRegistry() {

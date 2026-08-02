@@ -475,21 +475,17 @@ public final class ScriptEncounterService {
 
 	/**
 	 * Rolls and stages one logical reward per selected entry as one
-	 * transaction: parse, preflight, selection and amount rolls on a cloned
-	 * RNG, exact identity staging, and a final private detach. Any failure
-	 * removes every staged identity and leaves the encounter RNG unchanged.
+	 * transaction: parse, then an owner-neutral {@code DropTransaction} over
+	 * the encounter RNG owner and the encounter ground-delivery policy
+	 * (participant, reserved arena, private TTL, and identity budget).
+	 * Any failure removes every staged identity and leaves the encounter
+	 * RNG unchanged.
 	 */
 	public synchronized ScriptArray rollDrops(long token, long generation,
 			ScriptedPlayer target, int x, int y, int plane, int privateTicks,
 			Value entries) {
 		ScriptEncounter encounter = openEncounter(token);
-		if (encounter == null || target == null
-				|| target.generation() != generation
-				|| !isParticipant(token, generation, target.backingPlayer())
-				|| !encounter.reservation.contains(x, y, plane)
-				|| privateTicks < 1 || privateTicks > 1000
-				|| !canUseFacade(target.backingPlayer(), generation,
-						target.facadeEpoch(), false)) {
+		if (encounter == null || target == null) {
 			return new ScriptArray(new Object[0]);
 		}
 		List<ScriptDropEntry> parsed;
@@ -498,78 +494,178 @@ public final class ScriptEncounterService {
 		} catch (RuntimeException invalidTable) {
 			return new ScriptArray(new Object[0]);
 		}
-		long worstCaseIdentities = 0L;
-		long worstCaseAmount = 0L;
-		for (ScriptDropEntry entry : parsed) {
-			try {
-				org.apollo.cache.def.ItemDefinition definition =
-						org.apollo.cache.def.ItemDefinition.lookup(entry.itemId);
-				worstCaseIdentities += definition.isStackable()
-						? 1L : entry.maxAmount;
-			} catch (RuntimeException invalidDefinition) {
-				return new ScriptArray(new Object[0]);
-			}
-			worstCaseAmount += entry.maxAmount;
-		}
-		if (worstCaseIdentities > MAX_GROUND_IDENTITIES_PER_ENCOUNTER
-				- encounter.groundIdentityCount
-				|| worstCaseAmount > Integer.MAX_VALUE) {
-			return new ScriptArray(new Object[0]);
-		}
-
-		ScriptEncounterRng transaction = encounter.rng.copy();
 		int failAt = failStagingAtIndexForTesting;
 		boolean failDetach = failDetachForTesting;
 		failStagingAtIndexForTesting = -1;
 		failDetachForTesting = false;
-		ScriptDropEntry weightedWinner = selectWeighted(parsed, transaction);
-		List<ScriptDropEntry> selected = new ArrayList<ScriptDropEntry>();
-		List<Integer> amounts = new ArrayList<Integer>();
-		List<ScriptGroundItemHandle> staged =
-				new ArrayList<ScriptGroundItemHandle>();
-		List<GroundItem> stagedIdentities = new ArrayList<GroundItem>();
-		try {
-			int stageIndex = 0;
-			for (ScriptDropEntry entry : parsed) {
-				if (!entry.always && entry != weightedWinner) {
-					continue;
-				}
-				if (stageIndex == failAt) {
-					throw new IllegalStateException("injected staging failure");
-				}
-				int amount = entry.minAmount + transaction.nextInt(
-						entry.maxAmount - entry.minAmount + 1);
-				ScriptGroundItemHandle handle = GameEngine.itemHandler
-						.createScriptGroundItems(target.backingPlayer(), token,
-								entry.itemId, amount, x, y, plane, 0);
-				if (handle == null) {
-					throw new IllegalStateException("reward staging failed");
-				}
-				selected.add(entry);
-				amounts.add(Integer.valueOf(amount));
-				staged.add(handle);
-				stagedIdentities.addAll(handle.identities());
-				stageIndex++;
+		List<ScriptDropResult> results = com.rs2.script.drop.DropTransaction
+				.execute(new EncounterRngOwner(encounter),
+						new EncounterDelivery(encounter, token, generation,
+								target, x, y, plane, privateTicks, failAt,
+								failDetach),
+						parsed, target);
+		return results == null
+				? new ScriptArray(new Object[0])
+				: new ScriptArray(results.toArray());
+	}
+
+	/** Encounter RNG adapter: exact state plus monotonic drop version. */
+	private final class EncounterRngOwner
+			implements com.rs2.script.drop.DropRngTransactionOwner {
+
+		private final ScriptEncounter encounter;
+
+		EncounterRngOwner(ScriptEncounter encounter) {
+			this.encounter = encounter;
+		}
+
+		@Override
+		public void lock() {
+		}
+
+		@Override
+		public void unlock() {
+		}
+
+		@Override
+		public long version() {
+			return encounter.dropVersion;
+		}
+
+		@Override
+		public long state() {
+			return encounter.rng.state();
+		}
+
+		@Override
+		public void publishState(long nextState) {
+			encounter.rng.restore(nextState);
+			encounter.dropVersion++;
+		}
+	}
+
+	/**
+	 * Encounter delivery policy: participant eligibility, reserved-arena
+	 * location, private recipient, private TTL, identity budget, invisible
+	 * staging, and the final private detach.
+	 */
+	private final class EncounterDelivery
+			implements com.rs2.script.drop.GroundDeliveryPolicy {
+
+		private final ScriptEncounter encounter;
+		private final long token;
+		private final long generation;
+		private final ScriptedPlayer target;
+		private final int x;
+		private final int y;
+		private final int plane;
+		private final int privateTicks;
+		private final int failAt;
+		private final boolean failDetach;
+		private int stageIndex;
+
+		EncounterDelivery(ScriptEncounter encounter, long token,
+				long generation, ScriptedPlayer target, int x, int y,
+				int plane, int privateTicks, int failAt, boolean failDetach) {
+			this.encounter = encounter;
+			this.token = token;
+			this.generation = generation;
+			this.target = target;
+			this.x = x;
+			this.y = y;
+			this.plane = plane;
+			this.privateTicks = privateTicks;
+			this.failAt = failAt;
+			this.failDetach = failDetach;
+		}
+
+		@Override
+		public boolean eligible() {
+			return target.generation() == generation
+					&& isParticipant(token, generation, target.backingPlayer())
+					&& encounter.reservation.contains(x, y, plane)
+					&& privateTicks >= 1 && privateTicks <= 1000
+					&& canUseFacade(target.backingPlayer(), generation,
+							target.facadeEpoch(), false);
+		}
+
+		@Override
+		public int x() {
+			return x;
+		}
+
+		@Override
+		public int y() {
+			return y;
+		}
+
+		@Override
+		public int plane() {
+			return plane;
+		}
+
+		@Override
+		public boolean isPrivate() {
+			return true;
+		}
+
+		@Override
+		public int privateTicks() {
+			return privateTicks;
+		}
+
+		@Override
+		public long identityBudgetRemaining() {
+			return MAX_GROUND_IDENTITIES_PER_ENCOUNTER
+					- encounter.groundIdentityCount;
+		}
+
+		@Override
+		public ScriptGroundItemHandle stage(ScriptedPlayer recipient,
+				int itemId, int amount) {
+			if (stageIndex == failAt) {
+				throw new IllegalStateException("injected staging failure");
 			}
+			ScriptGroundItemHandle handle = GameEngine.itemHandler
+					.createScriptGroundItems(recipient.backingPlayer(), token,
+							itemId, amount, x, y, plane, 0);
+			stageIndex++;
+			return handle;
+		}
+
+		@Override
+		public void verifyStaged() {
+		}
+
+		@Override
+		public boolean detach(List<ScriptGroundItemHandle> staged) {
 			if (failDetach) {
 				throw new IllegalStateException("injected detach failure");
 			}
-			if (!GameEngine.itemHandler.detachExact(stagedIdentities,
-					privateTicks)) {
-				throw new IllegalStateException("reward detach failed");
+			List<GroundItem> identities = flatIdentities(staged);
+			return GameEngine.itemHandler.detachExact(identities, privateTicks);
+		}
+
+		@Override
+		public void publish(List<ScriptGroundItemHandle> staged) {
+			encounter.groundIdentityCount += flatIdentities(staged).size();
+		}
+
+		@Override
+		public void removeExact(List<ScriptGroundItemHandle> staged) {
+			if (!staged.isEmpty()) {
+				GameEngine.itemHandler.removeExact(flatIdentities(staged));
 			}
-		} catch (RuntimeException failure) {
-			GameEngine.itemHandler.removeExact(stagedIdentities);
-			return new ScriptArray(new Object[0]);
 		}
-		encounter.rng.restore(transaction.state());
-		encounter.groundIdentityCount += stagedIdentities.size();
-		Object[] results = new Object[selected.size()];
-		for (int index = 0; index < selected.size(); index++) {
-			results[index] = new ScriptDropResult(selected.get(index).itemId,
-					amounts.get(index).intValue(), staged.get(index));
+
+		private List<GroundItem> flatIdentities(
+				List<ScriptGroundItemHandle> staged) {
+			List<GroundItem> identities = new ArrayList<GroundItem>();
+			for (ScriptGroundItemHandle handle : staged) {
+				identities.addAll(handle.identities());
+			}
+			return identities;
 		}
-		return new ScriptArray(results);
 	}
 
 	/** Chebyshev distance between two valid same-plane positions, else -1. */
@@ -677,30 +773,6 @@ public final class ScriptEncounterService {
 		long ownerToken = nextOwnerToken++;
 		ownerTokens.put(owner, Long.valueOf(ownerToken));
 		return ownerToken;
-	}
-
-	/** Selects exactly one weighted entry by cumulative input order. */
-	private static ScriptDropEntry selectWeighted(List<ScriptDropEntry> entries,
-			ScriptEncounterRng rng) {
-		long sum = 0L;
-		for (ScriptDropEntry entry : entries) {
-			sum += entry.weight;
-		}
-		if (sum == 0L) {
-			return null;
-		}
-		int pick = rng.nextInt((int) sum);
-		long cumulative = 0L;
-		for (ScriptDropEntry entry : entries) {
-			if (entry.weight == 0) {
-				continue;
-			}
-			cumulative += entry.weight;
-			if (pick < cumulative) {
-				return entry;
-			}
-		}
-		return null;
 	}
 
 	private static int directionOf(int stepX, int stepY) {

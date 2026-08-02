@@ -90,11 +90,11 @@ public class ItemOnNpc implements PacketType {
 
 	static boolean executeScriptItemOnNpc(Player player, int itemId, int slot, Npc npc) {
 		return ScriptHost.getInstance().dispatchActive(
-				state -> ItemHandlerRegistry.getItemOnNpc(
+				state -> ItemHandlerRegistry.getItemOnNpcRecord(
 						state, itemId, npc.npcType),
-				(generation, handler) -> {
+				(generation, route) -> {
 					player.endCurrentTask();
-					ScriptExecutor.execute(handler, "item-on-npc",
+					ScriptExecutor.executeRoute(route, "item-on-npc",
 							itemId + ":" + npc.npcType, "item-on-npc",
 							new ItemOnNpcScriptContext(
 									new ScriptedPlayer(player, generation),

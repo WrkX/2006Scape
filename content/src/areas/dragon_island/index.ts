@@ -11,7 +11,7 @@ import { createArea } from "../area-builder.js";
 import type { AreaObject } from "../types.js";
 import type { Shop } from "../../core/types.js";
 import { allNpcs } from "./npcs.js";
-import { dragonGuardianLoot, elderWizardLoot } from "./drops.js";
+import "./drops.js";
 
 // ─── Objects ─────────────────────────────────────────────────────────────────
 
@@ -71,10 +71,7 @@ export const dragonIsland = createArea({
   },
   npcs: allNpcs as readonly import("../../core/types.js").NpcSpawn[],
   objects: islandObjects,
-  drops: [
-    { npcId: 5001, table: dragonGuardianLoot },
-    { npcId: 667, table: elderWizardLoot },
-  ],
+  drops: [],
   shops: [islandGeneralStore],
   quests: [],
 });

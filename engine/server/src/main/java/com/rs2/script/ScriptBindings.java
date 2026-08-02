@@ -35,6 +35,12 @@ public final class ScriptBindings {
 		globals.putMember("defineQuest", consumeValue(functions.getDefineQuest()));
 		globals.putMember("defineRaid", consumeValue(functions.getDefineRaid()));
 		globals.putMember("defineArea", consumeValue(functions.getDefineArea()));
+		globals.putMember("defineDropTable",
+				consumeValue(functions.getDefineDropTable()));
+		globals.putMember("defineReward",
+				consumeValue(functions.getDefineReward()));
+		globals.putMember("registerContentModule",
+				biValue(functions.getRegisterContentModule()));
 		globals.putMember("onObject", triIntStr(functions.getOnObject()));
 		globals.putMember("onNpc", triIntStr(functions.getOnNpc()));
 		globals.putMember("onItem", triIntStr(functions.getOnItem()));
@@ -63,7 +69,7 @@ public final class ScriptBindings {
 		Map<String, Object> devMembers = new HashMap<>();
 		devMembers.put("log", (ProxyExecutable) arguments -> {
 			if (arguments != null && arguments.length > 0) {
-				functions.getDev().log(arguments[0].toString());
+				functions.getDev().log(asLoggable(arguments[0]));
 			}
 			return null;
 		});
@@ -71,10 +77,36 @@ public final class ScriptBindings {
 
 		globals.putMember("log", (ProxyExecutable) arguments -> {
 			if (arguments != null && arguments.length > 0) {
-				functions.getLog().accept(arguments[0].toString());
+				functions.getLog().accept(asLoggable(arguments[0]));
 			}
 			return null;
 		});
+	}
+
+	/**
+	 * Converts one guest argument into its exact printable value. Plain
+	 * {@code Value.toString()} can expose internal representation class
+	 * names, so strings and primitives are narrowed explicitly.
+	 */
+	private static String asLoggable(Value value) {
+		if (value == null || value.isNull()) {
+			return "null";
+		}
+		if (value.isString()) {
+			return value.asString();
+		}
+		if (value.isNumber()) {
+			double number = value.asDouble();
+			if (Double.isFinite(number) && number == Math.rint(number)
+					&& Math.abs(number) < 9.0e15) {
+				return String.valueOf(value.asLong());
+			}
+			return String.valueOf(number);
+		}
+		if (value.isBoolean()) {
+			return String.valueOf(value.asBoolean());
+		}
+		return value.toString();
 	}
 
 	private static ProxyExecutable consumeValue(final java.util.function.Consumer<Value> consumer) {
@@ -113,6 +145,18 @@ public final class ScriptBindings {
 				throw new IllegalArgumentException("name must be a string");
 			}
 			fn.accept(arguments[0].asString(), arguments[1]);
+			return null;
+		};
+	}
+
+	private static ProxyExecutable biValue(
+			final java.util.function.BiConsumer<Value, Value> fn) {
+		return arguments -> {
+			if (arguments == null || arguments.length < 2) {
+				throw new IllegalArgumentException(
+						"Script registration requires a descriptor and scope function");
+			}
+			fn.accept(arguments[0], arguments[1]);
 			return null;
 		};
 	}

@@ -331,10 +331,10 @@ public class ClickItem implements PacketType {
 
 	static boolean executeScriptItemClick(Player player, int itemId, int slot, String action) {
 		return ScriptHost.getInstance().dispatchActive(
-				state -> ItemHandlerRegistry.getItem(state, itemId, action),
-				(generation, handler) -> {
+				state -> ItemHandlerRegistry.getItemRecord(state, itemId, action),
+				(generation, route) -> {
 					player.endCurrentTask();
-					ScriptExecutor.execute(handler, "item", String.valueOf(itemId),
+					ScriptExecutor.executeRoute(route, "item", String.valueOf(itemId),
 							action, new ItemClickScriptContext(
 									new ScriptedPlayer(player, generation),
 									ScriptedItem.byId(itemId), slot, action));

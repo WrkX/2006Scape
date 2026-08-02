@@ -49,8 +49,11 @@
  */
 
 import type { ItemId, LootEntry, LootTable } from "./types.js";
+import type { DropTableDefinition } from "./runtime.js";
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
+
+const MODULE_ID_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/;
 
 function assert(condition: boolean, message: string): asserts condition {
   if (!condition) {
@@ -382,4 +385,45 @@ export function analyseTable(
 
   return [...guaranteedResults, ...weightedResults]
     .sort((a, b) => b.probability - a.probability);
+}
+
+/**
+ * Registers one canonical schema-v1 named drop table through the Java
+ * bridge.
+ *
+ * Entries use the exact Phase 4 contract: integral amounts and weights,
+ * `always: true` with weight `0`, preserved order, and no `Infinity` or
+ * fractional weights at the Java boundary. The Java parser re-validates the
+ * complete definition and resolves string item names at candidate load.
+ */
+export function createDropTable(definition: DropTableDefinition): void {
+  const id = definition.id;
+  if (!MODULE_ID_PATTERN.test(id)) {
+    throw new Error(
+      `Invalid drop table id '${id}': expected at most 64 characters of ` +
+        "letters, digits, '.', '_', or '-'",
+    );
+  }
+  if (definition.entries.length < 1 || definition.entries.length > 64) {
+    throw new Error(`Drop table '${id}' must contain 1..64 entries`);
+  }
+  let weightedSum = 0;
+  for (const entry of definition.entries) {
+    if (entry.always !== (entry.weight === 0)) {
+      throw new Error(
+        `Drop table '${id}' entry always requires weight 0 and ` +
+          "non-always entries require a positive weight",
+      );
+    }
+    if (entry.always) {
+      continue;
+    }
+    weightedSum += entry.weight;
+  }
+  if (weightedSum > 1_000_000) {
+    throw new Error(
+      `Drop table '${id}' weighted weight sum must be 1..1000000`,
+    );
+  }
+  defineDropTable(definition);
 }

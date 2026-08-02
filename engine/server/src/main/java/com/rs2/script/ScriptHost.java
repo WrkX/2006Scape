@@ -17,12 +17,20 @@ import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.EnvironmentAccess;
 import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.Source;
+import org.graalvm.polyglot.Value;
 import org.graalvm.polyglot.io.IOAccess;
 
 import com.rs2.game.players.Player;
 import com.rs2.game.players.PlayerHandler;
+import com.rs2.script.activation.HookResult;
+import com.rs2.script.activation.NoOpProjectionAdapter;
+import com.rs2.script.activation.ProjectionAdapter;
+import com.rs2.script.activation.RuntimeActivationTransaction;
+import com.rs2.script.activation.RuntimeSnapshot;
+import com.rs2.script.activation.ScriptRuntimeReport;
 import com.rs2.script.registries.RegistryStore;
 import com.rs2.script.registries.QuestRegistry;
+import com.rs2.script.route.ExecutableRouteRecord;
 import com.rs2.script.scheduler.ScriptScheduler;
 import com.rs2.script.world.ScriptEncounterService;
 import com.rs2.util.LoggerUtils;
@@ -33,7 +41,11 @@ import com.rs2.util.LoggerUtils;
  *
  * <p>One {@link Context} is created on the first {@link #load()}. Reloads are
  * evaluated in isolation and replace the live context only after every module
- * succeeds.
+ * succeeds. Publication is a two-phase runtime activation transaction: the
+ * last abortable point is the final pre-publication checkpoint, after which
+ * old-generation unload observers are attempted (registration closed) and the
+ * no-throw commit publishes context, generation, registries, routes,
+ * manifest, and report together.
  */
 public final class ScriptHost {
 
@@ -43,13 +55,23 @@ public final class ScriptHost {
 	}
 
 	@FunctionalInterface
-	public interface RegistryLookup {
-		org.graalvm.polyglot.Value find(RegistryStore.State state);
+	public interface RouteLookup {
+		ExecutableRouteRecord find(RegistryStore.State state);
 	}
 
 	@FunctionalInterface
-	public interface RegisteredInvocation {
-		void invoke(long generation, org.graalvm.polyglot.Value handler);
+	public interface RouteInvocation {
+		void invoke(long generation, ExecutableRouteRecord route);
+	}
+
+	@FunctionalInterface
+	public interface ObserverLookup {
+		Value find(RegistryStore.State state);
+	}
+
+	@FunctionalInterface
+	public interface ObserverInvocation {
+		void invoke(long generation, Value handler);
 	}
 
 	@FunctionalInterface
@@ -67,14 +89,19 @@ public final class ScriptHost {
 		private final Context context;
 		private final RegistryStore.State registry;
 		private final long generation;
+		private final ScriptRuntimeReport report;
 
 		private ActiveState(Context context, RegistryStore.State registry,
-				long generation) {
+				long generation, ScriptRuntimeReport report) {
 			this.context = context;
 			this.registry = registry;
 			this.generation = generation;
+			this.report = report;
 		}
 	}
+
+	private static final int MAX_DIAGNOSTICS = 32;
+	private static final int MAX_DIAGNOSTIC_LENGTH = 512;
 
 	private static final ScriptHost INSTANCE = new ScriptHost();
 
@@ -85,6 +112,9 @@ public final class ScriptHost {
 
 	private ActiveState activeState;
 	private long nextGeneration;
+	private ProjectionAdapter projectionAdapter = NoOpProjectionAdapter
+			.getInstance();
+	private final List<String> diagnostics = new ArrayList<>();
 
 	private ScriptHost() {
 	}
@@ -140,7 +170,8 @@ public final class ScriptHost {
 
 	/**
 	 * Evaluates a fresh candidate and atomically publishes it on success.
-	 * The last known-good context remains live when evaluation fails.
+	 * The last known-good context remains live when evaluation or the
+	 * activation handoff fails.
 	 */
 	public synchronized void reload() {
 		replaceContext();
@@ -159,16 +190,51 @@ public final class ScriptHost {
 	}
 
 	/**
-	 * Looks up and invokes one exact registration while holding the active
-	 * context lease. Registry state, generation, and callback value therefore
-	 * always belong to the same Graal context.
+	 * Returns the immutable report of the active generation, or {@code null}
+	 * when no generation has been committed.
 	 */
-	public synchronized DispatchResult dispatchActive(RegistryLookup lookup,
-			RegisteredInvocation invocation) {
+	public synchronized ScriptRuntimeReport getRuntimeReport() {
+		return activeState == null ? null : activeState.report;
+	}
+
+	/**
+	 * Returns an immutable bounded copy of post-commit observer and
+	 * finalization diagnostics of the active runtime.
+	 */
+	public synchronized List<String> getRuntimeDiagnostics() {
+		return Collections.unmodifiableList(new ArrayList<>(diagnostics));
+	}
+
+	/**
+	 * Looks up and invokes one exact route while holding the active context
+	 * lease. Registry state, generation, and route record therefore always
+	 * belong to the same Graal context. Guest and host invokers share the
+	 * same consumed/unmatched authority.
+	 */
+	public synchronized DispatchResult dispatchActive(RouteLookup lookup,
+			RouteInvocation invocation) {
 		if (activeState == null) {
 			return DispatchResult.NO_ACTIVE_CONTEXT;
 		}
-		org.graalvm.polyglot.Value handler = lookup.find(activeState.registry);
+		ExecutableRouteRecord route = lookup.find(activeState.registry);
+		if (route == null) {
+			return DispatchResult.UNMATCHED;
+		}
+		invocation.invoke(activeState.generation, route);
+		return DispatchResult.CONSUMED;
+	}
+
+	/**
+	 * Generation-leased invocation of a lifecycle observer. Observers are
+	 * deliberately not routes: they never own a consumed-versus-legacy
+	 * decision.
+	 */
+	public synchronized DispatchResult dispatchObserverActive(
+			ObserverLookup lookup, ObserverInvocation invocation) {
+		if (activeState == null) {
+			return DispatchResult.NO_ACTIVE_CONTEXT;
+		}
+		Value handler = lookup.find(activeState.registry);
 		if (handler == null) {
 			return DispatchResult.UNMATCHED;
 		}
@@ -213,11 +279,21 @@ public final class ScriptHost {
 		return true;
 	}
 
+	/**
+	 * Installs the projection adapter used by the activation transaction.
+	 * Package-private test seam; production always uses the no-op adapter
+	 * until a consumer work package supplies world projections.
+	 */
+	synchronized void setProjectionAdapterForTesting(
+			ProjectionAdapter adapter) {
+		projectionAdapter = adapter == null
+				? NoOpProjectionAdapter.getInstance() : adapter;
+	}
+
 	private void replaceContext() {
 		File contentDir = resolveContentDir().getAbsoluteFile();
 		RegistryStore.State candidateState = RegistryStore.beginStaging();
 		Context candidateContext = null;
-		boolean published = false;
 		try {
 			candidateContext = buildContext(contentDir);
 			List<File> modules = collectLoadModules(contentDir);
@@ -228,19 +304,42 @@ public final class ScriptHost {
 				candidateContext.eval(source);
 			}
 			QuestRegistry.validateCandidate(candidateState);
-			RegistryStore.State committedState = RegistryStore.finish(candidateState);
+			RegistryStore.State committedState =
+					RegistryStore.finish(candidateState);
+			candidateState = null;
 
 			ActiveState previous = activeState;
 			long candidateGeneration = nextGeneration + 1L;
-			activeState = new ActiveState(candidateContext, committedState,
-					candidateGeneration);
-			nextGeneration = candidateGeneration;
+			RuntimeSnapshot predecessor = previous == null ? null
+					: RuntimeSnapshot.committed(previous.context,
+							previous.registry, previous.generation,
+							previous.report);
+			RuntimeSnapshot candidate = RuntimeSnapshot.candidate(
+					candidateContext, committedState, candidateGeneration);
+			RuntimeActivationTransaction transaction =
+					new RuntimeActivationTransaction(predecessor, candidate,
+							projectionAdapter);
+			RuntimeSnapshot published = transaction.execute();
 			candidateContext = null;
-			published = true;
-			long previousGeneration = previous == null ? 0L : previous.generation;
+
+			// One no-throw commit assignment: context, generation, frozen
+			// registries/routes, manifest, and report become visible together.
+			activeState = new ActiveState(published.context(),
+					published.registry(), published.generation(),
+					published.report());
+			nextGeneration = published.generation();
+			long previousGeneration =
+					previous == null ? 0L : previous.generation;
+
+			HookResult loadFailure = transaction.runLoadObservers();
+			if (loadFailure != null && loadFailure.threw()) {
+				appendDiagnostic("script reload onLoad observer failed for "
+						+ loadFailure.identity() + ": "
+						+ loadFailure.message());
+			}
 			runPostCommit("publish encounter generation",
 					() -> ScriptEncounterService.getInstance()
-							.onGenerationPublished(candidateGeneration));
+							.onGenerationPublished(published.generation()));
 			runPostCommit("close old-generation encounters",
 					() -> ScriptEncounterService.getInstance()
 							.closeGeneration(previousGeneration));
@@ -249,26 +348,38 @@ public final class ScriptHost {
 							.cancelGeneration(previousGeneration));
 			runPostCommit("re-baseline lifecycle state",
 					() -> ScriptLifecycleService.getInstance()
-							.onGenerationCommitted(candidateGeneration));
+							.onGenerationCommitted(published.generation()));
 			runPostCommit("clear pending script callbacks",
 					ScriptHost::clearPendingScriptCallbacks);
-			closeQuietly(previous == null ? null : previous.context);
-			logger.log(Level.INFO, "Loaded " + modules.size() + " script modules");
-		} catch (Throwable e) {
-			if (!published) {
-				RegistryStore.rollback(candidateState);
-				closeQuietly(candidateContext);
-				logger.log(Level.SEVERE,
-						"Script load failed; retaining the last known-good context", e);
-			} else {
-				logger.log(Level.SEVERE,
-						"Script context published but post-commit processing failed", e);
+			String finalizeFailure = transaction.finalizeQuietly();
+			if (finalizeFailure != null) {
+				appendDiagnostic("script reload finalize degraded: "
+						+ finalizeFailure);
 			}
+			logger.log(Level.INFO, "Loaded " + modules.size()
+					+ " script modules (generation " + published.generation()
+					+ ")");
+		} catch (Throwable e) {
+			RegistryStore.rollback(candidateState);
+			closeQuietly(candidateContext);
+			appendDiagnostic("script load failed; retaining the "
+					+ "last-known-good context: " + boundMessage(e.getMessage()));
+			if (e instanceof RuntimeActivationTransaction.Aborted) {
+				String quarantine = ((RuntimeActivationTransaction.Aborted) e)
+						.quarantine();
+				if (quarantine != null) {
+					logger.log(Level.SEVERE, quarantine, e);
+				}
+			}
+			logger.log(Level.SEVERE,
+					"Script load failed; retaining the last known-good context", e);
 		}
 	}
 
 	/**
-	 * Coherent publication seam used by tests that construct handlers directly.
+	 * Coherent publication seam used by tests that construct handlers
+	 * directly. It commits one frozen candidate without the world-activation
+	 * handoff; production reloads use the activation transaction.
 	 */
 	synchronized void publishForTesting(Context testContext,
 			RegistryStore.State candidate) {
@@ -278,10 +389,16 @@ public final class ScriptHost {
 		RegistryStore.State committed = RegistryStore.finish(candidate);
 		long previousGeneration =
 				activeState == null ? 0L : activeState.generation;
-		activeState = new ActiveState(testContext, committed, nextGeneration + 1L);
-		nextGeneration = activeState.generation;
+		long generation = nextGeneration + 1L;
+		ScriptRuntimeReport report = new ScriptRuntimeReport(
+				ScriptRuntimeReport.Status.LOADED, generation,
+				committed.manifest.size(), committed.definitions.size(),
+				committed.routes.size(), null);
+		activeState = new ActiveState(testContext, committed, generation,
+				report);
+		nextGeneration = generation;
 		ScriptEncounterService.getInstance()
-				.onGenerationPublished(activeState.generation);
+				.onGenerationPublished(generation);
 		ScriptEncounterService.getInstance()
 				.closeGeneration(previousGeneration);
 		clearPendingScriptCallbacks();
@@ -290,7 +407,26 @@ public final class ScriptHost {
 	synchronized void resetForTesting() {
 		clearPendingScriptCallbacks();
 		ScriptEncounterService.getInstance().resetForTesting();
+		projectionAdapter = NoOpProjectionAdapter.getInstance();
+		diagnostics.clear();
 		activeState = null;
+	}
+
+	private void appendDiagnostic(String message) {
+		synchronized (diagnostics) {
+			diagnostics.add(boundMessage(message));
+			while (diagnostics.size() > MAX_DIAGNOSTICS) {
+				diagnostics.remove(0);
+			}
+		}
+	}
+
+	private static String boundMessage(String value) {
+		if (value == null) {
+			return "unknown failure";
+		}		String trimmed = value.trim();
+		return trimmed.length() <= MAX_DIAGNOSTIC_LENGTH ? trimmed
+				: trimmed.substring(0, MAX_DIAGNOSTIC_LENGTH) + "...";
 	}
 
 	private static void runPostCommit(String operation, Runnable callback) {

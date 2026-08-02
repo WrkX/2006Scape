@@ -17,6 +17,7 @@ import org.junit.After;
 import org.junit.Test;
 
 import com.rs2.script.registries.CommandHandlerRegistry;
+import com.rs2.script.route.ExecutableRouteRecord;
 
 public class ScriptHostDispatchLeaseTest {
 
@@ -51,13 +52,14 @@ public class ScriptHostDispatchLeaseTest {
 			try {
 				assertEquals(ScriptHost.DispatchResult.CONSUMED,
 						host.dispatchActive(state -> {
-							Value handler = CommandHandlerRegistry.get(state, "old");
+							ExecutableRouteRecord route = CommandHandlerRegistry
+									.getRecord(state, "old");
 							lookupReached.countDown();
 							await(allowInvocation);
-							return handler;
-						}, (generation, handler) -> {
+							return route;
+						}, (generation, route) -> {
 							assertEquals(oldGeneration, generation);
-							result.set(handler.execute().asString());
+							result.set(route.guestInvoker().execute().asString());
 						}));
 			} catch (Throwable error) {
 				failure.set(error);
@@ -82,9 +84,11 @@ public class ScriptHostDispatchLeaseTest {
 		AtomicReference<String> replacement = new AtomicReference<>();
 		assertEquals(ScriptHost.DispatchResult.CONSUMED,
 				host.dispatchActive(
-						state -> CommandHandlerRegistry.get(state, "replacement"),
-						(generation, handler) ->
-								replacement.set(handler.execute().asString())));
+						state -> CommandHandlerRegistry.getRecord(
+								state, "replacement"),
+						(generation, route) ->
+								replacement.set(route.guestInvoker()
+										.execute().asString())));
 		assertEquals("new", replacement.get());
 	}
 
@@ -145,8 +149,9 @@ public class ScriptHostDispatchLeaseTest {
 
 		try {
 			host.dispatchActive(
-					state -> CommandHandlerRegistry.get(state, "throwing"),
-					(generation, handler) -> {
+					state -> CommandHandlerRegistry.getRecord(
+							state, "throwing"),
+					(generation, route) -> {
 						throw new IllegalStateException("expected");
 					});
 		} catch (IllegalStateException expected) {

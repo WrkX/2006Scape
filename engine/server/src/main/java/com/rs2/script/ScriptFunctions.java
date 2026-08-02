@@ -1,5 +1,10 @@
 package com.rs2.script;
 
+import com.rs2.script.definition.DefinitionKind;
+import com.rs2.script.definition.DefinitionRecord;
+import com.rs2.script.definition.DefinitionRegistry;
+import com.rs2.script.definition.ModuleRecord;
+import com.rs2.script.definition.ModuleScope;
 import com.rs2.script.registries.AreaRegistry;
 import com.rs2.script.registries.BossRegistry;
 import com.rs2.script.registries.CommandHandlerRegistry;
@@ -10,9 +15,12 @@ import com.rs2.script.registries.NpcHandlerRegistry;
 import com.rs2.script.registries.ObjectHandlerRegistry;
 import com.rs2.script.registries.QuestRegistry;
 import com.rs2.script.registries.RaidRegistry;
+import com.rs2.script.registries.RegistryStore;
 import com.rs2.script.registries.ScriptArea;
 import com.rs2.script.quest.QuestDefinition;
 import com.rs2.script.quest.QuestDefinitionParser;
+import com.rs2.script.route.ExecutableRouteKey;
+import com.rs2.script.route.RouteRegistry;
 
 import java.util.Map;
 import java.util.function.BiConsumer;
@@ -79,10 +87,9 @@ public final class ScriptFunctions {
 		return def -> {
 			requireObject("defineBoss", def);
 			int id = readIntegralMember("defineBoss", def, "npcId", 0, 14999);
-			if (BossRegistry.put(id, def) != null) {
-				throw registrationError("defineBoss(" + id + ")",
-						"duplicate registration");
-			}
+			rejectDuplicateRecord("defineBoss(" + id + ")",
+					DefinitionRegistry.put(DefinitionKind.BOSS,
+							String.valueOf(id), def));
 		};
 	}
 
@@ -101,7 +108,8 @@ public final class ScriptFunctions {
 		return def -> {
 			requireObject("defineRaid", def);
 			String id = requireStringMember("defineRaid", def, "id");
-			rejectDuplicate("defineRaid(" + id + ")", RaidRegistry.put(id, def));
+			rejectDuplicateRecord("defineRaid(" + id + ")",
+					DefinitionRegistry.put(DefinitionKind.RAID, id, def));
 		};
 	}
 
@@ -109,7 +117,76 @@ public final class ScriptFunctions {
 		return def -> {
 			requireObject("defineArea", def);
 			String id = requireStringMember("defineArea", def, "id");
-			rejectDuplicate("defineArea(" + id + ")", AreaRegistry.put(id, def));
+			rejectDuplicateRecord("defineArea(" + id + ")",
+					DefinitionRegistry.put(DefinitionKind.AREA, id, def));
+		};
+	}
+
+	/**
+	 * Registers one canonical named drop table: the guest payload is parsed
+	 * into a Java-owned typed descriptor with copied numeric item ids and
+	 * integral weights. String item ids resolve at candidate load; missing or
+	 * ambiguous names reject the candidate with the source and field path.
+	 */
+	public Consumer<Value> getDefineDropTable() {
+		return def -> {
+			requireObject("defineDropTable", def);
+			com.rs2.script.drop.DropTableDefinition table =
+					new com.rs2.script.drop.DropTableDefinitionParser(
+							ModuleScope.currentSource(),
+							ModuleScope.currentSchemaVersion()).parse(def);
+			rejectDuplicateRecord("defineDropTable(" + table.id() + ")",
+					com.rs2.script.drop.DropTableRegistry.put(table));
+		};
+	}
+
+	/**
+	 * Registers one canonical named reward: the guest payload is parsed into
+	 * a Java-owned typed descriptor with copied items, XP, quest points, and
+	 * state mutations.
+	 */
+	public Consumer<Value> getDefineReward() {
+		return def -> {
+			requireObject("defineReward", def);
+			com.rs2.script.reward.RewardDefinition reward =
+					new com.rs2.script.reward.RewardDefinitionParser(
+							ModuleScope.currentSource(),
+							ModuleScope.currentSchemaVersion()).parse(def);
+			rejectDuplicateRecord("defineReward(" + reward.id() + ")",
+					com.rs2.script.reward.RewardRegistry.put(reward));
+		};
+	}
+
+	/**
+	 * Opens one synchronous content-module registration scope. The scope
+	 * function's registrations carry the declared module id and schema
+	 * version; optional {@code onLoad} and {@code onUnload} hooks run around
+	 * the activation commit as contained observers. The scope closes in a
+	 * finally block; nested and duplicate module scopes reject the candidate.
+	 */
+	public BiConsumer<Value, Value> getRegisterContentModule() {
+		return (descriptor, scope) -> {
+			requireObject("registerContentModule", descriptor);
+			String id = requireStringMember("registerContentModule",
+					descriptor, "id");
+			int schemaVersion = readIntegralMember("registerContentModule",
+					descriptor, "schemaVersion", 1, 255);
+			Value onLoad = readOptionalExecutable("registerContentModule",
+					descriptor, "onLoad");
+			Value onUnload = readOptionalExecutable("registerContentModule",
+					descriptor, "onUnload");
+			if (!isExecutable(scope)) {
+				throw registrationError("registerContentModule",
+						"module scope must be executable");
+			}
+			ModuleScope.begin(id, schemaVersion);
+			try {
+				RegistryStore.recordModule(new ModuleRecord(id, schemaVersion,
+						onLoad, onUnload));
+				scope.execute();
+			} finally {
+				ModuleScope.end();
+			}
 		};
 	}
 
@@ -124,7 +201,7 @@ public final class ScriptFunctions {
 				throw registrationError(registration, "unsupported action");
 			}
 			requireExecutable(registration, fn);
-			rejectDuplicate(registration, ObjectHandlerRegistry.put(id, action, fn));
+			RouteRegistry.put(ExecutableRouteKey.object(id, action), fn);
 		};
 	}
 
@@ -139,39 +216,56 @@ public final class ScriptFunctions {
 				throw registrationError(registration, "unsupported action");
 			}
 			requireExecutable(registration, fn);
-			rejectDuplicate(registration, NpcHandlerRegistry.put(id, action, fn));
+			RouteRegistry.put(ExecutableRouteKey.npc(id, action), fn);
 		};
 	}
 
 	public TriIntStrFunction getOnItem() {
 		return (id, action, fn) -> {
+			String registration = "onItem(" + id + ", " + action + ")";
 			if (id < 0) {
-				throw registrationError("onItem(" + id + ", " + action + ")",
+				throw registrationError(registration,
 						"item id must be non-negative");
 			}
 			if (!isItemAction(action)) {
-				throw registrationError("onItem(" + id + ", " + action + ")",
-						"unsupported action");
+				throw registrationError(registration, "unsupported action");
 			}
-			if (!isExecutable(fn)) {
-				throw registrationError("onItem(" + id + ", " + action + ")",
-						"handler is not executable");
-			}
-			rejectDuplicate("onItem(" + id + ", " + action + ")",
-					ItemHandlerRegistry.putItem(id, action, fn));
+			requireExecutable(registration, fn);
+			RouteRegistry.put(ExecutableRouteKey.item(id, action), fn);
 		};
 	}
 
 	public PairIntFunction getOnItemOnItem() {
-		return pairRegistrar("onItemOnItem", ItemHandlerRegistry::putItemOnItem);
+		return (firstId, secondId, fn) -> {
+			String registration = "onItemOnItem(" + firstId + ", " + secondId + ")";
+			if (firstId < 0 || secondId < 0) {
+				throw registrationError(registration, "ids must be non-negative");
+			}
+			requireExecutable(registration, fn);
+			RouteRegistry.put(ExecutableRouteKey.itemOnItem(firstId, secondId), fn);
+		};
 	}
 
 	public PairIntFunction getOnItemOnObject() {
-		return pairRegistrar("onItemOnObject", ItemHandlerRegistry::putItemOnObject);
+		return (firstId, secondId, fn) -> {
+			String registration = "onItemOnObject(" + firstId + ", " + secondId + ")";
+			if (firstId < 0 || secondId < 0) {
+				throw registrationError(registration, "ids must be non-negative");
+			}
+			requireExecutable(registration, fn);
+			RouteRegistry.put(ExecutableRouteKey.itemOnObject(firstId, secondId), fn);
+		};
 	}
 
 	public PairIntFunction getOnItemOnNpc() {
-		return pairRegistrar("onItemOnNpc", ItemHandlerRegistry::putItemOnNpc);
+		return (firstId, secondId, fn) -> {
+			String registration = "onItemOnNpc(" + firstId + ", " + secondId + ")";
+			if (firstId < 0 || secondId < 0) {
+				throw registrationError(registration, "ids must be non-negative");
+			}
+			requireExecutable(registration, fn);
+			RouteRegistry.put(ExecutableRouteKey.itemOnNpc(firstId, secondId), fn);
+		};
 	}
 
 	public BiConsumer<String, Value> getOnCommand() {
@@ -181,8 +275,7 @@ public final class ScriptFunctions {
 			}
 			String normalized = name.toLowerCase(java.util.Locale.ROOT);
 			requireExecutable("onCommand(" + normalized + ")", fn);
-			rejectDuplicate("onCommand(" + normalized + ")",
-					CommandHandlerRegistry.put(normalized, fn));
+			RouteRegistry.put(ExecutableRouteKey.command(normalized), fn);
 		};
 	}
 
@@ -236,8 +329,7 @@ public final class ScriptFunctions {
 						"button id is not decodable from two unsigned bytes");
 			}
 			requireExecutable("onButton(" + buttonId + ")", fn);
-			rejectDuplicate("onButton(" + buttonId + ")",
-					InteractionHandlerRegistry.putButton(buttonId, fn));
+			RouteRegistry.put(ExecutableRouteKey.button(buttonId), fn);
 		};
 	}
 
@@ -250,9 +342,8 @@ public final class ScriptFunctions {
 			requireLoadedItem("onItemOnGroundItem", groundItemId);
 			requireExecutable("onItemOnGroundItem(" + itemId + ", "
 					+ groundItemId + ")", fn);
-			rejectDuplicate("onItemOnGroundItem(" + itemId + ", "
-					+ groundItemId + ")", InteractionHandlerRegistry
-					.putItemOnGroundItem(itemId, groundItemId, fn));
+			RouteRegistry.put(ExecutableRouteKey.itemOnGroundItem(
+					itemId, groundItemId), fn);
 		};
 	}
 
@@ -261,8 +352,7 @@ public final class ScriptFunctions {
 			int itemId = requireIntegralId("onItemOnPlayer", itemValue, 0, 14999);
 			requireLoadedItem("onItemOnPlayer", itemId);
 			requireExecutable("onItemOnPlayer(" + itemId + ")", fn);
-			rejectDuplicate("onItemOnPlayer(" + itemId + ")",
-					InteractionHandlerRegistry.putItemOnPlayer(itemId, fn));
+			RouteRegistry.put(ExecutableRouteKey.itemOnPlayer(itemId), fn);
 		};
 	}
 
@@ -272,8 +362,7 @@ public final class ScriptFunctions {
 			int itemId = requireIntegralId("onMagicOnItem", itemValue, 0, 14999);
 			requireLoadedItem("onMagicOnItem", itemId);
 			requireExecutable("onMagicOnItem(" + spellId + ", " + itemId + ")", fn);
-			rejectDuplicate("onMagicOnItem(" + spellId + ", " + itemId + ")",
-					InteractionHandlerRegistry.putMagicOnItem(spellId, itemId, fn));
+			RouteRegistry.put(ExecutableRouteKey.magicOnItem(spellId, itemId), fn);
 		};
 	}
 
@@ -283,8 +372,7 @@ public final class ScriptFunctions {
 			int objectId = requireIntegralId("onMagicOnObject", objectValue, 0, 65535);
 			requireLoadedObject("onMagicOnObject", objectId);
 			requireExecutable("onMagicOnObject(" + spellId + ", " + objectId + ")", fn);
-			rejectDuplicate("onMagicOnObject(" + spellId + ", " + objectId + ")",
-					InteractionHandlerRegistry.putMagicOnObject(spellId, objectId, fn));
+			RouteRegistry.put(ExecutableRouteKey.magicOnObject(spellId, objectId), fn);
 		};
 	}
 
@@ -318,19 +406,6 @@ public final class ScriptFunctions {
 
 	private static boolean isItemAction(String action) {
 		return "first".equals(action) || "second".equals(action) || "third".equals(action);
-	}
-
-	private static PairIntFunction pairRegistrar(String name, PairRegistry registry) {
-		return (firstId, secondId, fn) -> {
-			String registration = name + "(" + firstId + ", " + secondId + ")";
-			if (firstId < 0 || secondId < 0) {
-				throw registrationError(registration, "ids must be non-negative");
-			}
-			if (!isExecutable(fn)) {
-				throw registrationError(registration, "handler is not executable");
-			}
-			rejectDuplicate(registration, registry.put(firstId, secondId, fn));
-		};
 	}
 
 	private static Consumer<Value> singletonLifecycleRegistrar(final String event) {
@@ -416,6 +491,14 @@ public final class ScriptFunctions {
 		}
 	}
 
+	private static void rejectDuplicateRecord(String registration,
+			DefinitionRecord previous) {
+		if (previous != null) {
+			throw registrationError(registration,
+					"duplicate registration; existing record: " + previous);
+		}
+	}
+
 	private static int requireIntegralId(String registration, Value value,
 			int minimum, int maximum) {
 		if (value == null || value.isNull() || !value.isNumber()) {
@@ -466,6 +549,19 @@ public final class ScriptFunctions {
 				minimum, maximum);
 	}
 
+	private static Value readOptionalExecutable(String registration,
+			Value descriptor, String member) {
+		Value value = descriptor.getMember(member);
+		if (value == null || value.isNull()) {
+			return null;
+		}
+		if (!isExecutable(value)) {
+			throw registrationError(registration, "member '" + member
+					+ "' must be executable when present");
+		}
+		return value;
+	}
+
 	private static void requireLoadedItem(String registration, int itemId) {
 		ItemDefinition[] definitions = ItemDefinition.getDefinitions();
 		if (definitions == null || itemId >= definitions.length
@@ -492,11 +588,6 @@ public final class ScriptFunctions {
 				"Script registration " + registration + ": " + message);
 	}
 
-	@FunctionalInterface
-	private interface PairRegistry {
-		Value put(int firstId, int secondId, Value handler);
-	}
-
 	private static boolean isNpcAction(String action) {
 		return "first".equals(action) || "second".equals(action)
 				|| "third".equals(action);
@@ -506,24 +597,12 @@ public final class ScriptFunctions {
 		return v != null && !v.isNull() && v.canExecute();
 	}
 
-	private static int readIntMember(Value obj, String member) {
-		Value v = obj.getMember(member);
-		if (v == null || v.isNull() || !v.isNumber()) {
-			return -1;
-		}
-		return v.asInt();
-	}
-
 	private static String readStringMember(Value obj, String member) {
 		Value v = obj.getMember(member);
 		if (v == null || v.isNull() || !v.isString()) {
 			return null;
 		}
 		return v.asString();
-	}
-
-	private static void log(String message) {
-		System.out.println("[script] " + message);
 	}
 
 	private static final class DefaultDevConsole implements DevConsole {

@@ -49,9 +49,10 @@ public class MagicOnItems implements PacketType {
 	static boolean executeScriptMagicOnItem(Player player, int spellId,
 			int itemId, int slot) {
 		return ScriptHost.getInstance().dispatchActive(
-				state -> InteractionHandlerRegistry.getMagicOnItem(
+				state -> InteractionHandlerRegistry.getMagicOnItemRecord(
 						state, spellId, itemId),
-				(generation, handler) -> ScriptExecutor.execute(handler,
+				(generation, route) -> ScriptExecutor.executeRoute(
+						route,
 						"magic-on-item", spellId + ":" + itemId,
 						"magic-on-item", new MagicOnItemScriptContext(
 								new ScriptedPlayer(player, generation),

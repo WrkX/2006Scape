@@ -22,6 +22,8 @@ final class ScriptEncounter {
 	final ScriptEncounterRng rng;
 	final long ownerToken;
 	final long ordinal;
+	/** Monotonic drop-commit version owned by the encounter RNG adapter. */
+	long dropVersion;
 	final LinkedHashMap<Player, ScriptedPlayer> participants =
 			new LinkedHashMap<Player, ScriptedPlayer>();
 	final List<ScriptTaskHandle> tasks = new ArrayList<ScriptTaskHandle>();

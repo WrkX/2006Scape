@@ -245,10 +245,10 @@ public class ItemOnObject implements PacketType {
 			Objects object) {
 		int objectId = object.getObjectId();
 		return ScriptHost.getInstance().dispatchActive(
-				state -> ItemHandlerRegistry.getItemOnObject(
+				state -> ItemHandlerRegistry.getItemOnObjectRecord(
 						state, itemId, objectId),
-				(generation, handler) -> ScriptExecutor.execute(
-						handler, "item-on-object",
+				(generation, route) -> ScriptExecutor.executeRoute(
+						route, "item-on-object",
 						itemId + ":" + objectId, "item-on-object",
 						new ItemOnObjectScriptContext(
 								new ScriptedPlayer(player, generation),

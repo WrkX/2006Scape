@@ -112,6 +112,10 @@ public class NpcActions {
                     player.getDialogueHandler().sendDialogues(682, 606);
                 }
                 break;
+            case StaticNpcList.SIR_VYVIN:
+                player.getDialogueHandler().sendNpcChat1(
+                        "An elderly White Knight.", npcType, "Sir Vyvin");
+                break;
             case 647://TODO reldo
                 if (player.knightS == 1) {
                     player.getDialogueHandler().sendDialogues(626, 647);
@@ -134,6 +138,12 @@ public class NpcActions {
                     player.getDialogueHandler().sendDialogues(669, 604);
                 } else if (player.knightS == 8) {
                     player.getDialogueHandler().sendDialogues(674, 604);
+                } else if (player.knightS < 2) {
+                    player.getDialogueHandler().sendNpcChat1(
+                            "Go away, I'm busy.", npcType, "Thurgo");
+                } else {
+                    player.getDialogueHandler().sendNpcChat1(
+                            "Did you need something?", npcType, "Thurgo");
                 }
                 break;
             case COMPETITION_JUDGE:
@@ -1171,15 +1181,15 @@ public class NpcActions {
 
     private boolean dispatchScriptedClick(final int npcType, final String action) {
         return ScriptHost.getInstance().dispatchActive(
-                state -> NpcHandlerRegistry.get(state, npcType, action),
-                (generation, handler) -> {
+                state -> NpcHandlerRegistry.getRecord(state, npcType, action),
+                (generation, route) -> {
                     Npc npcEntity = player.rememberNpcIndex >= 0
                             && player.rememberNpcIndex < NpcHandler.npcs.length
                             ? NpcHandler.npcs[player.rememberNpcIndex] : null;
                     ScriptedNpc target = npcEntity != null
                             && npcEntity.npcType == npcType
                             ? new ScriptedNpc(npcEntity) : null;
-                    ScriptExecutor.execute(handler, "npc",
+                    ScriptExecutor.executeRoute(route, "npc",
                             String.valueOf(npcType), action,
                             new ScriptContext(
                                     new ScriptedPlayer(player, generation),

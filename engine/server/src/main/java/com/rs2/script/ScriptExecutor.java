@@ -5,6 +5,7 @@ import java.util.logging.Logger;
 
 import org.graalvm.polyglot.Value;
 
+import com.rs2.script.route.ExecutableRouteRecord;
 import com.rs2.util.LoggerUtils;
 
 /**
@@ -66,6 +67,31 @@ public final class ScriptExecutor {
 		} catch (RuntimeException e) {
 			log(category, identity, action, "callback threw", e);
 		}
+	}
+
+	/**
+	 * Executes one exact route record. Guest callbacks run through the
+	 * guarded guest boundary; host consumers are contained the same way.
+	 * A non-null route is authoritative even when its invoker throws, so
+	 * callers must not run legacy fallback behavior after this method
+	 * returns {@code true}.
+	 */
+	public static boolean executeRoute(ExecutableRouteRecord route,
+			String category, String identity, String action,
+			Object... arguments) {
+		if (route == null) {
+			return false;
+		}
+		if (route.isGuest()) {
+			return execute(route.guestInvoker(), category, identity, action,
+					arguments);
+		}
+		try {
+			route.hostInvoker().invoke();
+		} catch (RuntimeException e) {
+			log(category, identity, action, "host route threw", e);
+		}
+		return true;
 	}
 
 	private static void log(String category, String identity, String action,

@@ -74,9 +74,10 @@ public class ItemOnGroundItem implements PacketType {
 	static boolean executeScriptItemOnGroundItem(Player player, int itemId,
 			int slot, GroundItemRef target) {
 		return ScriptHost.getInstance().dispatchActive(
-				state -> InteractionHandlerRegistry.getItemOnGroundItem(
+				state -> InteractionHandlerRegistry.getItemOnGroundItemRecord(
 						state, itemId, target.getItemId()),
-				(generation, handler) -> ScriptExecutor.execute(handler,
+				(generation, route) -> ScriptExecutor.executeRoute(
+						route,
 						"item-on-ground-item",
 						itemId + ":" + target.getItemId(),
 						"item-on-ground-item",

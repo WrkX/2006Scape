@@ -16,7 +16,7 @@ public final class ScriptDropResult {
 	private final int amount;
 	private final ScriptGroundItemHandle handle;
 
-	ScriptDropResult(int itemId, int amount, ScriptGroundItemHandle handle) {
+	public ScriptDropResult(int itemId, int amount, ScriptGroundItemHandle handle) {
 		this.itemId = itemId;
 		this.amount = amount;
 		this.handle = handle;

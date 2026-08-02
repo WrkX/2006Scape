@@ -281,7 +281,63 @@ export interface ScriptedPlayer {
     maxY: number,
     plane: number,
   ): ScriptEncounterHandle | null;
+  /**
+   * Grants the named reward through the shared player-local transaction.
+   * The reward must be registered in the active generation; the result is
+   * a narrow facade (reward id plus result code), never a registry map or
+   * inventory array.
+   */
+  grantReward(rewardId: string): RewardGrantResult;
 }
+
+/** Closed wire union of one named-reward grant outcome. */
+export type RewardGrantCode =
+  | "rewarded"
+  | "not_found"
+  | "inventory_full"
+  | "xp_cap"
+  | "quest_points_overflow"
+  | "reward_failed";
+
+/** Narrow result-shaped facade of one named-reward grant. */
+export interface RewardGrantResult {
+  rewardId(): string;
+  code(): RewardGrantCode;
+}
+
+/** Canonical schema-v1 named drop table passed to `defineDropTable`. */
+export interface DropTableDefinition {
+  readonly id: string;
+  readonly entries: readonly ScriptDropEntry[];
+}
+
+/** Canonical schema-v1 named reward passed to `defineReward`. */
+export interface RewardDefinition {
+  readonly id: string;
+  readonly items?: readonly RewardItem[];
+  readonly experience?: readonly RewardExperience[];
+  readonly questPoints?: number;
+  readonly state?: readonly RewardStateMutation[];
+}
+
+export interface RewardItem {
+  readonly id: number | string;
+  readonly amount: number;
+}
+
+export interface RewardExperience {
+  readonly skill: string;
+  readonly amount: number;
+}
+
+export interface RewardStateMutation {
+  readonly namespace: string;
+  readonly key: string;
+  readonly value: boolean | number | string;
+}
+
+export type DefineDropTable = (definition: DropTableDefinition) => void;
+export type DefineReward = (definition: RewardDefinition) => void;
 
 export interface PlayerStateNamespace {
   has(key: string): boolean;
@@ -686,6 +742,26 @@ export type OnPlayerDeath = (
   handler: (context: PlayerDeathScriptContext) => void,
 ) => void;
 
+/**
+ * Logical content-module envelope accepted by the Java module registrar.
+ *
+ * The id is a bounded logical identifier (never a host path) and
+ * `schemaVersion` is the declared schema version of every definition the
+ * module registers. Optional `onLoad`/`onUnload` hooks run as contained,
+ * non-vetoing observers around the activation commit.
+ */
+export interface ContentModuleDescriptor {
+  readonly id: string;
+  readonly schemaVersion: number;
+  readonly onLoad?: () => void;
+  readonly onUnload?: () => void;
+}
+
+export type RegisterContentModule = (
+  descriptor: ContentModuleDescriptor,
+  scope: () => void,
+) => void;
+
 declare global {
   const onNpc: OnNpc;
   const onCommand: OnCommand;
@@ -705,4 +781,7 @@ declare global {
   const onMagicOnItem: OnMagicOnItem;
   const onMagicOnObject: OnMagicOnObject;
   const onPlayerDeath: OnPlayerDeath;
+  const registerContentModule: RegisterContentModule;
+  const defineDropTable: DefineDropTable;
+  const defineReward: DefineReward;
 }

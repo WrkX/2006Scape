@@ -2,21 +2,30 @@ package com.rs2.script.registries;
 
 import org.graalvm.polyglot.Value;
 import com.rs2.script.ScriptHost;
+import com.rs2.script.route.ExecutableRouteKey;
+import com.rs2.script.route.ExecutableRouteRecord;
+import com.rs2.script.route.RouteRegistry;
 
 /**
- * Candidate-owned exact registrations for the Phase 4 interaction routes.
+ * Typed facade over the unified route registry for the Phase 4 interaction
+ * routes.
  *
  * <p>Packet authority and fallback rules are deliberately implemented by the
  * packet adapters, not this registry.
  */
 public final class InteractionHandlerRegistry {
 
-	public static Value putButton(int buttonId, Value handler) {
-		return RegistryStore.writable().buttonHandlers.putIfAbsent(buttonId, handler);
+	public static void putButton(int buttonId, Value handler) {
+		RouteRegistry.put(ExecutableRouteKey.button(buttonId), handler);
 	}
 
 	public static Value getButton(RegistryStore.State state, int buttonId) {
-		return state.buttonHandlers.get(buttonId);
+		return guestValue(state, ExecutableRouteKey.button(buttonId));
+	}
+
+	public static ExecutableRouteRecord getButtonRecord(
+			RegistryStore.State state, int buttonId) {
+		return RouteRegistry.get(state, ExecutableRouteKey.button(buttonId));
 	}
 
 	public static Value getButton(int buttonId) {
@@ -24,16 +33,22 @@ public final class InteractionHandlerRegistry {
 				state -> getButton(state, buttonId));
 	}
 
-	public static Value putItemOnGroundItem(int itemId, int groundItemId,
+	public static void putItemOnGroundItem(int itemId, int groundItemId,
 			Value handler) {
-		return RegistryStore.writable().itemOnGroundItemHandlers.putIfAbsent(
-				orderedKey(itemId, groundItemId), handler);
+		RouteRegistry.put(ExecutableRouteKey.itemOnGroundItem(itemId,
+				groundItemId), handler);
 	}
 
 	public static Value getItemOnGroundItem(RegistryStore.State state,
 			int itemId, int groundItemId) {
-		return state.itemOnGroundItemHandlers.get(
-				orderedKey(itemId, groundItemId));
+		return guestValue(state, ExecutableRouteKey.itemOnGroundItem(
+				itemId, groundItemId));
+	}
+
+	public static ExecutableRouteRecord getItemOnGroundItemRecord(
+			RegistryStore.State state, int itemId, int groundItemId) {
+		return RouteRegistry.get(state, ExecutableRouteKey.itemOnGroundItem(
+				itemId, groundItemId));
 	}
 
 	public static Value getItemOnGroundItem(int itemId, int groundItemId) {
@@ -41,13 +56,17 @@ public final class InteractionHandlerRegistry {
 				state -> getItemOnGroundItem(state, itemId, groundItemId));
 	}
 
-	public static Value putItemOnPlayer(int itemId, Value handler) {
-		return RegistryStore.writable().itemOnPlayerHandlers.putIfAbsent(
-				itemId, handler);
+	public static void putItemOnPlayer(int itemId, Value handler) {
+		RouteRegistry.put(ExecutableRouteKey.itemOnPlayer(itemId), handler);
 	}
 
 	public static Value getItemOnPlayer(RegistryStore.State state, int itemId) {
-		return state.itemOnPlayerHandlers.get(itemId);
+		return guestValue(state, ExecutableRouteKey.itemOnPlayer(itemId));
+	}
+
+	public static ExecutableRouteRecord getItemOnPlayerRecord(
+			RegistryStore.State state, int itemId) {
+		return RouteRegistry.get(state, ExecutableRouteKey.itemOnPlayer(itemId));
 	}
 
 	public static Value getItemOnPlayer(int itemId) {
@@ -55,14 +74,21 @@ public final class InteractionHandlerRegistry {
 				state -> getItemOnPlayer(state, itemId));
 	}
 
-	public static Value putMagicOnItem(int spellId, int itemId, Value handler) {
-		return RegistryStore.writable().magicOnItemHandlers.putIfAbsent(
-				orderedKey(spellId, itemId), handler);
+	public static void putMagicOnItem(int spellId, int itemId, Value handler) {
+		RouteRegistry.put(ExecutableRouteKey.magicOnItem(spellId, itemId),
+				handler);
 	}
 
 	public static Value getMagicOnItem(RegistryStore.State state,
 			int spellId, int itemId) {
-		return state.magicOnItemHandlers.get(orderedKey(spellId, itemId));
+		return guestValue(state,
+				ExecutableRouteKey.magicOnItem(spellId, itemId));
+	}
+
+	public static ExecutableRouteRecord getMagicOnItemRecord(
+			RegistryStore.State state, int spellId, int itemId) {
+		return RouteRegistry.get(state,
+				ExecutableRouteKey.magicOnItem(spellId, itemId));
 	}
 
 	public static Value getMagicOnItem(int spellId, int itemId) {
@@ -70,14 +96,22 @@ public final class InteractionHandlerRegistry {
 				state -> getMagicOnItem(state, spellId, itemId));
 	}
 
-	public static Value putMagicOnObject(int spellId, int objectId, Value handler) {
-		return RegistryStore.writable().magicOnObjectHandlers.putIfAbsent(
-				orderedKey(spellId, objectId), handler);
+	public static void putMagicOnObject(int spellId, int objectId,
+			Value handler) {
+		RouteRegistry.put(ExecutableRouteKey.magicOnObject(spellId, objectId),
+				handler);
 	}
 
 	public static Value getMagicOnObject(RegistryStore.State state,
 			int spellId, int objectId) {
-		return state.magicOnObjectHandlers.get(orderedKey(spellId, objectId));
+		return guestValue(state,
+				ExecutableRouteKey.magicOnObject(spellId, objectId));
+	}
+
+	public static ExecutableRouteRecord getMagicOnObjectRecord(
+			RegistryStore.State state, int spellId, int objectId) {
+		return RouteRegistry.get(state,
+				ExecutableRouteKey.magicOnObject(spellId, objectId));
 	}
 
 	public static Value getMagicOnObject(int spellId, int objectId) {
@@ -85,8 +119,11 @@ public final class InteractionHandlerRegistry {
 				state -> getMagicOnObject(state, spellId, objectId));
 	}
 
-	private static long orderedKey(int first, int second) {
-		return ((long) first << 32) | (second & 0xffffffffL);
+	private static Value guestValue(RegistryStore.State state,
+			ExecutableRouteKey key) {
+		ExecutableRouteRecord record = RouteRegistry.get(state, key);
+		return record == null || !record.isGuest() ? null
+				: record.guestInvoker();
 	}
 
 	private InteractionHandlerRegistry() {

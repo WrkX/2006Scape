@@ -5,12 +5,16 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import com.rs2.script.definition.DefinitionKind;
+import com.rs2.script.definition.DefinitionRecord;
+import com.rs2.script.definition.DefinitionRegistry;
 import com.rs2.script.quest.QuestDefinition;
 import com.rs2.script.quest.QuestDefinitionException;
 import com.rs2.script.ScriptHost;
 
 /**
- * Stores scripted quest definitions keyed by quest name.
+ * Typed facade over the common definition envelope for Java-owned quest
+ * descriptors keyed by stable quest id.
  */
 public final class QuestRegistry {
 
@@ -18,11 +22,11 @@ public final class QuestRegistry {
 	 * Registers {@code definition} for the quest named {@code name}.
 	 */
 	public static void put(String name, QuestDefinition definition) {
-		QuestDefinition previous = RegistryStore.writable().quests.putIfAbsent(
-				name, definition);
+		DefinitionRecord previous = DefinitionRegistry.putQuest(definition);
 		if (previous != null) {
 			throw new QuestDefinitionException(
-					"Duplicate quest registration: " + name);
+					"Duplicate quest registration: " + name
+							+ "; existing record: " + previous);
 		}
 	}
 
@@ -32,20 +36,39 @@ public final class QuestRegistry {
 	 */
 	public static QuestDefinition get(String name) {
 		return ScriptHost.getInstance().readActiveRegistry(
-				state -> state.quests.get(name));
+				state -> get(state, name));
+	}
+
+	public static QuestDefinition get(RegistryStore.State state, String name) {
+		DefinitionRecord record = DefinitionRegistry.get(state,
+				DefinitionKind.QUEST, name);
+		return record == null ? null : record.questPayload();
 	}
 
 	public static Map<String, QuestDefinition> all() {
 		return ScriptHost.getInstance().readActiveRegistry(state ->
 				java.util.Collections.unmodifiableMap(
-						new java.util.TreeMap<String, QuestDefinition>(state.quests)));
+						new java.util.TreeMap<String, QuestDefinition>(
+								all(state))));
+	}
+
+	public static Map<String, QuestDefinition> all(
+			RegistryStore.State state) {
+		Map<String, QuestDefinition> quests =
+				new java.util.TreeMap<String, QuestDefinition>();
+		for (DefinitionRecord record
+				: DefinitionRegistry.all(state, DefinitionKind.QUEST)
+						.values()) {
+			quests.put(record.key(), record.questPayload());
+		}
+		return quests;
 	}
 
 	/**
 	 * Validates dependencies entirely against the staged candidate.
 	 */
 	public static void validateCandidate(RegistryStore.State candidate) {
-		Map<String, QuestDefinition> quests = candidate.quests;
+		Map<String, QuestDefinition> quests = all(candidate);
 		for (QuestDefinition quest : quests.values()) {
 			for (String dependency
 					: quest.getRequirements().getCompletedQuests()) {
@@ -89,7 +112,13 @@ public final class QuestRegistry {
 	 * Removes every registered quest. Intended for hot-reload.
 	 */
 	public static void clear() {
-		RegistryStore.writable().quests.clear();
+		java.util.Iterator<com.rs2.script.definition.DefinitionKey> keys =
+				RegistryStore.writable().definitions.keySet().iterator();
+		while (keys.hasNext()) {
+			if (keys.next().kind() == DefinitionKind.QUEST) {
+				keys.remove();
+			}
+		}
 	}
 
 	private QuestRegistry() {

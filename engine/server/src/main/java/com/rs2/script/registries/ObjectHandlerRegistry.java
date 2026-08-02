@@ -1,53 +1,54 @@
 package com.rs2.script.registries;
 
-import java.util.Map;
 import org.graalvm.polyglot.Value;
 import com.rs2.script.ScriptHost;
+import com.rs2.script.route.ExecutableRouteKey;
+import com.rs2.script.route.ExecutableRouteRecord;
+import com.rs2.script.route.RouteKind;
+import com.rs2.script.route.RouteRegistry;
 
 /**
- * Stores script handlers for object interactions keyed by object id and
- * action string (e.g. "first", "second", "third").
+ * Typed facade over the unified route registry for object interaction
+ * handlers keyed by object id and ordinal action ("first" .. "fourth").
  */
 public final class ObjectHandlerRegistry {
 
 	/**
 	 * Registers {@code handler} for the {@code (objectId, action)} pair.
 	 */
-	public static Value put(int objectId, String action, Value handler) {
-		Map<Integer, Map<String, Value>> handlers = RegistryStore.writable().objectHandlers;
-		Map<String, Value> byAction = handlers.get(objectId);
-		if (byAction == null) {
-			byAction = new java.util.HashMap<String, Value>();
-			Map<String, Value> existing = handlers.putIfAbsent(objectId, byAction);
-			if (existing != null) {
-				byAction = existing;
-			}
-		}
-		return byAction.putIfAbsent(action, handler);
+	public static void put(int objectId, String action, Value handler) {
+		RouteRegistry.put(ExecutableRouteKey.object(objectId, action), handler);
 	}
 
 	/**
-	 * Returns the handler registered for {@code (objectId, action)} or
-	 * {@code null} if none is registered.
+	 * Returns the guest handler registered for {@code (objectId, action)} or
+	 * {@code null} when no guest route exists.
 	 */
 	public static Value get(int objectId, String action) {
 		return ScriptHost.getInstance().readActiveRegistry(
 				state -> get(state, objectId, action));
 	}
 
-	public static Value get(RegistryStore.State state, int objectId, String action) {
-		Map<String, Value> byAction = state.objectHandlers.get(objectId);
-		if (byAction == null) {
-			return null;
-		}
-		return byAction.get(action);
+	public static Value get(RegistryStore.State state, int objectId,
+			String action) {
+		ExecutableRouteRecord record = RouteRegistry.get(state,
+				ExecutableRouteKey.object(objectId, action));
+		return record == null || !record.isGuest() ? null
+				: record.guestInvoker();
+	}
+
+	/** Exact route record of the object/action key, or {@code null}. */
+	public static ExecutableRouteRecord getRecord(RegistryStore.State state,
+			int objectId, String action) {
+		return RouteRegistry.get(state,
+				ExecutableRouteKey.object(objectId, action));
 	}
 
 	/**
 	 * Removes every registered handler. Intended for hot-reload.
 	 */
 	public static void clear() {
-		RegistryStore.writable().objectHandlers.clear();
+		RouteRegistry.clear(RegistryStore.writable(), RouteKind.OBJECT);
 	}
 
 	private ObjectHandlerRegistry() {

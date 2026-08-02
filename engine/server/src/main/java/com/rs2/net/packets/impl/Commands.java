@@ -18,6 +18,7 @@ import com.rs2.net.Packet;
 import com.rs2.net.packets.PacketType;
 import com.rs2.script.CommandScriptContext;
 import com.rs2.script.ScriptExecutor;
+import com.rs2.script.ScriptHost;
 import com.rs2.script.ScriptedPlayer;
 import com.rs2.script.registries.CommandHandlerRegistry;
 import com.rs2.script.world.ScriptEncounterService.RelocationCause;
@@ -28,7 +29,6 @@ import java.util.Calendar;
 import java.util.GregorianCalendar;
 import java.util.concurrent.TimeUnit;
 
-import org.graalvm.polyglot.Value;
 
 public class Commands implements PacketType {
 
@@ -68,15 +68,16 @@ public class Commands implements PacketType {
 
     static boolean executeScriptCommand(Player player, String playerCommand,
             String rawInput, String[] arguments) {
-        String command = playerCommand.toLowerCase(Locale.ROOT);
-        Value scriptHandler = CommandHandlerRegistry.get(command);
-        if (scriptHandler == null) {
-            return false;
-        }
-        ScriptExecutor.execute(scriptHandler, "command", command, command,
-                new CommandScriptContext(new ScriptedPlayer(player), command,
-                        rawInput, arguments, player.playerRights));
-        return true;
+        final String command = playerCommand.toLowerCase(Locale.ROOT);
+        return ScriptHost.getInstance().dispatchActive(
+                state -> CommandHandlerRegistry.getRecord(state, command),
+                (generation, route) -> ScriptExecutor.executeRoute(
+                        route, "command", command, command,
+                        new CommandScriptContext(
+                                new ScriptedPlayer(player, generation),
+                                command, rawInput, arguments,
+                                player.playerRights)))
+                == ScriptHost.DispatchResult.CONSUMED;
     }
 
     public static void playerCommands(Player player, String playerCommand, String[] arguments) {

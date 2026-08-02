@@ -1,18 +1,29 @@
 package com.rs2.script.registries;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.graalvm.polyglot.Value;
 
+import com.rs2.script.definition.DefinitionKey;
+import com.rs2.script.definition.DefinitionRecord;
+import com.rs2.script.definition.ModuleRecord;
 import com.rs2.script.quest.QuestDefinition;
+import com.rs2.script.route.ExecutableRouteKey;
+import com.rs2.script.route.ExecutableRouteRecord;
 
 /**
  * Candidate builder and immutable registry snapshot.
  *
  * <p>The active snapshot is owned exclusively by {@code ScriptHost}. This
- * class never publishes a second active state.
+ * class never publishes a second active state. One candidate owns one
+ * definition envelope map, one unified executable-route map, the ordered
+ * content-module manifest, and the lifecycle observer maps. Lifecycle
+ * observers are deliberately not routes: they never own a
+ * consumed-versus-legacy decision.
  */
 public final class RegistryStore {
 
@@ -48,7 +59,35 @@ public final class RegistryStore {
 		return EMPTY;
 	}
 
-	static State writable() {
+	/** Returns {@code true} while a candidate is being loaded. */
+	public static boolean isStagingActive() {
+		return STAGING.get() != null;
+	}
+
+	/** Records one registered content module in the active candidate. */
+	public static void recordModule(ModuleRecord record) {
+		writable().manifest.add(record);
+	}
+
+	/** Returns {@code true} when the active candidate already registered the id. */
+	public static boolean hasModuleRecord(String id) {
+		State state = STAGING.get();
+		if (state == null) {
+			return false;
+		}
+		for (ModuleRecord record : state.manifest) {
+			if (record.id().equals(id)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Candidate registration gate used by every definition and route facade.
+	 * Only the loading thread may mutate the staged snapshot.
+	 */
+	public static State writable() {
 		State candidate = STAGING.get();
 		if (candidate == null) {
 			throw new IllegalStateException(
@@ -61,25 +100,15 @@ public final class RegistryStore {
 		if (state.frozen) {
 			return state;
 		}
-		state.bosses = immutable(state.bosses);
-		state.quests = immutable(state.quests);
-		state.raids = immutable(state.raids);
-		state.areas = immutable(state.areas);
-		state.npcHandlers = immutableNested(state.npcHandlers);
-		state.objectHandlers = immutableNested(state.objectHandlers);
-		state.itemHandlers = immutableNested(state.itemHandlers);
-		state.itemOnItemHandlers = immutable(state.itemOnItemHandlers);
-		state.itemOnObjectHandlers = immutable(state.itemOnObjectHandlers);
-		state.itemOnNpcHandlers = immutable(state.itemOnNpcHandlers);
-		state.commandHandlers = immutable(state.commandHandlers);
+		state.definitions = Collections.unmodifiableMap(
+				new HashMap<DefinitionKey, DefinitionRecord>(state.definitions));
+		state.routes = Collections.unmodifiableMap(
+				new HashMap<ExecutableRouteKey, ExecutableRouteRecord>(state.routes));
+		state.manifest = Collections.unmodifiableList(
+				new ArrayList<ModuleRecord>(state.manifest));
 		state.lifecycleHandlers = immutable(state.lifecycleHandlers);
 		state.npcDeathHandlers = immutable(state.npcDeathHandlers);
 		state.itemPickupHandlers = immutable(state.itemPickupHandlers);
-		state.buttonHandlers = immutable(state.buttonHandlers);
-		state.itemOnGroundItemHandlers = immutable(state.itemOnGroundItemHandlers);
-		state.itemOnPlayerHandlers = immutable(state.itemOnPlayerHandlers);
-		state.magicOnItemHandlers = immutable(state.magicOnItemHandlers);
-		state.magicOnObjectHandlers = immutable(state.magicOnObjectHandlers);
 		state.lifecycleAreas = immutable(state.lifecycleAreas);
 		state.areaEnterHandlers = immutable(state.areaEnterHandlers);
 		state.areaLeaveHandlers = immutable(state.areaLeaveHandlers);
@@ -91,38 +120,22 @@ public final class RegistryStore {
 		return Collections.unmodifiableMap(new HashMap<K, V>(source));
 	}
 
-	private static <K, L, V> Map<K, Map<L, V>> immutableNested(
-			Map<K, Map<L, V>> source) {
-		Map<K, Map<L, V>> copy = new HashMap<K, Map<L, V>>();
-		for (Map.Entry<K, Map<L, V>> entry : source.entrySet()) {
-			copy.put(entry.getKey(), immutable(entry.getValue()));
-		}
-		return Collections.unmodifiableMap(copy);
-	}
-
 	public static final class State {
-		Map<Integer, Value> bosses = new HashMap<Integer, Value>();
-		Map<String, QuestDefinition> quests = new HashMap<String, QuestDefinition>();
-		Map<String, Value> raids = new HashMap<String, Value>();
-		Map<String, Value> areas = new HashMap<String, Value>();
-		Map<Integer, Map<String, Value>> npcHandlers =
-				new HashMap<Integer, Map<String, Value>>();
-		Map<Integer, Map<String, Value>> objectHandlers =
-				new HashMap<Integer, Map<String, Value>>();
-		Map<Integer, Map<String, Value>> itemHandlers =
-				new HashMap<Integer, Map<String, Value>>();
-		Map<Long, Value> itemOnItemHandlers = new HashMap<Long, Value>();
-		Map<Long, Value> itemOnObjectHandlers = new HashMap<Long, Value>();
-		Map<Long, Value> itemOnNpcHandlers = new HashMap<Long, Value>();
-		Map<String, Value> commandHandlers = new HashMap<String, Value>();
+
+		/** Every registered definition envelope, keyed by kind and stable key. */
+		public Map<DefinitionKey, DefinitionRecord> definitions =
+				new HashMap<DefinitionKey, DefinitionRecord>();
+
+		/** Every executable guest or host route, keyed by exact key. */
+		public Map<ExecutableRouteKey, ExecutableRouteRecord> routes =
+				new HashMap<ExecutableRouteKey, ExecutableRouteRecord>();
+
+		/** Ordered registered content modules; hooks run in this order. */
+		public List<ModuleRecord> manifest = new ArrayList<ModuleRecord>();
+
 		Map<String, Value> lifecycleHandlers = new HashMap<String, Value>();
 		Map<Integer, Value> npcDeathHandlers = new HashMap<Integer, Value>();
 		Map<Integer, Value> itemPickupHandlers = new HashMap<Integer, Value>();
-		Map<Integer, Value> buttonHandlers = new HashMap<Integer, Value>();
-		Map<Long, Value> itemOnGroundItemHandlers = new HashMap<Long, Value>();
-		Map<Integer, Value> itemOnPlayerHandlers = new HashMap<Integer, Value>();
-		Map<Long, Value> magicOnItemHandlers = new HashMap<Long, Value>();
-		Map<Long, Value> magicOnObjectHandlers = new HashMap<Long, Value>();
 		Value playerDeathHandler;
 		Map<String, ScriptArea> lifecycleAreas = new HashMap<String, ScriptArea>();
 		Map<String, Value> areaEnterHandlers = new HashMap<String, Value>();

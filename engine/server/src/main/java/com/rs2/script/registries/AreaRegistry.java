@@ -1,20 +1,27 @@
 package com.rs2.script.registries;
 
-import java.util.Collection;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
+
 import org.graalvm.polyglot.Value;
 import com.rs2.script.ScriptHost;
+import com.rs2.script.definition.DefinitionKind;
+import com.rs2.script.definition.DefinitionRecord;
+import com.rs2.script.definition.DefinitionRegistry;
 
 /**
- * Stores scripted area definitions keyed by area name.
+ * Typed facade over the common definition envelope for area definitions
+ * keyed by stable string id.
  */
 public final class AreaRegistry {
 
 	/**
-	 * Registers {@code definition} for the area named {@code name}.
+	 * Registers {@code definition} for the area named {@code name}. Returns
+	 * the previous record for the same id, or {@code null}.
 	 */
-	public static Value put(String name, Value definition) {
-		return RegistryStore.writable().areas.putIfAbsent(name, definition);
+	public static DefinitionRecord put(String name, Value definition) {
+		return DefinitionRegistry.put(DefinitionKind.AREA, name, definition);
 	}
 
 	/**
@@ -22,24 +29,39 @@ public final class AreaRegistry {
 	 * {@code null}.
 	 */
 	public static Value get(String name) {
-		return ScriptHost.getInstance().readActiveRegistry(
-				state -> state.areas.get(name));
+		DefinitionRecord record = DefinitionRegistry.get(DefinitionKind.AREA,
+				name);
+		return record == null || !record.isGuestPayload() ? null
+				: record.guestPayload();
 	}
 
 	/**
-	 * Returns every registered area definition. The returned collection is
-	 * an unmodifiable live view of the registry.
+	 * Returns every registered area definition in key order. The returned
+	 * list is immutable.
 	 */
-	public static Collection<Value> all() {
-		return ScriptHost.getInstance().readActiveRegistry(
-				state -> Collections.unmodifiableCollection(state.areas.values()));
+	public static List<Value> all() {
+		return ScriptHost.getInstance().readActiveRegistry(state -> {
+			List<Value> definitions = new ArrayList<>();
+			for (DefinitionRecord record
+					: DefinitionRegistry.all(state, DefinitionKind.AREA)
+							.values()) {
+				definitions.add(record.guestPayload());
+			}
+			return Collections.unmodifiableList(definitions);
+		});
 	}
 
 	/**
 	 * Removes every registered area. Intended for hot-reload.
 	 */
 	public static void clear() {
-		RegistryStore.writable().areas.clear();
+		java.util.Iterator<com.rs2.script.definition.DefinitionKey> keys =
+				RegistryStore.writable().definitions.keySet().iterator();
+		while (keys.hasNext()) {
+			if (keys.next().kind() == DefinitionKind.AREA) {
+				keys.remove();
+			}
+		}
 	}
 
 	private AreaRegistry() {

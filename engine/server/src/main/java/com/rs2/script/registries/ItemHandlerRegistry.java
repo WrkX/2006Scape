@@ -1,25 +1,20 @@
 package com.rs2.script.registries;
 
-import java.util.Map;
 import org.graalvm.polyglot.Value;
 import com.rs2.script.ScriptHost;
+import com.rs2.script.route.ExecutableRouteKey;
+import com.rs2.script.route.ExecutableRouteRecord;
+import com.rs2.script.route.RouteKind;
+import com.rs2.script.route.RouteRegistry;
 
 /**
- * Exact-ID item interaction handlers owned by the active script context.
+ * Typed facade over the unified route registry for exact-ID item
+ * interaction handlers.
  */
 public final class ItemHandlerRegistry {
 
-	public static Value putItem(int itemId, String action, Value handler) {
-		Map<Integer, Map<String, Value>> handlers = RegistryStore.writable().itemHandlers;
-		Map<String, Value> byAction = handlers.get(itemId);
-		if (byAction == null) {
-			byAction = new java.util.HashMap<String, Value>();
-			Map<String, Value> existing = handlers.putIfAbsent(itemId, byAction);
-			if (existing != null) {
-				byAction = existing;
-			}
-		}
-		return byAction.putIfAbsent(action, handler);
+	public static void putItem(int itemId, String action, Value handler) {
+		RouteRegistry.put(ExecutableRouteKey.item(itemId, action), handler);
 	}
 
 	public static Value getItem(int itemId, String action) {
@@ -27,14 +22,24 @@ public final class ItemHandlerRegistry {
 				state -> getItem(state, itemId, action));
 	}
 
-	public static Value getItem(RegistryStore.State state, int itemId, String action) {
-		Map<String, Value> byAction = state.itemHandlers.get(itemId);
-		return byAction == null ? null : byAction.get(action);
+	public static Value getItem(RegistryStore.State state, int itemId,
+			String action) {
+		ExecutableRouteRecord record = RouteRegistry.get(state,
+				ExecutableRouteKey.item(itemId, action));
+		return record == null || !record.isGuest() ? null
+				: record.guestInvoker();
 	}
 
-	public static Value putItemOnItem(int firstItemId, int secondItemId, Value handler) {
-		return RegistryStore.writable().itemOnItemHandlers.putIfAbsent(
-				symmetricKey(firstItemId, secondItemId), handler);
+	public static ExecutableRouteRecord getItemRecord(RegistryStore.State state,
+			int itemId, String action) {
+		return RouteRegistry.get(state,
+				ExecutableRouteKey.item(itemId, action));
+	}
+
+	public static void putItemOnItem(int firstItemId, int secondItemId,
+			Value handler) {
+		RouteRegistry.put(ExecutableRouteKey.itemOnItem(firstItemId,
+				secondItemId), handler);
 	}
 
 	public static Value getItemOnItem(int firstItemId, int secondItemId) {
@@ -44,13 +49,21 @@ public final class ItemHandlerRegistry {
 
 	public static Value getItemOnItem(RegistryStore.State state,
 			int firstItemId, int secondItemId) {
-		return state.itemOnItemHandlers.get(
-				symmetricKey(firstItemId, secondItemId));
+		ExecutableRouteRecord record = RouteRegistry.get(state,
+				ExecutableRouteKey.itemOnItem(firstItemId, secondItemId));
+		return record == null || !record.isGuest() ? null
+				: record.guestInvoker();
 	}
 
-	public static Value putItemOnObject(int itemId, int objectId, Value handler) {
-		return RegistryStore.writable().itemOnObjectHandlers.putIfAbsent(
-				orderedKey(itemId, objectId), handler);
+	public static ExecutableRouteRecord getItemOnItemRecord(
+			RegistryStore.State state, int firstItemId, int secondItemId) {
+		return RouteRegistry.get(state, ExecutableRouteKey.itemOnItem(
+				firstItemId, secondItemId));
+	}
+
+	public static void putItemOnObject(int itemId, int objectId, Value handler) {
+		RouteRegistry.put(ExecutableRouteKey.itemOnObject(itemId, objectId),
+				handler);
 	}
 
 	public static Value getItemOnObject(int itemId, int objectId) {
@@ -60,12 +73,20 @@ public final class ItemHandlerRegistry {
 
 	public static Value getItemOnObject(RegistryStore.State state,
 			int itemId, int objectId) {
-		return state.itemOnObjectHandlers.get(orderedKey(itemId, objectId));
+		ExecutableRouteRecord record = RouteRegistry.get(state,
+				ExecutableRouteKey.itemOnObject(itemId, objectId));
+		return record == null || !record.isGuest() ? null
+				: record.guestInvoker();
 	}
 
-	public static Value putItemOnNpc(int itemId, int npcId, Value handler) {
-		return RegistryStore.writable().itemOnNpcHandlers.putIfAbsent(
-				orderedKey(itemId, npcId), handler);
+	public static ExecutableRouteRecord getItemOnObjectRecord(
+			RegistryStore.State state, int itemId, int objectId) {
+		return RouteRegistry.get(state, ExecutableRouteKey.itemOnObject(
+				itemId, objectId));
+	}
+
+	public static void putItemOnNpc(int itemId, int npcId, Value handler) {
+		RouteRegistry.put(ExecutableRouteKey.itemOnNpc(itemId, npcId), handler);
 	}
 
 	public static Value getItemOnNpc(int itemId, int npcId) {
@@ -75,23 +96,24 @@ public final class ItemHandlerRegistry {
 
 	public static Value getItemOnNpc(RegistryStore.State state,
 			int itemId, int npcId) {
-		return state.itemOnNpcHandlers.get(orderedKey(itemId, npcId));
+		ExecutableRouteRecord record = RouteRegistry.get(state,
+				ExecutableRouteKey.itemOnNpc(itemId, npcId));
+		return record == null || !record.isGuest() ? null
+				: record.guestInvoker();
+	}
+
+	public static ExecutableRouteRecord getItemOnNpcRecord(
+			RegistryStore.State state, int itemId, int npcId) {
+		return RouteRegistry.get(state,
+				ExecutableRouteKey.itemOnNpc(itemId, npcId));
 	}
 
 	public static void clear() {
 		RegistryStore.State state = RegistryStore.writable();
-		state.itemHandlers.clear();
-		state.itemOnItemHandlers.clear();
-		state.itemOnObjectHandlers.clear();
-		state.itemOnNpcHandlers.clear();
-	}
-
-	private static long symmetricKey(int first, int second) {
-		return first <= second ? orderedKey(first, second) : orderedKey(second, first);
-	}
-
-	private static long orderedKey(int first, int second) {
-		return ((long) first << 32) | (second & 0xffffffffL);
+		RouteRegistry.clear(state, RouteKind.ITEM);
+		RouteRegistry.clear(state, RouteKind.ITEM_ON_ITEM);
+		RouteRegistry.clear(state, RouteKind.ITEM_ON_OBJECT);
+		RouteRegistry.clear(state, RouteKind.ITEM_ON_NPC);
 	}
 
 	private ItemHandlerRegistry() {
