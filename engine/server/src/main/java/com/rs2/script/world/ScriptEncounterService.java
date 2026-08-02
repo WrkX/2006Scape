@@ -403,6 +403,20 @@ public final class ScriptEncounterService {
 		return ScriptNpcService.getInstance().registerDeath(npc, callback);
 	}
 
+	/** Java-owned death listener for one exact owned NPC allocation. */
+	public synchronized boolean onNpcDeath(long token, ScriptNpcHandle npc,
+			ScriptNpcService.EncounterDeathListener listener) {
+		if (npc == null || listener == null) {
+			return false;
+		}
+		ScriptNpcService.OwnedNpc owned = ScriptNpcService.getInstance()
+				.resolve(npc);
+		if (owned == null || owned.encounterToken != token) {
+			return false;
+		}
+		return ScriptNpcService.getInstance().registerDeath(npc, listener);
+	}
+
 	public synchronized boolean addParticipant(long token,
 			ScriptedPlayer scriptedPlayer) {
 		ScriptEncounter encounter = openEncounter(token);
@@ -484,14 +498,28 @@ public final class ScriptEncounterService {
 	public synchronized ScriptArray rollDrops(long token, long generation,
 			ScriptedPlayer target, int x, int y, int plane, int privateTicks,
 			Value entries) {
-		ScriptEncounter encounter = openEncounter(token);
-		if (encounter == null || target == null) {
-			return new ScriptArray(new Object[0]);
-		}
 		List<ScriptDropEntry> parsed;
 		try {
 			parsed = ScriptDropEntryParser.parse(entries);
 		} catch (RuntimeException invalidTable) {
+			return new ScriptArray(new Object[0]);
+		}
+		return rollDrops(token, generation, target, x, y, plane, privateTicks,
+				parsed);
+	}
+
+	/**
+	 * Java-owned variant of {@link #rollDrops(long, long, ScriptedPlayer,
+	 * int, int, int, int, Value)} over a copied typed entry list. Used by
+	 * host consumers (declarative boss deaths) with the exact same
+	 * transaction, vectors, and seams.
+	 */
+	public synchronized ScriptArray rollDrops(long token, long generation,
+			ScriptedPlayer target, int x, int y, int plane, int privateTicks,
+			List<ScriptDropEntry> entries) {
+		ScriptEncounter encounter = openEncounter(token);
+		if (encounter == null || target == null || entries == null
+				|| entries.isEmpty()) {
 			return new ScriptArray(new Object[0]);
 		}
 		int failAt = failStagingAtIndexForTesting;
@@ -503,7 +531,7 @@ public final class ScriptEncounterService {
 						new EncounterDelivery(encounter, token, generation,
 								target, x, y, plane, privateTicks, failAt,
 								failDetach),
-						parsed, target);
+						entries, target);
 		return results == null
 				? new ScriptArray(new Object[0])
 				: new ScriptArray(results.toArray());
@@ -820,6 +848,31 @@ public final class ScriptEncounterService {
 						close(token);
 					}
 				});
+		encounter.tasks.add(task);
+		return task;
+	}
+
+	/**
+	 * Java-owned encounter-scoped task (host consumers such as the
+	 * declarative boss poll). Registered in the encounter task list so close
+	 * cancels it, with the same engine-owned failure continuation as the
+	 * guest path.
+	 */
+	public synchronized ScriptTaskHandle scheduleJava(long token,
+			double ticksValue, boolean repeating, Runnable action,
+			Runnable failureAction) {
+		ScriptEncounter encounter = openEncounter(token);
+		Integer ticks = integral(ticksValue, 1, ScriptScheduler.MAX_TICKS);
+		if (encounter == null || ticks == null || action == null) {
+			return null;
+		}
+		pruneDoneTasks(encounter);
+		if (taskCount(encounter) >= MAX_TASKS) {
+			return null;
+		}
+		ScriptTaskHandle task = ScriptScheduler.getInstance().schedule(
+				encounter.owner, encounter.generation, ticks, repeating, action,
+				failureAction);
 		encounter.tasks.add(task);
 		return task;
 	}

@@ -560,9 +560,15 @@ public class ScriptBossProductionE2ETest {
 		System.setProperty("singlescape.contentDir",
 				contentDir.getAbsolutePath());
 		ScriptHost.getInstance().reload();
-		assertNotNull("encounter-warden must register",
-				com.rs2.script.registries.CommandHandlerRegistry
-						.get("encounter-warden"));
+		com.rs2.script.route.ExecutableRouteRecord wardenRoute =
+				ScriptHost.getInstance().readActiveRegistry(
+						state -> com.rs2.script.registries
+								.CommandHandlerRegistry.getRecord(state,
+										"encounter-warden"));
+		assertNotNull("encounter-warden must register an exact host route",
+				wardenRoute);
+		assertFalse("the warden route must be a Java host consumer",
+				wardenRoute.isGuest());
 	}
 
 	private static File compiledContent() {

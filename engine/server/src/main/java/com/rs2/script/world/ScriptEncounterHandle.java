@@ -96,6 +96,15 @@ public final class ScriptEncounterHandle {
 		return service.onNpcDeath(token, npc, callback);
 	}
 
+	/**
+	 * Java-owned death listener for host consumers (declarative boss
+	 * controller). Never exported to guest code.
+	 */
+	public boolean onNpcDeath(ScriptNpcHandle npc,
+			ScriptNpcService.EncounterDeathListener listener) {
+		return service.onNpcDeath(token, npc, listener);
+	}
+
 	@HostAccess.Export
 	public ScriptObjectHandle replaceObject(double xValue, double yValue,
 			double planeValue, double expectedIdValue, double expectedTypeValue,
@@ -162,6 +171,15 @@ public final class ScriptEncounterHandle {
 		return service.schedule(token, ticks, true, callback);
 	}
 
+	/**
+	 * Java-owned repeating task for host consumers (declarative boss poll).
+	 * Registered in the encounter task list; never exported to guest code.
+	 */
+	public ScriptTaskHandle everyJava(double ticks, Runnable action,
+			Runnable failureAction) {
+		return service.scheduleJava(token, ticks, true, action, failureAction);
+	}
+
 	@HostAccess.Export
 	public boolean contains(double x, double y, double plane) {
 		return service.contains(token, x, y, plane);
@@ -199,6 +217,17 @@ public final class ScriptEncounterHandle {
 		return service.rollDrops(token, owner.generation(), player,
 				x.intValue(), y.intValue(), plane.intValue(),
 				privateTicks.intValue(), entries);
+	}
+
+	/**
+	 * Java-owned drop roll over a copied typed entry list (host consumers).
+	 * Uses the exact same owner-neutral transaction as the guest path; never
+	 * exported to guest code.
+	 */
+	public ScriptArray rollDrops(ScriptedPlayer player, int x, int y, int plane,
+			int privateTicks, java.util.List<ScriptDropEntry> entries) {
+		return service.rollDrops(token, owner.generation(), player, x, y, plane,
+				privateTicks, entries);
 	}
 
 	@HostAccess.Export

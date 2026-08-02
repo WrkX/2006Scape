@@ -87,7 +87,7 @@ public final class ScriptExecutor {
 					arguments);
 		}
 		try {
-			route.hostInvoker().invoke();
+			route.hostInvoker().invoke(arguments);
 		} catch (RuntimeException e) {
 			log(category, identity, action, "host route threw", e);
 		}

@@ -74,6 +74,16 @@ public class NpcHandler {
         return false;
     }
 
+    /** Returns true once the production npc.json list is loaded. */
+    public static boolean hasNpcDefinitions() {
+        for (int i = 0; i < maxListedNPCs; i++) {
+            if (NpcList[i] != null) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public void spawnSecondForm(Player c, final int i) {
         //	npcs[i].gfx0(1055);
         CycleEventHandler.getSingleton().addEvent(c, new CycleEvent() {

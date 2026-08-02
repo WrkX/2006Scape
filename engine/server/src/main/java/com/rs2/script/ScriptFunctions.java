@@ -86,10 +86,16 @@ public final class ScriptFunctions {
 	public Consumer<Value> getDefineBoss() {
 		return def -> {
 			requireObject("defineBoss", def);
-			int id = readIntegralMember("defineBoss", def, "npcId", 0, 14999);
-			rejectDuplicateRecord("defineBoss(" + id + ")",
-					DefinitionRegistry.put(DefinitionKind.BOSS,
-							String.valueOf(id), def));
+			com.rs2.script.boss.BossDefinition boss =
+					new com.rs2.script.boss.BossDefinitionParser(
+							ModuleScope.currentSource(),
+							ModuleScope.currentSchemaVersion()).parse(def);
+			rejectDuplicateRecord("defineBoss(npcId " + boss.npcId() + ")",
+					com.rs2.script.boss.BossDefinitionRegistry.put(boss));
+			// The exact WP1 host entry/close routes are part of the
+			// candidate; duplicate keys and reserved aliases reject it.
+			com.rs2.script.boss.StandaloneBossService.getInstance()
+					.registerRoutes(boss);
 		};
 	}
 

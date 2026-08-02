@@ -13,17 +13,22 @@ import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.PolyglotException;
 import org.graalvm.polyglot.Source;
 import org.graalvm.polyglot.Value;
 import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
 import org.apollo.cache.def.ItemDefinition;
 import org.apollo.cache.def.ObjectDefinition;
 
+import com.rs2.game.npcs.NpcHandler;
+import com.rs2.game.npcs.NpcList;
 import com.rs2.script.registries.AreaRegistry;
 import com.rs2.script.registries.BossRegistry;
 import com.rs2.script.registries.CommandHandlerRegistry;
@@ -39,6 +44,16 @@ import com.rs2.script.quest.QuestDefinition;
 public class ScriptHostTest {
 
 	private String previousContentDir;
+	private NpcList[] previousNpcList;
+
+	@Before
+	public void clearNpcDefinitions() {
+		previousNpcList = NpcHandler.NpcList.clone();
+		// Hermetic loaded-npc state: the strict boss parser enforces
+		// definition-backed ids only while the npc.json list is loaded, and
+		// other suites load it without restoring.
+		NpcHandler.NpcList = new NpcList[NpcHandler.maxListedNPCs];
+	}
 
 	@After
 	public void restoreProperty() {
@@ -47,6 +62,8 @@ public class ScriptHostTest {
 		} else {
 			System.setProperty("singlescape.contentDir", previousContentDir);
 		}
+		System.arraycopy(previousNpcList, 0, NpcHandler.NpcList, 0,
+				previousNpcList.length);
 	}
 
 	@Test
@@ -61,45 +78,58 @@ public class ScriptHostTest {
 
 			ScriptHost.getInstance().reload();
 
-			assertNotNull(BossRegistry.get(12001));
-		assertNotNull(QuestRegistry.get("dragon-awakens"));
-		assertNotNull(RaidRegistry.get("temple_of_zaros"));
-		assertNotNull(AreaRegistry.get("dragon_island"));
-		assertNotNull(NpcHandlerRegistry.get(1, "first"));
-		assertNotNull(CommandHandlerRegistry.get("hello"));
-		assertNotNull(ItemHandlerRegistry.getItem(14990, "first"));
-		assertNotNull(ItemHandlerRegistry.getItemOnItem(14990, 14991));
-		assertNotNull(ItemHandlerRegistry.getItemOnObject(14990, 14992));
-		assertNotNull(ItemHandlerRegistry.getItemOnNpc(14990, 14993));
-		assertNotNull(LifecycleRegistry.getNpcDeath(14994));
-		assertNotNull(LifecycleRegistry.getItemPickup(14995));
-		assertNotNull(LifecycleRegistry.getAreaHandler(
-				"enter", "bridge-example-lumbridge-courtyard"));
-		assertNotNull(LifecycleRegistry.getAreaHandler(
-				"leave", "bridge-example-lumbridge-courtyard"));
+			assertNotNull(BossRegistry.get(54));
+			assertNotNull(BossRegistry.get(50));
+			assertNotNull(QuestRegistry.get("dragon-awakens"));
+			assertNotNull(RaidRegistry.get("temple_of_zaros"));
+			assertNotNull(AreaRegistry.get("dragon_island"));
+			assertNotNull(NpcHandlerRegistry.get(1, "first"));
+			assertNotNull(CommandHandlerRegistry.get("hello"));
+			assertNotNull(ItemHandlerRegistry.getItem(14990, "first"));
+			assertNotNull(ItemHandlerRegistry.getItemOnItem(14990, 14991));
+			assertNotNull(ItemHandlerRegistry.getItemOnObject(14990, 14992));
+			assertNotNull(ItemHandlerRegistry.getItemOnNpc(14990, 14993));
+			assertNotNull(LifecycleRegistry.getNpcDeath(14994));
+			assertNotNull(LifecycleRegistry.getItemPickup(14995));
+			assertNotNull(LifecycleRegistry.getAreaHandler(
+					"enter", "bridge-example-lumbridge-courtyard"));
+			assertNotNull(LifecycleRegistry.getAreaHandler(
+					"leave", "bridge-example-lumbridge-courtyard"));
 
-		com.rs2.script.definition.DefinitionRecord dropTable =
-				com.rs2.script.definition.DefinitionRegistry.get(
-						com.rs2.script.definition.DefinitionKind.DROP_TABLE,
-						"dragon_king_loot");
-		assertNotNull(dropTable);
-		assertEquals(0, dropTable.schemaVersion());
-		assertEquals(com.rs2.script.definition.ModuleScope.LEGACY_SOURCE,
-				dropTable.source());
-		assertNotNull(com.rs2.script.drop.DropTableRegistry
-				.get("dragon_guardian_loot"));
-		assertNotNull(com.rs2.script.drop.DropTableRegistry
-				.get("elder_wizard_loot"));
-		assertNotNull(com.rs2.script.drop.DropTableRegistry
-				.get("zaros_raid_loot"));
-		assertEquals(7, com.rs2.script.drop.DropTableRegistry
-				.get("dragon_guardian_loot").entries().size());
-		assertEquals(7, com.rs2.script.drop.DropTableRegistry
-				.get("elder_wizard_loot").entries().size());
-		assertEquals(7, com.rs2.script.drop.DropTableRegistry
-				.get("dragon_king_loot").entries().size());
-		assertEquals(6, com.rs2.script.drop.DropTableRegistry
-				.get("zaros_raid_loot").entries().size());
+			com.rs2.script.definition.DefinitionRecord dropTable =
+					com.rs2.script.definition.DefinitionRegistry.get(
+							com.rs2.script.definition.DefinitionKind.DROP_TABLE,
+							"dragon_king_loot");
+			assertNotNull(dropTable);
+			assertEquals(0, dropTable.schemaVersion());
+			assertEquals(com.rs2.script.definition.ModuleScope.LEGACY_SOURCE,
+					dropTable.source());
+			assertNotNull(com.rs2.script.drop.DropTableRegistry
+					.get("dragon_guardian_loot"));
+			assertNotNull(com.rs2.script.drop.DropTableRegistry
+					.get("elder_wizard_loot"));
+			assertNotNull(com.rs2.script.drop.DropTableRegistry
+					.get("zaros_raid_loot"));
+			assertNotNull(com.rs2.script.drop.DropTableRegistry
+					.get("encounter_warden_loot"));
+			assertEquals(7, com.rs2.script.drop.DropTableRegistry
+					.get("dragon_guardian_loot").entries().size());
+			assertEquals(7, com.rs2.script.drop.DropTableRegistry
+					.get("elder_wizard_loot").entries().size());
+			assertEquals(7, com.rs2.script.drop.DropTableRegistry
+					.get("dragon_king_loot").entries().size());
+			assertEquals(6, com.rs2.script.drop.DropTableRegistry
+					.get("zaros_raid_loot").entries().size());
+			com.rs2.script.drop.DropTableDefinition wardenLoot =
+					com.rs2.script.drop.DropTableRegistry
+							.get("encounter_warden_loot");
+			assertEquals(2, wardenLoot.entries().size());
+			assertEquals(536, wardenLoot.entries().get(0).itemId());
+			assertTrue(wardenLoot.entries().get(0).always());
+			assertEquals(0, wardenLoot.entries().get(0).weight());
+			assertEquals(995, wardenLoot.entries().get(1).itemId());
+			assertEquals(100, wardenLoot.entries().get(1).weight());
+			assertEquals(500, wardenLoot.entries().get(1).maxAmount());
 		} finally {
 			setDefinitions(ItemDefinition.class, previousItems);
 		}
@@ -117,7 +147,8 @@ public class ScriptHostTest {
 
 			ScriptHost.getInstance().reload();
 
-			assertNotNull(BossRegistry.get(12001));
+			assertNotNull(BossRegistry.get(54));
+			assertNotNull(BossRegistry.get(50));
 			assertNotNull(QuestRegistry.get("dragon-awakens"));
 			assertNotNull(RaidRegistry.get("temple_of_zaros"));
 			assertNotNull(AreaRegistry.get("dragon_island"));
@@ -137,11 +168,23 @@ public class ScriptHostTest {
 			com.rs2.script.definition.DefinitionRecord boss =
 					com.rs2.script.definition.DefinitionRegistry.get(
 							com.rs2.script.definition.DefinitionKind.BOSS,
-							"12001");
+							"54");
 			assertNotNull(boss);
+			assertFalse("the compiled loader must contain no legacy raw "
+					+ "boss callback shape", boss.isGuestPayload());
+			assertNotNull(boss.bossPayload());
+			assertEquals("dragon-king", boss.bossPayload().id());
 			assertEquals(0, boss.schemaVersion());
 			assertEquals(com.rs2.script.definition.ModuleScope.LEGACY_SOURCE,
 					boss.source());
+			com.rs2.script.definition.DefinitionRecord warden =
+					com.rs2.script.definition.DefinitionRegistry.get(
+							com.rs2.script.definition.DefinitionKind.BOSS,
+							"50");
+			assertNotNull(warden);
+			assertFalse("the warden must be a typed canonical boss",
+					warden.isGuestPayload());
+			assertEquals("encounter-warden", warden.bossPayload().id());
 			com.rs2.script.definition.DefinitionRecord quest =
 					com.rs2.script.definition.DefinitionRegistry.get(
 							com.rs2.script.definition.DefinitionKind.QUEST,
@@ -162,6 +205,38 @@ public class ScriptHostTest {
 			assertTrue(area.isGuestPayload());
 			assertNotNull(com.rs2.script.drop.DropTableRegistry
 					.get("dragon_king_loot"));
+			assertNotNull(com.rs2.script.drop.DropTableRegistry
+					.get("encounter_warden_loot"));
+
+			// Every canonical boss of the compiled loader is a typed record
+			// with an exact entry route and a loaded npc id; no legacy raw
+			// callback shape survives the WP3 migration.
+			assertEquals(2, ScriptHost.getInstance().readActiveRegistry(
+					state -> com.rs2.script.boss.BossDefinitionRegistry
+							.all(state).size()).intValue());
+			Map<String, com.rs2.script.route.ExecutableRouteRecord> commands =
+					ScriptHost.getInstance().readActiveRegistry(state -> {
+						Map<String, com.rs2.script.route.ExecutableRouteRecord>
+								records = new LinkedHashMap<>();
+						for (Map.Entry<com.rs2.script.route.ExecutableRouteKey,
+								com.rs2.script.route.ExecutableRouteRecord>
+								entry : state.routes.entrySet()) {
+							if (entry.getKey().kind()
+									== com.rs2.script.route.RouteKind.COMMAND) {
+								records.put(entry.getKey().key(),
+										entry.getValue());
+							}
+						}
+						return records;
+					});
+			assertTrue(commands.containsKey("encounter-warden"));
+			assertFalse(commands.get("encounter-warden").isGuest());
+			assertTrue(commands.containsKey("encounter-warden-close"));
+			assertFalse(commands.get("encounter-warden-close").isGuest());
+			assertTrue(commands.containsKey("dragon-king"));
+			assertFalse(commands.get("dragon-king").isGuest());
+			assertTrue(commands.containsKey("dragon-king-close"));
+			assertFalse(commands.get("dragon-king-close").isGuest());
 
 			assertEquals(0, ScriptHost.getInstance().getRuntimeReport()
 					.moduleCount());
@@ -181,7 +256,7 @@ public class ScriptHostTest {
 		Files.write(loader, (
 				"registerContentModule({id:'demo-module',schemaVersion:1},"
 						+ "function () {"
-						+ "defineBoss({npcId:9500});"
+						+ canonicalBossJs(9500, "demo-boss", "demo-boss-cmd")
 						+ "defineRaid({id:'demo-raid'});"
 						+ "onCommand('demo-command', function () {});"
 						+ "});"
@@ -303,6 +378,20 @@ public class ScriptHostTest {
 				+ "stages:[{stage:0,objective:'Done'}]" + optional + "});";
 	}
 
+	/**
+	 * Compact canonical schema-v1 boss source for host tests. The npc id is
+	 * deliberately unloaded; the loaded-id check is skipped when no NPC
+	 * definitions are loaded (mirroring the reward parser contract).
+	 */
+	private static String canonicalBossJs(int npcId, String id,
+			String command) {
+		return "defineBoss({id:'" + id + "',npcId:" + npcId
+				+ ",combatLevel:1,maxHitpoints:10,maxHit:1,attack:1,"
+				+ "defence:1,arena:{minX:3200,minY:3200,maxX:3210,"
+				+ "maxY:3210,plane:0},spawn:{x:3205,y:3205},command:'"
+				+ command + "',onSpawn:function(){}});";
+	}
+
 	@Test
 	public void invalidAndDuplicateLifecycleRegistrationsRetainLastGoodGeneration()
 			throws Exception {
@@ -376,7 +465,7 @@ public class ScriptHostTest {
 		Path loader = root.resolve("loader.js");
 		setContentDir(root.toFile());
 		Files.write(loader, (
-				"defineBoss({ npcId: 9100 });"
+				canonicalBossJs(9100, "stable-boss", "stable-boss-cmd")
 				+ "defineQuest({id:'stable-quest',name:'Stable Quest',"
 				+ "summary:'Stable.',stages:[{stage:0,objective:'Stay stable.'}]});"
 				+ "defineRaid({ id: 'stable-raid' });"
@@ -648,7 +737,7 @@ public class ScriptHostTest {
 		long generation = host.getActiveGeneration();
 
 		Files.write(loader, (
-				"defineBoss({npcId:9400});"
+				canonicalBossJs(9400, "candidate-boss", "candidate-boss-cmd")
 				+ "defineRaid({id:'candidate-raid'});"
 				+ "defineArea({id:'candidate-area'});"
 				+ "onNpc(9401,'first',function(){});"
@@ -692,7 +781,7 @@ public class ScriptHostTest {
 
 	private static final class AggregateSnapshot {
 		private final Context context;
-		private final Value boss;
+		private final com.rs2.script.boss.BossDefinition boss;
 		private final QuestDefinition quest;
 		private final Value raid;
 		private final Value area;

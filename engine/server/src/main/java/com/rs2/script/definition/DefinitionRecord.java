@@ -119,6 +119,10 @@ public final class DefinitionRecord {
 		return (RewardDefinition) typedPayload;
 	}
 
+	public com.rs2.script.boss.BossDefinition bossPayload() {
+		return (com.rs2.script.boss.BossDefinition) typedPayload;
+	}
+
 	@Override
 	public String toString() {
 		return kind.name().toLowerCase(java.util.Locale.ROOT) + ":" + key

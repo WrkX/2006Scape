@@ -101,13 +101,36 @@ public final class ScriptNpcService {
                         owned.encounterToken, owned.generation)) {
             return false;
         }
-        if (owned.deathCallback != null
+        if (owned.deathCallback != null || owned.deathListener != null
                 || !ScriptEncounterService.getInstance()
                         .reserveNpcDeathCallback(owned.encounterToken,
                                 owned.generation)) {
             return false;
         }
         owned.deathCallback = callback;
+        return true;
+    }
+
+    /**
+     * Registers a Java-owned death listener for one exact NPC allocation.
+     * Only one death handler (guest callback or Java listener) may be
+     * registered per allocation.
+     */
+    public synchronized boolean registerDeath(ScriptNpcHandle handle,
+            EncounterDeathListener listener) {
+        OwnedNpc owned = resolve(handle);
+        if (owned == null || listener == null
+                || !ScriptEncounterService.getInstance().isOpenForScript(
+                        owned.encounterToken, owned.generation)) {
+            return false;
+        }
+        if (owned.deathCallback != null || owned.deathListener != null
+                || !ScriptEncounterService.getInstance()
+                        .reserveNpcDeathCallback(owned.encounterToken,
+                                owned.generation)) {
+            return false;
+        }
+        owned.deathListener = listener;
         return true;
     }
 
@@ -208,10 +231,12 @@ public final class ScriptNpcService {
             ScriptNpcSnapshot snapshot) {
         OwnedNpc owned;
         Value callback;
+        EncounterDeathListener deathListener;
         ScriptEncounterHandle encounterHandle;
         synchronized (this) {
             owned = exact(npc);
             callback = owned == null ? null : owned.deathCallback;
+            deathListener = owned == null ? null : owned.deathListener;
             encounterHandle = owned == null ? null
                     : ScriptEncounterService.getInstance().isOpenForScript(
                             owned.encounterToken, owned.generation)
@@ -219,11 +244,39 @@ public final class ScriptNpcService {
                                             .handleForToken(owned.encounterToken)
                                     : null;
         }
-        if (owned == null || callback == null || encounterHandle == null) {
+        if (owned == null || encounterHandle == null) {
             return;
         }
         ScriptedPlayer scriptedKiller = killer == null ? null
                 : new ScriptedPlayer(killer, owned.generation);
+        if (deathListener != null) {
+            ScriptNpcHandle handle = new ScriptNpcHandle(this,
+                    owned.npc.allocationToken());
+            boolean completed;
+            try {
+                deathListener.onDeath(handle, scriptedKiller, position,
+                        encounterHandle);
+                completed = true;
+            } catch (RuntimeException listenerFailure) {
+                System.err.println("[script-npc] encounter death listener "
+                        + "threw for token " + owned.encounterToken + ": "
+                        + listenerFailure.getMessage());
+                completed = false;
+            }
+            if (!completed) {
+                deferOrRun(npc, new Runnable() {
+                    @Override
+                    public void run() {
+                        ScriptEncounterService.getInstance()
+                                .close(owned.encounterToken);
+                    }
+                });
+            }
+            return;
+        }
+        if (callback == null) {
+            return;
+        }
         EncounterNpcDeathScriptContext context =
                 new EncounterNpcDeathScriptContext(
                         encounterHandle,
@@ -373,6 +426,7 @@ public final class ScriptNpcService {
         final ScriptedPlayer scriptedOwner;
         ScriptedPosition lastPosition;
         Value deathCallback;
+        EncounterDeathListener deathListener;
 
         OwnedNpc(Npc npc, long encounterToken, long generation, Player owner,
                 ScriptedPlayer scriptedOwner, ScriptedPosition lastPosition) {
@@ -383,6 +437,16 @@ public final class ScriptNpcService {
             this.scriptedOwner = scriptedOwner;
             this.lastPosition = lastPosition;
         }
+    }
+
+    /**
+     * Java-owned death observer for one exact owned NPC allocation. Runs
+     * with the same containment and deferred-cleanup guarantees as the guest
+     * callback path.
+     */
+    public interface EncounterDeathListener {
+        void onDeath(ScriptNpcHandle npc, ScriptedPlayer killer,
+                ScriptedPosition position, ScriptEncounterHandle encounter);
     }
 
     private static final class DeathState {

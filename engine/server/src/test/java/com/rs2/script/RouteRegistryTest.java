@@ -87,7 +87,7 @@ public class RouteRegistryTest {
 			RegistryStore.State candidate = RegistryStore.beginStaging();
 			try {
 				RouteRegistry.putHost(ExecutableRouteKey.command(alias),
-						() -> { });
+						arguments -> { });
 				fail("reserved alias " + alias + " should reject a host route");
 			} catch (IllegalArgumentException expected) {
 				assertTrue(expected.getMessage().contains("reserved"));
@@ -152,7 +152,7 @@ public class RouteRegistryTest {
 			RouteRegistry.put(ExecutableRouteKey.command("shared"), guest);
 			try {
 				RouteRegistry.putHost(ExecutableRouteKey.command("shared"),
-						() -> { });
+						arguments -> { });
 				fail("host route over guest route should reject");
 			} catch (IllegalArgumentException expected) {
 				assertTrue(expected.getMessage().contains("duplicate"));
@@ -165,7 +165,7 @@ public class RouteRegistryTest {
 		candidate = RegistryStore.beginStaging();
 		try {
 			RouteRegistry.putHost(ExecutableRouteKey.command("shared"),
-					() -> { });
+					arguments -> { });
 			try {
 				RouteRegistry.put(ExecutableRouteKey.command("shared"), guest);
 				fail("guest route over host route should reject");
@@ -184,10 +184,10 @@ public class RouteRegistryTest {
 		RegistryStore.State candidate = RegistryStore.beginStaging();
 		try {
 			RouteRegistry.putHost(ExecutableRouteKey.object(409, "first"),
-					() -> { });
+					arguments -> { });
 			try {
 				RouteRegistry.putHost(ExecutableRouteKey.object(409, "first"),
-						() -> { });
+						arguments -> { });
 				fail("two host consumers for one key should reject");
 			} catch (IllegalArgumentException expected) {
 				assertTrue(expected.getMessage().contains("duplicate"));

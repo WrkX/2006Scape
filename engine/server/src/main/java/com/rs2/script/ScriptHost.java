@@ -343,6 +343,9 @@ public final class ScriptHost {
 			runPostCommit("close old-generation encounters",
 					() -> ScriptEncounterService.getInstance()
 							.closeGeneration(previousGeneration));
+			runPostCommit("close old-generation standalone boss sessions",
+					() -> com.rs2.script.boss.StandaloneBossService
+							.getInstance().closeGeneration(previousGeneration));
 			runPostCommit("cancel old-generation tasks",
 					() -> ScriptScheduler.getInstance()
 							.cancelGeneration(previousGeneration));
@@ -401,12 +404,16 @@ public final class ScriptHost {
 				.onGenerationPublished(generation);
 		ScriptEncounterService.getInstance()
 				.closeGeneration(previousGeneration);
+		com.rs2.script.boss.StandaloneBossService.getInstance()
+				.closeGeneration(previousGeneration);
 		clearPendingScriptCallbacks();
 	}
 
 	synchronized void resetForTesting() {
 		clearPendingScriptCallbacks();
 		ScriptEncounterService.getInstance().resetForTesting();
+		com.rs2.script.boss.StandaloneBossService.getInstance()
+				.resetForTesting();
 		projectionAdapter = NoOpProjectionAdapter.getInstance();
 		diagnostics.clear();
 		activeState = null;

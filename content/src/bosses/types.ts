@@ -9,9 +9,15 @@
  */
 
 export type {
+  BossArena,
+  BossCleanupPolicy,
   BossContext,
   BossDefinition,
+  BossEntryTeleport,
+  BossObjectEntry,
   BossPhase,
+  BossRuntimeContext,
+  BossSpawn,
   BossSpecial,
   BossSpecials,
   DefineBoss,

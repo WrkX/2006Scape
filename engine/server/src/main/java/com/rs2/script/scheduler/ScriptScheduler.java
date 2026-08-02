@@ -40,6 +40,32 @@ public final class ScriptScheduler {
 	}
 
 	/**
+	 * Schedules a Java-owned callback with an engine-owned failure
+	 * continuation. The continuation never enters guest code and runs after
+	 * scheduler state has been finalized.
+	 */
+	public synchronized ScriptTaskHandle schedule(Player player, long generation,
+			int ticks, boolean repeating, Runnable javaAction,
+			Runnable failureAction) {
+		if (player == null) {
+			throw new IllegalArgumentException("scheduled task requires a player");
+		}
+		if (ticks < 1 || ticks > MAX_TICKS) {
+			throw new IllegalArgumentException(
+					"scheduled ticks must be between 1 and " + MAX_TICKS);
+		}
+		if (javaAction == null) {
+			throw new IllegalArgumentException("scheduled java action must not be null");
+		}
+		long taskId = nextTaskId++;
+		ScriptTaskHandle handle = new ScriptTaskHandle(this, taskId);
+		tasks.put(taskId, new Task(taskId, player, generation,
+				currentTick + ticks, repeating ? ticks : 0, null, javaAction,
+				handle, failureAction));
+		return handle;
+	}
+
+	/**
 	 * Schedules a callback with an engine-owned failure continuation. The
 	 * continuation never enters guest code and runs after scheduler state has
 	 * been finalized.
@@ -93,15 +119,22 @@ public final class ScriptScheduler {
 					task.generation, new Runnable() {
 						@Override
 						public void run() {
-							Value callback = claim(scheduled);
-							if (callback == null) {
+							Task active = claim(scheduled);
+							if (active == null) {
 								return;
 							}
 							claimed[0] = true;
-							succeeded[0] = ScriptExecutor.executeChecked(
-									callback, "task", Long.toString(scheduled.id),
-									scheduled.interval > 0 ? "every" : "after",
-									scheduled.handle);
+							if (active.javaAction != null) {
+								succeeded[0] = runJavaContained(
+										active.javaAction);
+							} else {
+								succeeded[0] = ScriptExecutor.executeChecked(
+										active.callback, "task",
+										Long.toString(active.id),
+										active.interval > 0 ? "every"
+												: "after",
+										active.handle);
+							}
 						}
 					});
 			if (!leased || !claimed[0]) {
@@ -119,20 +152,21 @@ public final class ScriptScheduler {
 		}
 	}
 
-	private synchronized Value claim(Task task) {
+	private synchronized Task claim(Task task) {
 		Task active = tasks.get(task.id);
 		if (active != task || task.cancelled || !task.running
 				|| task.dueTick > currentTick || !isLive(task.player)) {
 			return null;
 		}
-		return task.callback;
+		return task;
 	}
 
 	private synchronized void releaseSkippedSnapshot(Task task) {
 		Task active = tasks.get(task.id);
 		if (active == task) {
 			task.running = false;
-			if (task.cancelled || task.callback == null || !isLive(task.player)) {
+			if (task.cancelled || (task.callback == null
+					&& task.javaAction == null) || !isLive(task.player)) {
 				removeTask(task, true);
 			}
 		}
@@ -152,6 +186,7 @@ public final class ScriptScheduler {
 			}
 			tasks.remove(task.id);
 			task.callback = null;
+			task.javaAction = null;
 			return;
 		}
 		task.dueTick += task.interval;
@@ -165,6 +200,7 @@ public final class ScriptScheduler {
 		task.cancelled = true;
 		task.handle.markCancelled();
 		task.callback = null;
+		task.javaAction = null;
 		return true;
 	}
 
@@ -181,6 +217,7 @@ public final class ScriptScheduler {
 				task.cancelled = true;
 				task.handle.markCancelled();
 				task.callback = null;
+				task.javaAction = null;
 				iterator.remove();
 			}
 		}
@@ -194,6 +231,7 @@ public final class ScriptScheduler {
 				task.cancelled = true;
 				task.handle.markCancelled();
 				task.callback = null;
+				task.javaAction = null;
 				iterator.remove();
 			}
 		}
@@ -213,6 +251,18 @@ public final class ScriptScheduler {
 			task.handle.markCancelled();
 		}
 		task.callback = null;
+		task.javaAction = null;
+	}
+
+	/** Java-owned task boundary: a throw stops a repeating task once. */
+	private static boolean runJavaContained(Runnable action) {
+		try {
+			action.run();
+			return true;
+		} catch (RuntimeException e) {
+			System.err.println("[scheduler] java task threw: " + e.getMessage());
+			return false;
+		}
 	}
 
 	private static final class Task {
@@ -222,6 +272,7 @@ public final class ScriptScheduler {
 		private long dueTick;
 		private final int interval;
 		private Value callback;
+		private Runnable javaAction;
 		private final ScriptTaskHandle handle;
 		private final Runnable failureAction;
 		private boolean running;
@@ -230,12 +281,20 @@ public final class ScriptScheduler {
 		private Task(long id, Player player, long generation, long dueTick,
 				int interval, Value callback, ScriptTaskHandle handle,
 				Runnable failureAction) {
+			this(id, player, generation, dueTick, interval, callback, null,
+					handle, failureAction);
+		}
+
+		private Task(long id, Player player, long generation, long dueTick,
+				int interval, Value callback, Runnable javaAction,
+				ScriptTaskHandle handle, Runnable failureAction) {
 			this.id = id;
 			this.player = player;
 			this.generation = generation;
 			this.dueTick = dueTick;
 			this.interval = interval;
 			this.callback = callback;
+			this.javaAction = javaAction;
 			this.handle = handle;
 			this.failureAction = failureAction;
 		}

@@ -81,7 +81,7 @@ public class CommandsTest {
 				new java.util.concurrent.atomic.AtomicInteger();
 		ScriptRuntimeTestFixture.publish(context, () ->
 				RouteRegistry.putHost(ExecutableRouteKey.command("host-cmd"),
-						calls::incrementAndGet));
+						arguments -> calls.incrementAndGet()));
 
 		assertTrue(Commands.executeScriptCommand(player, "host-cmd"));
 		assertEquals(1, calls.get());
@@ -95,7 +95,7 @@ public class CommandsTest {
 		Player player = new Player(-1) { };
 		ScriptRuntimeTestFixture.publish(context, () ->
 				RouteRegistry.putHost(ExecutableRouteKey.command("boom-host"),
-						() -> { throw new IllegalStateException("host boom"); }));
+						arguments -> { throw new IllegalStateException("host boom"); }));
 
 		assertTrue(Commands.executeScriptCommand(player, "boom-host"));
 	}
@@ -106,7 +106,7 @@ public class CommandsTest {
 		try {
 			ScriptRuntimeTestFixture.publish(context, () ->
 					RouteRegistry.putHost(ExecutableRouteKey.command("reload"),
-							() -> { }));
+							arguments -> { }));
 			fail("reserved alias should reject a host route");
 		} catch (RuntimeException expected) {
 			assertTrue(expected.getMessage().contains("reserved"));

@@ -16,7 +16,12 @@ public interface HostRoute {
 	/**
 	 * Executes the host consumer. Implementations must contain their own
 	 * exceptions and must not delegate to legacy behavior.
+	 *
+	 * <p>The invocation shape is the exact context objects passed by the
+	 * route adapter: command routes receive the {@code CommandScriptContext},
+	 * object routes the {@code ScriptContext}, and later host consumers the
+	 * same arguments their packet adapter passes to guest callbacks.
 	 */
-	void invoke();
+	void invoke(Object... arguments);
 
 }
