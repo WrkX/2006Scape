@@ -3,6 +3,7 @@ package com.rs2.game.dialogues;
 import com.rs2.Constants;
 import com.rs2.game.bots.Bot;
 import com.rs2.game.bots.BotHandler;
+import com.rs2.game.content.minigames.trawler.Murphy;
 import com.rs2.game.content.skills.crafting.JewelryMaking;
 import com.rs2.game.items.impl.Flowers;
 import com.rs2.game.items.impl.Teles;
@@ -144,6 +145,12 @@ public class DialogueOptions {
 					player.getPacketSender().sendMessage("::xprate");
 					player.getPacketSender().closeAllWindows();
 					return;
+			case Murphy.DIALOGUE_ACTION:
+				Murphy.handleMainOption(player, 1);
+				return;
+			case Murphy.DIVING_DIALOGUE_ACTION:
+				Murphy.handleDivingOption(player, 1);
+				return;
 			}
 			player.dialogueAction = 0;
 			player.getPacketSender().closeAllWindows();
@@ -237,6 +244,12 @@ public class DialogueOptions {
 				player.getPacketSender().sendMessage("Your XP rate is now set to x" + player.getXPRate() + " you can increase your rate in the future by using");
 				player.getPacketSender().sendMessage("::xprate");
 				player.getPacketSender().closeAllWindows();
+				return;
+			case Murphy.DIALOGUE_ACTION:
+				Murphy.handleMainOption(player, 2);
+				return;
+			case Murphy.DIVING_DIALOGUE_ACTION:
+				Murphy.handleDivingOption(player, 2);
 				return;
 			}
 			player.dialogueAction = 0;
@@ -333,6 +346,12 @@ public class DialogueOptions {
 				player.setXPRate(Constants.VARIABLE_XP_RATES[3]);
 				player.getPacketSender().sendMessage("Your XP rate is now set to x" + player.getXPRate() + " you now have the highest XP rate.");
 				player.getPacketSender().closeAllWindows();
+				return;
+			case Murphy.DIALOGUE_ACTION:
+				Murphy.handleMainOption(player, 3);
+				return;
+			case Murphy.DIVING_DIALOGUE_ACTION:
+				Murphy.handleDivingOption(player, 3);
 				return;
 			}
 			player.dialogueAction = 0;
@@ -1238,6 +1257,10 @@ public class DialogueOptions {
 			if (player.dialogueAction == 10002) {
 				player.setXPRate(Constants.VARIABLE_XP_RATES[3]);
 				player.getDialogueHandler().sendDialogues(10003, player.npcType);
+			}
+			if (player.dialogueAction == Murphy.DIALOGUE_ACTION) {
+				Murphy.handleMainOption(player, 4);
+				return;
 			}
 			break;
 		}

@@ -5,7 +5,6 @@ import com.google.gson.reflect.TypeToken;
 import com.rs2.game.players.Client;
 import com.rs2.game.players.Player;
 import com.rs2.game.players.PlayerHandler;
-import com.rs2.util.Misc;
 import com.rs2.util.ShopData;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -64,40 +63,78 @@ public class ShopHandler {
         loadShops();
     }
 
-    public static int restockTimeItem(int itemId) {
-        switch (itemId) {
-            default:
-                return 1000;
-        }
+    public static int restockTimeItem(int shopId, int itemId) {
+        return (int) Math.min(Integer.MAX_VALUE, ShopRestockTimes.getRestockMs(shopId, itemId));
+    }
 
+    static int getRestockCap(int shopId, int slot) {
+        int standardStock = shopItemsSN[shopId][slot];
+        if (standardStock > 0) {
+            return standardStock;
+        }
+        if (isStandardCatalogSlot(shopId, slot)) {
+            return 1;
+        }
+        return 0;
+    }
+
+    static boolean isStandardCatalogSlot(int shopId, int slot) {
+        return shopId >= 0 && shopId < MAX_SHOPS
+                && staticShopConfigured[shopId]
+                && slot < shopItemsStandard[shopId];
+    }
+
+    static boolean tryRestockSlot(int shopId, int slot, long now) {
+        if (shopItems[shopId][slot] <= 0) {
+            return false;
+        }
+        int current = shopItemsN[shopId][slot];
+        int cap = getRestockCap(shopId, slot);
+        if (current >= cap) {
+            return false;
+        }
+        int itemId = shopItems[shopId][slot] - 1;
+        long restockMs = ShopRestockTimes.getRestockMs(shopId, itemId);
+        if (now - shopItemsRestock[shopId][slot] < restockMs) {
+            return false;
+        }
+        shopItemsN[shopId][slot]++;
+        shopItemsRestock[shopId][slot] = now;
+        return true;
+    }
+
+    private static void initializeRestockTimer(int shopId, int slot) {
+        shopItemsRestock[shopId][slot] = System.currentTimeMillis();
     }
 
     public void process() {
-        boolean DidUpdate = false;
-        for (int i = 1; i <= totalshops; i++) {
-			if (shopBModifier[i] == 0 || shopSModifier[i] == 0) {
-				continue;
-			}
+        long now = System.currentTimeMillis();
+        for (int i = 0; i < MAX_SHOPS; i++) {
+            if (!staticShopConfigured[i] || shopBModifier[i] == 0 || shopSModifier[i] == 0) {
+                continue;
+            }
+            boolean shopUpdated = false;
             for (int j = 0; j < MAX_SHOP_ITEMS; j++) {
-                if (shopItems[i][j] > 0) {
-                    if (shopItemsDelay[i][j] >= SHOW_DELAY) {
-                        if (j <= shopItemsStandard[i] && shopItemsN[i][j] <= shopItemsSN[i][j]) {
-                            if (shopItemsN[i][j] < shopItemsSN[i][j] && System.currentTimeMillis() - shopItemsRestock[i][j] > restockTimeItem(shopItems[i][j])) {
-                                shopItemsN[i][j] += 1;
-                                shopItemsDelay[i][j] = 1;
-                                shopItemsDelay[i][j] = 0;
-                                DidUpdate = true;
-                                shopItemsRestock[i][j] = System.currentTimeMillis();
-                            }
-                        } else if (shopItemsDelay[i][j] >= SPECIAL_DELAY) {
-                            DiscountItem(i, j);
-                            shopItemsDelay[i][j] = 0;
-                            DidUpdate = true;
-                        }
-                        refreshshop(i);
-                    }
-                    shopItemsDelay[i][j]++;
+                if (shopItems[i][j] <= 0) {
+                    continue;
                 }
+                if (shopItemsDelay[i][j] >= SHOW_DELAY) {
+                    int standardStock = shopItemsSN[i][j];
+                    if (isStandardCatalogSlot(i, j) && shopItemsN[i][j] <= standardStock) {
+                        if (tryRestockSlot(i, j, now)) {
+                            shopItemsDelay[i][j] = 0;
+                            shopUpdated = true;
+                        }
+                    } else if (shopItemsDelay[i][j] >= SPECIAL_DELAY) {
+                        DiscountItem(i, j);
+                        shopItemsDelay[i][j] = 0;
+                        shopUpdated = true;
+                    }
+                }
+                shopItemsDelay[i][j]++;
+            }
+            if (shopUpdated) {
+                refreshshop(i);
             }
         }
     }
@@ -172,6 +209,7 @@ public class ShopHandler {
                         shopItemsN[shopID][i] = shop.getItems()[i].getItemAmount();
                         shopItemsSN[shopID][i] = shop.getItems()[i].getItemAmount();
                         shopItemsStandard[shopID]++;
+                        initializeRestockTimer(shopID, i);
                     } else {
                         break;
                     }
@@ -355,6 +393,10 @@ public class ShopHandler {
         for (int j = 0; j < MAX_SHOP_ITEMS; j++) {
             if (shopItems[shop_id][j] == item_id) {
                 shopItemsN[shop_id][j] -= amount;
+                if (shopItemsN[shop_id][j] <= 0) {
+                    shopItemsN[shop_id][j] = 0;
+                    shopItemsRestock[shop_id][j] = System.currentTimeMillis();
+                }
             }
         }
         refreshshop(shop_id);
