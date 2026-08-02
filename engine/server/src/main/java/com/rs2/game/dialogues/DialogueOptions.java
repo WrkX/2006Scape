@@ -973,6 +973,12 @@ public class DialogueOptions {
 			if (player.dialogueAction == 35) {
 				player.getDialogueHandler().sendDialogues(378, player.npcType);
 			}
+			if (player.dialogueAction == 36) {
+				player.getDialogueHandler().sendDialogues(6053, player.npcType);
+			}
+			if (player.dialogueAction == 37) {
+				player.getDialogueHandler().sendDialogues(6061, player.npcType);
+			}
 			if (player.dialogueAction == 51) {
 				player.getPlayerAssistant().gloryTeleport(3088, 3500, 0, "modern");
 				Teles.necklaces(player);
@@ -1049,6 +1055,12 @@ public class DialogueOptions {
 			if (player.dialogueAction == 35) {
 				player.getDialogueHandler().sendDialogues(376, player.npcType);
 			}
+			if (player.dialogueAction == 36) {
+				player.getDialogueHandler().sendDialogues(6058, player.npcType);
+			}
+			if (player.dialogueAction == 37) {
+				player.getDialogueHandler().sendDialogues(6065, player.npcType);
+			}
 			if (player.dialogueAction == 51) {
 				player.getPlayerAssistant().gloryTeleport(3293, 3174, 0, "modern");
 				Teles.necklaces(player);
@@ -1124,6 +1136,9 @@ public class DialogueOptions {
 			}
 			if (player.dialogueAction == 35) {
 				player.getDialogueHandler().sendDialogues(377, player.npcType);
+			}
+			if (player.dialogueAction == 36) {
+				player.getDialogueHandler().sendDialogues(6068, player.npcType);
 			}
 			if (player.dialogueAction == 51) {
 				player.getPlayerAssistant().gloryTeleport(2911, 3152, 0, "modern");

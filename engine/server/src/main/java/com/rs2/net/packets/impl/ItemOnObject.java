@@ -3,6 +3,9 @@ package com.rs2.net.packets.impl;
 import com.rs2.event.impl.ItemOnObjectEvent;
 import com.rs2.Constants;
 import com.rs2.game.content.combat.range.DwarfCannon;
+import com.rs2.game.content.StaticItemList;
+import com.rs2.game.content.StaticObjectList;
+import com.rs2.game.content.quests.impl.RestlessGhost;
 import com.rs2.game.content.skills.cooking.Cooking;
 import com.rs2.game.content.skills.cooking.CookingTutorialIsland;
 import com.rs2.game.content.skills.crafting.JewelryMaking;
@@ -187,6 +190,13 @@ public class ItemOnObject implements PacketType {
 				player.getPlayerAssistant().addSkillXP(18, Constants.COOKING);
 			} else {
 				player.getPacketSender().sendMessage("You need a bucket of milk to do this.");
+			}
+			break;
+
+		case StaticObjectList.COFFIN_2145:
+		case StaticObjectList.COFFIN_2146:
+			if (itemId == StaticItemList.SKULL) {
+				RestlessGhost.handleSkullOnCoffin(player, objectX, objectY);
 			}
 			break;
 		}

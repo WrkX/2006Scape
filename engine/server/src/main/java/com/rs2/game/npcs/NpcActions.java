@@ -3,6 +3,7 @@ package com.rs2.game.npcs;
 import com.rs2.Constants;
 import com.rs2.game.content.StaticNpcList;
 import com.rs2.game.content.quests.QuestAssistant;
+import com.rs2.game.content.quests.impl.RestlessGhost;
 import com.rs2.game.content.skills.core.Fishing;
 import com.rs2.game.content.skills.crafting.Tanning;
 import com.rs2.game.content.traveling.Sailing;
@@ -516,9 +517,7 @@ public class NpcActions {
                 }
                 break;
             case RESTLESS_GHOST:
-                if (player.restGhost == 2) {
-                    player.getDialogueHandler().sendDialogues(371, npcType);
-                }
+                RestlessGhost.talkToRestlessGhost(player, npcType);
                 break;
             case FATHER_URHNEY:
                 if (player.restGhost == 1) {

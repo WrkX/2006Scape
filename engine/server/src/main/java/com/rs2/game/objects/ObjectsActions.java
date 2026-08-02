@@ -13,6 +13,7 @@ import com.rs2.game.content.minigames.brimhavenagilityarena.BrimhavenAgilityAren
 import com.rs2.game.content.minigames.castlewars.CastleWarObjects;
 import com.rs2.game.content.minigames.castlewars.CastleWars;
 import com.rs2.game.content.quests.QuestRewards;
+import com.rs2.game.content.quests.impl.RestlessGhost;
 import com.rs2.game.content.random.PartyRoom;
 import com.rs2.game.content.randomevents.FreakyForester;
 import com.rs2.game.content.skills.agility.AgilityShortcut;
@@ -227,15 +228,9 @@ public class ObjectsActions {
                 break;
 
             case 2145:
-                if (player.objectX == 3249 && player.objectY == 3192) {
-                    player.getPacketSender().object(2146, 3249, 3192, 0, 0, 10);
-                    Region.addObject(2146, 3249, 3192, 0, 10, 0, false);
-                }
-                break;
-
             case 2146:
-                if (player.objectX == 3249 && player.objectY == 3192) {
-                    player.getPacketSender().object(2145, 3249, 3192, 0, 0, 10);
+                if (RestlessGhost.isGraveyardCoffin(player.objectX, player.objectY)) {
+                    RestlessGhost.interactWithGraveyardCoffin(player, objectType);
                 }
                 break;
 
@@ -2828,28 +2823,6 @@ public class ObjectsActions {
             case 389:
             case 378:
                 Searching.searchObject(player, objectType);
-                break;
-
-            case 2145:
-                if (player.restGhost == 2 && player.playerEquipment[player.playerAmulet] == 552) {
-                    NpcHandler.spawnNpc(player, 457, player.getX(), player.getY() + 2, 0, 0, 0, 0, 0, 0, false, false);
-                    player.getPacketSender().sendMessage("You search the coffin.");
-                } else if (player.restGhost == 4 && player.getItemAssistant().playerHasItem(553, 1)) {
-                    player.getItemAssistant().deleteItem(553, 1);
-                    player.getPacketSender().sendMessage("You have freed the ghost!");
-                    QuestRewards.restFinish(player);
-                    NpcHandler.spawnNpc(player, 457, player.getX(), player.getY() + 2, 0, 0, 0, 0, 0, 0, false, false);
-                } else if (player.restGhost == 2 && player.playerEquipment[player.playerAmulet] != 552) {
-                    player.getDialogueHandler().sendStatement("You need the ghost speak amulet for this part.");
-                    player.nextChat = 0;
-                } else if (player.restGhost == 4 && !player.getItemAssistant().playerHasItem(553, 1)) {
-                    player.getDialogueHandler().sendStatement("You need the skull for this part.");
-                    player.nextChat = 0;
-                } else if (player.restGhost == 0) {
-                    player.getPacketSender().sendMessage("You have not started this quest yet.");
-                } else if (player.restGhost == 5) {
-                    player.getPacketSender().sendMessage("You have already finished this quest.");
-                }
                 break;
 
             case 2402:

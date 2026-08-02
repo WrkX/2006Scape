@@ -1933,6 +1933,95 @@ public class DialogueHandler {
 				sendPlayerChat("Okay. I'll try to get your skull back for you so you can rest in peace.");
 				player.nextChat = 0;
 				break;
+			case 6050:
+				sendPlayerChat("Hello ghost, how are you?");
+				player.nextChat = 6051;
+				break;
+			case 6051:
+				sendNpcChat1("Wooo wooo wooooo!", player.talkingNpc,
+						"Restless Ghost");
+				player.nextChat = 6052;
+				break;
+			case 6052:
+				sendOption("Sorry, I don't speak ghost.",
+						"Ooh, THAT'S interesting.",
+						"Any hints where I can find some treasure?");
+				player.dialogueAction = 36;
+				break;
+			case 6053:
+				sendPlayerChat("Sorry, I don't speak ghost.");
+				player.nextChat = 6054;
+				break;
+			case 6054:
+				sendNpcChat1("Woo woo?", player.talkingNpc, "Restless Ghost");
+				player.nextChat = 6055;
+				break;
+			case 6055:
+				sendPlayerChat("Nope, still don't understand you.");
+				player.nextChat = 6056;
+				break;
+			case 6056:
+				sendNpcChat1("WOOOOOOOOO!", player.talkingNpc, "Restless Ghost");
+				player.nextChat = 6057;
+				break;
+			case 6057:
+				sendPlayerChat("Never mind.");
+				player.nextChat = 0;
+				break;
+			case 6058:
+				sendPlayerChat("Ooh, THAT'S interesting.");
+				player.nextChat = 6059;
+				break;
+			case 6059:
+				sendNpcChat1("Woo wooo. Woooooooooooooooooo!",
+						player.talkingNpc, "Restless Ghost");
+				player.nextChat = 6060;
+				break;
+			case 6060:
+				sendOption("Did he really?",
+						"My brother had EXACTLY the same problem.");
+				player.dialogueAction = 37;
+				break;
+			case 6061:
+				sendPlayerChat("Did he really?");
+				player.nextChat = 6062;
+				break;
+			case 6062:
+				sendNpcChat1("Woo.", player.talkingNpc, "Restless Ghost");
+				player.nextChat = 6063;
+				break;
+			case 6063:
+				sendPlayerChat("Goodbye. Thanks for the chat.");
+				player.nextChat = 6064;
+				break;
+			case 6064:
+				sendNpcChat1("Wooo wooo?", player.talkingNpc, "Restless Ghost");
+				player.nextChat = 0;
+				break;
+			case 6065:
+				sendPlayerChat("My brother had EXACTLY the same problem.");
+				player.nextChat = 6066;
+				break;
+			case 6066:
+				sendNpcChat1("Woo Wooooo!", player.talkingNpc, "Restless Ghost");
+				player.nextChat = 6067;
+				break;
+			case 6067:
+				sendNpcChat1("Wooooo Woo woo woo!", player.talkingNpc,
+						"Restless Ghost");
+				player.nextChat = 6063;
+				break;
+			case 6068:
+				sendPlayerChat("Any hints where I can find some treasure?");
+				player.nextChat = 6069;
+				break;
+			case 6069:
+				sendNpcChat2(
+						"Wooooooo woo! Wooooo woo wooooo woowoowoo woo Woo wooo.",
+						"Wooooo woo woo? Woooooooooooooooooo!",
+						player.talkingNpc, "Restless Ghost");
+				player.nextChat = 6053;
+				break;
 			case 389:
 				sendNpcChat1("Why me?...", player.talkingNpc, "Romeo");
 				player.nextChat = 390;
