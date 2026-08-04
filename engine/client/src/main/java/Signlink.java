@@ -1,4 +1,4 @@
-import java.applet.Applet;
+import java.awt.Component;
 import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -24,6 +24,39 @@ import javax.sound.sampled.SourceDataLine;
 import javax.sound.sampled.UnsupportedAudioFileException;
 
 public final class Signlink implements Runnable {
+
+	public static synchronized void shutdown() {
+		active = false;
+		fadeOut();
+		if (music != null) {
+			try {
+				music.stop();
+				music.close();
+			} catch (Exception _ex) {
+			}
+			music = null;
+		}
+		if (synthesizer != null) {
+			try {
+				synthesizer.close();
+			} catch (Exception _ex) {
+			}
+			synthesizer = null;
+		}
+		try {
+			if (cache_dat != null) {
+				cache_dat.close();
+				cache_dat = null;
+			}
+			for (int j = 0; j < cache_idx.length; j++) {
+				if (cache_idx[j] != null) {
+					cache_idx[j].close();
+					cache_idx[j] = null;
+				}
+			}
+		} catch (Exception _ex) {
+		}
+	}
 
 	public static final void startpriv(InetAddress inetaddress) {
 		threadliveid = (int) (Math.random() * 99999999D);
@@ -67,7 +100,7 @@ public final class Signlink implements Runnable {
 			for (int j = 0; j < 5; j++)
 				cache_idx[j] = new RandomAccessFile(s + "main_file_cache.idx" + j, "rw");
 		} catch (Exception exception) {
-			exception.printStackTrace();
+			ClientLogger.error("Failed to open cache files in " + s, exception);
 		}
 		for (int i = threadliveid; threadliveid == i;) {
 			if (socketreq != 0) {
@@ -105,10 +138,10 @@ public final class Signlink implements Runnable {
 					try {
 						audioInputStream = AudioSystem.getAudioInputStream(new File(wave));
 					} catch (UnsupportedAudioFileException e1) {
-						e1.printStackTrace();
+						ClientLogger.error("Unsupported wave audio format: " + wave, e1);
 						return;
 					} catch (IOException e1) {
-						e1.printStackTrace();
+						ClientLogger.error("Failed to read wave audio: " + wave, e1);
 						return;
 					}
 					AudioFormat format = audioInputStream.getFormat();
@@ -118,10 +151,10 @@ public final class Signlink implements Runnable {
 						auline = (SourceDataLine) AudioSystem.getLine(info);
 						auline.open(format);
 					} catch (LineUnavailableException e) {
-						e.printStackTrace();
+						ClientLogger.error("Audio line unavailable for wave playback", e);
 						return;
 					} catch (Exception e) {
-						e.printStackTrace();
+						ClientLogger.error("Failed to open audio line for wave playback", e);
 						return;
 					}
 					if (auline.isControlSupported(FloatControl.Type.PAN)) {
@@ -142,7 +175,7 @@ public final class Signlink implements Runnable {
 								auline.write(abData, 0, nBytesRead);
 						}
 					} catch (IOException e) {
-						e.printStackTrace();
+						ClientLogger.error("Failed while playing wave audio", e);
 						return;
 					} finally {
 						auline.drain();
@@ -158,16 +191,16 @@ public final class Signlink implements Runnable {
 						}
 						playMidi(midi);
 					} catch (Exception ex) {
-						ex.printStackTrace();
+						ClientLogger.error("Failed to play midi: " + midi, ex);
 					}
 					play = false;
 				}
 				saveReq = null;
 			} else if (urlreq != null) {
 				try {
-					System.out.println("urlstream");
-					urlstream = new DataInputStream((new URL(mainapp.getCodeBase(), urlreq)).openStream());
+					urlstream = new DataInputStream(new URL(urlreq).openStream());
 				} catch (Exception _ex) {
+					ClientLogger.warn("Failed to open URL stream: " + urlreq, _ex);
 					urlstream = null;
 				}
 				urlreq = null;
@@ -194,8 +227,7 @@ public final class Signlink implements Runnable {
 			music.open();
 			music.setSequence(sequence);
 		} catch (Exception e) {
-			System.err.println("Problem loading MIDI file.");
-			e.printStackTrace();
+			ClientLogger.error("Problem loading MIDI file: " + location, e);
 			return;
 		}
 		if (music instanceof Synthesizer) {
@@ -210,7 +242,7 @@ public final class Signlink implements Runnable {
 					music.getTransmitter().setReceiver(synthesizer.getReceiver());
 				}
 			} catch (Exception e) {
-				e.printStackTrace();
+				ClientLogger.error("Failed to open MIDI synthesizer", e);
 				return;
 			}
 		}
@@ -238,7 +270,7 @@ public final class Signlink implements Runnable {
 					MidiSystem.getReceiver().send(volumeMessage, -1);
 				}
 			} catch (Exception e) {
-				e.printStackTrace();
+				ClientLogger.warn("Failed to set MIDI volume via receiver", e);
 				return false;
 			}
 		} else {
@@ -249,7 +281,7 @@ public final class Signlink implements Runnable {
 					channels[c].controlChange(39, midiVolume);
 				}
 			} catch (Exception e){
-				e.printStackTrace();
+				ClientLogger.warn("Failed to set MIDI volume via synthesizer channels", e);
 				return false;
 			}
 		}
@@ -378,7 +410,18 @@ public final class Signlink implements Runnable {
 	}
 
 	public static void reporterror(String s) {
-		System.out.println("Error: " + s);
+		reporterror(s, null);
+	}
+
+	public static void reporterror(String s, Throwable throwable) {
+		String sanitized = ClientCrashReport.sanitizeMessage(s);
+		ClientLogger.error("Client error: " + sanitized, throwable);
+		if (throwable != null) {
+			File crashReport = ClientCrashReport.write(sanitized, throwable);
+			if (crashReport != null) {
+				ClientLogger.error("Crash report written to " + crashReport.getAbsolutePath());
+			}
+		}
 	}
 
 	private Signlink() {
@@ -389,7 +432,7 @@ public final class Signlink implements Runnable {
 	public static RandomAccessFile cache_dat = null;
 	public static final RandomAccessFile[] cache_idx = new RandomAccessFile[5];
 	public static boolean sunjava;
-	public static Applet mainapp = null;
+	public static Component mainapp = null;
 	private static boolean active;
 	private static int threadliveid;
 	private static InetAddress socketip;

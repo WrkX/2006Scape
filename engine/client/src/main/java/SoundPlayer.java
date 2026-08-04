@@ -62,7 +62,7 @@ public class SoundPlayer implements Runnable {
 					}
 				}
 			} catch (IOException e) {
-				e.printStackTrace();
+				ClientLogger.warn("Failed while playing sound effect", e);
 			} finally {
 				sound.drain();
 				sound.close();
@@ -72,7 +72,7 @@ public class SoundPlayer implements Runnable {
 			player.interrupt();
 		} catch (Exception e) {
 			player.interrupt();
-			e.printStackTrace();
+			ClientLogger.warn("Failed to play sound effect", e);
 		}
 	}
 

@@ -38,6 +38,9 @@ import java.util.zip.CRC32;
 public class Game extends RSApplet {
 	
 	private boolean graphicsEnabled = true;
+	private int visibilityMapWidth = -1;
+	private int visibilityMapHeight = -1;
+	private int visibilityMapDrawDistance = -1;
 	
 	public static int random(final float range) {
 		return (int) (java.lang.Math.random() * (range + 1));
@@ -514,7 +517,7 @@ public class Game extends RSApplet {
 		}
 		if (drawToScreen) {
 			if (ClientPreferences.chatOverlay) {
-				aRSImageProducer_1166.drawGraphics(getChatY(), super.graphics, getChatX(), CHAT_OVERLAY_OPACITY);
+				aRSImageProducer_1166.drawGraphics(getChatY(), super.graphics, getChatX(), getChatOverlayOpacity());
 			} else {
 				aRSImageProducer_1166.drawGraphics(getChatY(), super.graphics, getChatX());
 			}
@@ -525,7 +528,7 @@ public class Game extends RSApplet {
 
 	private void blendChatIntoGameBuffer() {
 		blendProducerIntoGameBuffer(aRSImageProducer_1166, getChatX(), getChatY(),
-				Math.round(CHAT_OVERLAY_OPACITY * 256.0F));
+				Math.round(getChatOverlayOpacity() * 256.0F));
 	}
 
 	private void blendChatFooterIntoGameBuffer() {
@@ -865,29 +868,27 @@ public class Game extends RSApplet {
 			return false;
 		}
 		int j = super.clickMode3;
-		if (spellSelected == 1 && super.saveClickX >= getTopIconsX()
-				&& super.saveClickY >= getTopIconsY()
-				&& super.saveClickX <= super.myWidth
-				&& super.saveClickY <= getTopIconsY() + TOP_TAB_BAR_HEIGHT) {
+		if (spellSelected == 1 && getViewportLayout().sidePanelLayout.topTabBar.contains(
+				inputRouter.screenX, inputRouter.screenY)) {
 			j = 0;
 		}
+		ViewportLayout viewport = getViewportLayout();
+		ContextMenuLayout.ScreenArea menuArea = ContextMenuLayout.ScreenArea.fromLegacyId(menuScreenArea);
 		if (menuOpen) {
 			if (j != 1) {
-				int k = super.mouseX;
-				int j1 = super.mouseY;
-				if (menuScreenArea == 0) {
-					k -= 4;
-					j1 -= 4;
-				}
-				if (menuScreenArea == 1) {
-					k -= getTabContentX();
-					j1 -= getTabContentY();
-				}
-				if (menuScreenArea == 2) {
-					k -= getChatX();
-					j1 -= getChatY();
-				}
-				if (k < menuOffsetX - 10 || k > menuOffsetX + menuWidth + 10 || j1 < menuOffsetY - 10 || j1 > menuOffsetY + anInt952 + 10) {
+				boolean outsideMenu = ContextMenuLayout.isOutsideMenu(
+						menuArea,
+						viewport,
+						viewport.chatLayout,
+						inputRouter.logicalX,
+						inputRouter.logicalY,
+						inputRouter.screenX,
+						inputRouter.screenY,
+						menuOffsetX,
+						menuOffsetY,
+						menuWidth,
+						anInt952);
+				if (outsideMenu) {
 					menuOpen = false;
 					if (menuScreenArea == 1) {
 						needDrawTabArea = true;
@@ -901,20 +902,8 @@ public class Game extends RSApplet {
 				int l = menuOffsetX;
 				int k1 = menuOffsetY;
 				int i2 = menuWidth;
-				int k2 = super.saveClickX;
-				int l2 = super.saveClickY;
-				if (menuScreenArea == 0) {
-					k2 -= 4;
-					l2 -= 4;
-				}
-				if (menuScreenArea == 1) {
-					k2 -= getTabContentX();
-					l2 -= getTabContentY();
-				}
-				if (menuScreenArea == 2) {
-					k2 -= getChatX();
-					l2 -= getChatY();
-				}
+				int k2 = inputRouter.menuLocalClickX(viewport, menuArea, super.saveClickX);
+				int l2 = inputRouter.menuLocalClickY(viewport, menuArea, super.saveClickY);
 				int i3 = -1;
 				for (int j3 = 0; j3 < menuActionRow; j3++) {
 					int k3 = k1 + 31 + (menuActionRow - 1 - j3) * 15;
@@ -1137,7 +1126,7 @@ public class Game extends RSApplet {
 		} catch (Exception exception) {
 		}
 		ObjectDef.mruNodes1.unlinkAll();
-		if (super.gameFrame != null) {
+		if (super.clientWindow != null) {
 			stream.createFrame(210);
 			stream.writeDWord(0x3f008edd);
 		}
@@ -1645,63 +1634,62 @@ public class Game extends RSApplet {
 
 	public void processChatModeClick() {
 		if (super.clickMode3 == 1) {
-			int footerY = getChatFooterY();
-			if (ClientPreferences.chatOverlay && super.saveClickX >= 0 && super.saveClickX <= 18
-					&& super.saveClickY >= footerY && super.saveClickY < footerY + CHAT_FOOTER_HEIGHT) {
-				ClientPreferences.chatHidden = !ClientPreferences.chatHidden;
-				ClientPreferences.save();
-				inputTaken = true;
-				aBoolean1233 = true;
-				super.clickMode3 = 0;
-				return;
-			}
-			if (super.saveClickX >= 19 && super.saveClickX <= 134
-					&& super.saveClickY >= footerY && super.saveClickY < footerY + CHAT_FOOTER_HEIGHT) {
-				publicChatMode = (publicChatMode + 1) % 4;
-				aBoolean1233 = true;
-				inputTaken = true;
-				stream.createFrame(95);
-				stream.writeWordBigEndian(publicChatMode);
-				stream.writeWordBigEndian(privateChatMode);
-				stream.writeWordBigEndian(tradeMode);
-			}
-			if (super.saveClickX >= 135 && super.saveClickX <= 272
-					&& super.saveClickY >= footerY && super.saveClickY < footerY + CHAT_FOOTER_HEIGHT) {
-				privateChatMode = (privateChatMode + 1) % 3;
-				aBoolean1233 = true;
-				inputTaken = true;
-				stream.createFrame(95);
-				stream.writeWordBigEndian(publicChatMode);
-				stream.writeWordBigEndian(privateChatMode);
-				stream.writeWordBigEndian(tradeMode);
-			}
-			if (super.saveClickX >= 273 && super.saveClickX <= 411
-					&& super.saveClickY >= footerY && super.saveClickY < footerY + CHAT_FOOTER_HEIGHT) {
-				tradeMode = (tradeMode + 1) % 3;
-				aBoolean1233 = true;
-				inputTaken = true;
-				stream.createFrame(95);
-				stream.writeWordBigEndian(publicChatMode);
-				stream.writeWordBigEndian(privateChatMode);
-				stream.writeWordBigEndian(tradeMode);
-			}
-			if (super.saveClickX >= 412 && super.saveClickX < CHAT_FOOTER_WIDTH
-					&& super.saveClickY >= footerY && super.saveClickY < footerY + CHAT_FOOTER_HEIGHT) {
-				if (openInterfaceID == -1) {
-					closeOpenInterfaces();
-					reportAbuseInput = "";
-					canMute = false;
-					for (RSInterface element : RSInterface.interfaceCache) {
-						if (element == null || element.anInt214 != 600) {
-							continue;
+			ViewportLayout viewport = getViewportLayout();
+			inputRouter.update(viewport, super.saveClickX, super.saveClickY);
+			switch (inputRouter.hitChatFooter(viewport)) {
+				case COLLAPSE:
+					ClientPreferences.chatHidden = !ClientPreferences.chatHidden;
+					ClientPreferences.save();
+					inputTaken = true;
+					aBoolean1233 = true;
+					super.clickMode3 = 0;
+					return;
+				case PUBLIC_CHAT:
+					publicChatMode = (publicChatMode + 1) % 4;
+					aBoolean1233 = true;
+					inputTaken = true;
+					stream.createFrame(95);
+					stream.writeWordBigEndian(publicChatMode);
+					stream.writeWordBigEndian(privateChatMode);
+					stream.writeWordBigEndian(tradeMode);
+					break;
+				case PRIVATE_CHAT:
+					privateChatMode = (privateChatMode + 1) % 3;
+					aBoolean1233 = true;
+					inputTaken = true;
+					stream.createFrame(95);
+					stream.writeWordBigEndian(publicChatMode);
+					stream.writeWordBigEndian(privateChatMode);
+					stream.writeWordBigEndian(tradeMode);
+					break;
+				case TRADE_CHAT:
+					tradeMode = (tradeMode + 1) % 3;
+					aBoolean1233 = true;
+					inputTaken = true;
+					stream.createFrame(95);
+					stream.writeWordBigEndian(publicChatMode);
+					stream.writeWordBigEndian(privateChatMode);
+					stream.writeWordBigEndian(tradeMode);
+					break;
+				case REPORT_ABUSE:
+					if (openInterfaceID == -1) {
+						closeOpenInterfaces();
+						reportAbuseInput = "";
+						canMute = false;
+						for (RSInterface element : RSInterface.interfaceCache) {
+							if (element == null || element.anInt214 != 600) {
+								continue;
+							}
+							reportAbuseInterfaceID = openInterfaceID = element.parentID;
+							break;
 						}
-						reportAbuseInterfaceID = openInterfaceID = element.parentID;
-						break;
-					}
 
-				} else {
-					pushMessage("Please close the interface you have open before using 'report abuse'", 0, "");
-				}
+					} else {
+						pushMessage("Please close the interface you have open before using 'report abuse'", 0, "");
+					}
+					break;
+				default:
+					break;
 			}
 			anInt940++;
 			if (anInt940 > 1386) {
@@ -2449,20 +2437,10 @@ public class Game extends RSApplet {
 		// DrawingArea.fillArea(0x2a251e, yPos + 2, menuW - 6, 17, 170, xPos + 3);
 		// chatTextDrawingArea.method385(0xc6b895, "Choose Option", yPos + 14, xPos + 3);
 
-		int mX = super.mouseX;
-		int mY = super.mouseY;
-		if (menuScreenArea == 0) {
-			mX -= 4;
-			mY -= 4;
-		}
-		if (menuScreenArea == 1) {
-			mX -= getTabContentX();
-			mY -= getTabContentY();
-		}
-		if (menuScreenArea == 2) {
-			mX -= getChatX();
-			mY -= getChatY();
-		}
+		int mX = inputRouter.menuLocalX(getViewportLayout(),
+				ContextMenuLayout.ScreenArea.fromLegacyId(menuScreenArea));
+		int mY = inputRouter.menuLocalY(getViewportLayout(),
+				ContextMenuLayout.ScreenArea.fromLegacyId(menuScreenArea));
 		for (int rowItem = 0; rowItem < menuActionRow; rowItem++) {
 			int yPosItem = yPos + 31 + (menuActionRow - 1 - rowItem) * 15;
 			int colorItem = 0xffffff;
@@ -2652,6 +2630,8 @@ public class Game extends RSApplet {
 		if (rsAlreadyLoaded || loadingError || genericLoadingError) {
 			return;
 		}
+		consumePendingResize();
+		refreshViewportLayout();
 		loopCycle++;
 		if (!loggedIn) {
 			processLoginScreenInput();
@@ -3143,16 +3123,15 @@ public class Game extends RSApplet {
 	}
 
 	public AppletContext getAppletContext() {
-		if (Signlink.mainapp != null) {
-			return Signlink.mainapp.getAppletContext();
-		} else {
-			return super.getAppletContext();
+		if (Signlink.mainapp instanceof java.applet.Applet) {
+			return ((java.applet.Applet) Signlink.mainapp).getAppletContext();
 		}
+		return null;
 	}
 
 	public void drawLogo() {
 		byte abyte0[] = titleStreamLoader.getDataForName("title.dat");
-		Sprite sprite = new Sprite(abyte0, this);
+		Sprite sprite = new Sprite(abyte0, getGameComponent());
 		aRSImageProducer_1110.initDrawingArea();
 		sprite.method346(0, 0);
 		aRSImageProducer_1111.initDrawingArea();
@@ -3715,6 +3694,18 @@ public class Game extends RSApplet {
 			super.drawLoadingText(i, s);
 			return;
 		}
+		boolean usePresentation = super.presentation != null;
+		Graphics frameGraphics = usePresentation
+				? super.presentation.beginFrame()
+				: super.graphics;
+		if (frameGraphics == null) {
+			frameGraphics = beginStandaloneFrame();
+			usePresentation = super.presentation != null;
+		}
+		if (frameGraphics == null) {
+			super.drawLoadingText(i, s);
+			return;
+		}
 		aRSImageProducer_1109.initDrawingArea();
 		char c = '\u0168';
 		char c1 = '\310';
@@ -3726,20 +3717,23 @@ public class Game extends RSApplet {
 		DrawingArea.fillArea(30, j + 2, 0x8c1111, i * 3, c / 2 - 150);
 		DrawingArea.fillArea(30, j + 2, 0, 300 - i * 3, c / 2 - 150 + i * 3);
 		chatTextDrawingArea.textCenter(0xffffff, s, c1 / 2 + 5 - byte1, c / 2);
-		aRSImageProducer_1109.drawGraphics(171, super.graphics, 202);
+		UiTransform transform = getViewportLayout().uiTransform;
+		UiBounds loginPanelScreen = getViewportLayout().loginPanelScreen;
+		aRSImageProducer_1109.drawGraphics(loginPanelScreen.y, frameGraphics, loginPanelScreen.x);
 		if (welcomeScreenRaised) {
 			welcomeScreenRaised = false;
 			if (!aBoolean831) {
-				aRSImageProducer_1110.drawGraphics(0, super.graphics, 0);
-				aRSImageProducer_1111.drawGraphics(0, super.graphics, 637);
+				drawWelcomeLayer(aRSImageProducer_1110, transform, frameGraphics, 0, 0);
+				drawWelcomeLayer(aRSImageProducer_1111, transform, frameGraphics, 637, 0);
 			}
-			aRSImageProducer_1107.drawGraphics(0, super.graphics, 128);
-			aRSImageProducer_1108.drawGraphics(371, super.graphics, 202);
-			aRSImageProducer_1112.drawGraphics(265, super.graphics, 0);
-			aRSImageProducer_1113.drawGraphics(265, super.graphics, 562);
-			aRSImageProducer_1114.drawGraphics(171, super.graphics, 128);
-			aRSImageProducer_1115.drawGraphics(171, super.graphics, 562);
+			drawWelcomeLayer(aRSImageProducer_1107, transform, frameGraphics, 128, 0);
+			drawWelcomeLayer(aRSImageProducer_1108, transform, frameGraphics, 202, 371);
+			drawWelcomeLayer(aRSImageProducer_1112, transform, frameGraphics, 0, 265);
+			drawWelcomeLayer(aRSImageProducer_1113, transform, frameGraphics, 562, 265);
+			drawWelcomeLayer(aRSImageProducer_1114, transform, frameGraphics, 128, 171);
+			drawWelcomeLayer(aRSImageProducer_1115, transform, frameGraphics, 562, 171);
 		}
+		endStandaloneFrame(usePresentation, frameGraphics);
 	}
 
 	public void method65(int i, int j, int k, int l, RSInterface class9, int i1, boolean flag, int j1) {
@@ -5203,11 +5197,7 @@ public class Game extends RSApplet {
 	}
 
 	Component getGameComponent() {
-		if (Signlink.mainapp != null) {
-			return Signlink.mainapp;
-		} else {
-			return this;
-		}
+		return super.getGameComponent();
 	}
 
 	public void method73() {
@@ -5244,6 +5234,7 @@ public class Game extends RSApplet {
 							}
 							if (customTabAction == 2) {
 								WorldController.drawDistance = Math.max(10, Math.min(100, Integer.parseInt(promptInput)));
+								invalidateSceneVisibilityMap();
 								zoom = Math.min(zoom, WorldController.drawDistance / 3);
 							}
 						}
@@ -5477,6 +5468,7 @@ public class Game extends RSApplet {
 								distance = 25;
 							}
 							WorldController.drawDistance = distance;
+							invalidateSceneVisibilityMap();
 							if (zoom > (WorldController.drawDistance / 3))
 								zoom = WorldController.drawDistance / 3;
 							inputString = "";
@@ -6039,9 +6031,8 @@ public class Game extends RSApplet {
 	}
 	
 	public void processMinimapActions() {
-        int x = super.mouseX;
-        int y = super.mouseY;
-        if (x >= getMinimapX() + 1 && x <= getMinimapX() + 27 && y >= 7 && y <= 40) {
+		ViewportLayout viewport = getViewportLayout();
+		if (viewport.minimapLayout.containsCompassNorth(inputRouter.screenX, inputRouter.screenY)) {
             menuActionName[1] = "Face North";
             menuActionID[1] = 696;
             menuActionRow = 2;
@@ -6055,133 +6046,45 @@ public class Game extends RSApplet {
 	long customSettingShowExperiencePerHourStartExp = 0;
 	long customSettingShowExperiencePerHourStart = System.currentTimeMillis();
 	int customSettingShowExperiencePerHourStartLevels = 0;
-	boolean customSettingVisualFixes = true;
+	boolean customSettingVisualFixes =
+			ClientSettings.FIX_TRANSPARENCY_OVERFLOW
+			&& ClientSettings.FULL_512PX_VIEWPORT;
 	int customSettingsPage = 0;
 
 	public void processTabClick() {
-		if (super.clickMode3 == 1) {
-			if (isModernSidePanel() && processModernTabClick()) {
-				return;
-			}
-			if (super.saveClickX >= getTopIconsX() + 23 && super.saveClickX <= getTopIconsX() + 57 && super.saveClickY >= getTopIconsY() + 9 && super.saveClickY < getTopIconsY() + 45 && tabInterfaceIDs[0] != -1) {
-				needDrawTabArea = true;
-				tabID = 0;
-				tabAreaAltered = true;
-			}
-			if (super.saveClickX >= getTopIconsX() + 53 && super.saveClickX <= getTopIconsX() + 83 && super.saveClickY >= getTopIconsY() + 8 && super.saveClickY < getTopIconsY() + 45 && tabInterfaceIDs[1] != -1) {
-				needDrawTabArea = true;
-				tabID = 1;
-				tabAreaAltered = true;
-				if(ClientSettings.SCREENSHOTS_ENABLED && ClientSettings.AUTOMATIC_SCREENSHOTS_ENABLED) {
-					java.util.Timer timer = new java.util.Timer();
-					java.util.TimerTask delayedScreenshot = new java.util.TimerTask() {
-						@Override
-						public void run() {
-							screenshot(false, "stats");
-						}
-					};
-					timer.schedule(delayedScreenshot, 300);
-				}
-			}
-			if (super.saveClickX >= getTopIconsX() + 81 && super.saveClickX <= getTopIconsX() + 111 && super.saveClickY >= getTopIconsY() + 8 && super.saveClickY < getTopIconsY() + 45 && tabInterfaceIDs[2] != -1) {
-				needDrawTabArea = true;
-				tabID = 2;
-				tabAreaAltered = true;
-			}
-			if (super.saveClickX >= getTopIconsX() + 109 && super.saveClickX <= getTopIconsX() + 153 && super.saveClickY >= getTopIconsY() + 8 && super.saveClickY < getTopIconsY() + 43 && tabInterfaceIDs[3] != -1) {
-				needDrawTabArea = true;
-				tabID = 3;
-				tabAreaAltered = true;
-			}
-			if (super.saveClickX >= getTopIconsX() + 150 && super.saveClickX <= getTopIconsX() + 180 && super.saveClickY >= getTopIconsY() + 8 && super.saveClickY < getTopIconsY() + 45 && tabInterfaceIDs[4] != -1) {
-				needDrawTabArea = true;
-				tabID = 4;
-				tabAreaAltered = true;
-			}
-			if (super.saveClickX >= getTopIconsX() + 178 && super.saveClickX <= getTopIconsX() + 208 && super.saveClickY >= getTopIconsY() + 8 && super.saveClickY < getTopIconsY() + 45 && tabInterfaceIDs[5] != -1) {
-				needDrawTabArea = true;
-				tabID = 5;
-				tabAreaAltered = true;
-			}
-			if (super.saveClickX >= getTopIconsX() + 206 && super.saveClickX <= getTopIconsX() + 240 && super.saveClickY >= getTopIconsY() + 9 && super.saveClickY < getTopIconsY() + 45 && tabInterfaceIDs[6] != -1) {
-				needDrawTabArea = true;
-				tabID = 6;
-				tabAreaAltered = true;
-			}
-			if (super.saveClickX >= getBotIconsX() + 44 && super.saveClickX <= getBotIconsX() + 78 && super.saveClickY >= getBotIconsY() && super.saveClickY < getBotIconsY() + 36 && ClientSettings.CUSTOM_SETTINGS_TAB) {
-				/* Unused tab bottom left */
-				needDrawTabArea = true;
-				tabID = 7;
-				tabAreaAltered = true;
-			}
-			if (super.saveClickX >= getBotIconsX() + 76 && super.saveClickX <= getBotIconsX() + 106 && super.saveClickY >= getBotIconsY() && super.saveClickY < getBotIconsY() + 37 && tabInterfaceIDs[8] != -1) {
-				needDrawTabArea = true;
-				tabID = 8;
-				tabAreaAltered = true;
-			}
-			if (super.saveClickX >= getBotIconsX() + 103 && super.saveClickX <= getBotIconsX() + 133 && super.saveClickY >= getBotIconsY() && super.saveClickY < getBotIconsY() + 37 && tabInterfaceIDs[9] != -1) {
-				needDrawTabArea = true;
-				tabID = 9;
-				tabAreaAltered = true;
-			}
-			if (super.saveClickX >= getBotIconsX() + 131 && super.saveClickX <= getBotIconsX() + 175 && super.saveClickY >= getBotIconsY() + 1 && super.saveClickY < getBotIconsY() + 36 && tabInterfaceIDs[10] != -1) {
-				needDrawTabArea = true;
-				tabID = 10;
-				tabAreaAltered = true;
-			}
-			if (super.saveClickX >= getBotIconsX() + 173 && super.saveClickX <= getBotIconsX() + 203 && super.saveClickY >= getBotIconsY() && super.saveClickY < getBotIconsY() + 37 && tabInterfaceIDs[11] != -1) {
-				needDrawTabArea = true;
-				tabID = 11;
-				tabAreaAltered = true;
-			}
-			if (super.saveClickX >= getBotIconsX() + 200 && super.saveClickX <= getBotIconsX() + 230 && super.saveClickY >= getBotIconsY() && super.saveClickY < getBotIconsY() + 37 && tabInterfaceIDs[12] != -1) {
-				needDrawTabArea = true;
-				tabID = 12;
-				tabAreaAltered = true;
-			}
-			if (super.saveClickX >= getBotIconsX() + 228 && super.saveClickX <= getBotIconsX() + 262 && super.saveClickY >= getBotIconsY() && super.saveClickY < getBotIconsY() + 36 && tabInterfaceIDs[13] != -1) {
-				needDrawTabArea = true;
-				tabID = 13;
-				tabAreaAltered = true;
-			}
-			if (invOverlayInterfaceID == -1) {
-				if (tabInterfaceIDs[tabID] != -1 || tabID == 7 && ClientSettings.CUSTOM_SETTINGS_TAB) {
-					// Handle our custom tab
-					if (tabID == 7 && ClientSettings.CUSTOM_SETTINGS_TAB
-							&& super.saveClickX >= getTabContentX() + 22
-							&& super.saveClickX <= getTabContentX() + 168
-							&& super.saveClickY >= getTabContentY() + 10
-							&& super.saveClickY <= getTabContentY() + 250) {
-						handleCustomSettingsClick(super.saveClickY - getTabContentY());
+		if (super.clickMode3 != 1) {
+			return;
+		}
+		ViewportLayout viewport = getViewportLayout();
+		int selectedTab = inputRouter.hitTab(viewport);
+		if (selectedTab >= 0 && isTabAvailable(selectedTab)) {
+			needDrawTabArea = true;
+			tabID = selectedTab;
+			tabAreaAltered = true;
+			if (selectedTab == 1 && ClientSettings.SCREENSHOTS_ENABLED && ClientSettings.AUTOMATIC_SCREENSHOTS_ENABLED) {
+				java.util.Timer timer = new java.util.Timer();
+				java.util.TimerTask delayedScreenshot = new java.util.TimerTask() {
+					@Override
+					public void run() {
+						screenshot(false, "stats");
 					}
-				}
+				};
+				timer.schedule(delayedScreenshot, 300);
 			}
 			if (anInt1054 == tabID) {
 				stream.createFrame(152);
 				stream.writeWordBigEndian(tabID);
 			}
 		}
-	}
-
-	private boolean processModernTabClick() {
-		if (super.saveClickX < getModernTabBarX()
-				|| super.saveClickX >= getModernTabBarX() + MODERN_TAB_BAR_WIDTH
-				|| super.saveClickY < getModernTabBarY()
-				|| super.saveClickY >= getModernTabBarY() + MODERN_TAB_BAR_HEIGHT) {
-			return false;
+		if (invOverlayInterfaceID == -1) {
+			if (tabInterfaceIDs[tabID] != -1 || tabID == 7 && ClientSettings.CUSTOM_SETTINGS_TAB) {
+				if (tabID == 7 && ClientSettings.CUSTOM_SETTINGS_TAB
+						&& viewport.sidePanelLayout.containsTabContent(super.saveClickX, super.saveClickY)) {
+					handleCustomSettingsClick(
+							viewport.sidePanelLayout.tabContentLocalY(super.saveClickY));
+				}
+			}
 		}
-		int selectedTab = (super.saveClickX - getModernTabBarX()) / MODERN_TAB_BUTTON_WIDTH;
-		if (!isTabAvailable(selectedTab)) {
-			return true;
-		}
-		needDrawTabArea = true;
-		tabID = selectedTab;
-		tabAreaAltered = true;
-		if (anInt1054 == tabID) {
-			stream.createFrame(152);
-			stream.writeWordBigEndian(tabID);
-		}
-		return true;
 	}
 
 	private boolean isTabAvailable(int candidateTab) {
@@ -6398,11 +6301,13 @@ public class Game extends RSApplet {
 			anInt1026 = anInt886;
 		}
 		anInt886 = 0;
-		if (super.mouseX > getTabContentX() && super.mouseY > getTabContentY() && super.mouseX < getTabContentX() + 190 && super.mouseY < getTabContentY() + getTabContentHeight()) {
+		ViewportLayout viewport = getViewportLayout();
+		SidePanelLayout sidePanel = viewport.sidePanelLayout;
+		if (sidePanel.containsTabContent(super.mouseX, super.mouseY)) {
 			if (invOverlayInterfaceID != -1) {
-				buildInterfaceMenu(getTabContentX(), RSInterface.interfaceCache[invOverlayInterfaceID], super.mouseX, getTabContentY(), super.mouseY, 0);
+				buildInterfaceMenu(sidePanel.tabContent.x, RSInterface.interfaceCache[invOverlayInterfaceID], super.mouseX, sidePanel.tabContent.y, super.mouseY, 0);
 			} else if (tabInterfaceIDs[tabID] != -1) {
-				buildInterfaceMenu(getTabContentX(), RSInterface.interfaceCache[tabInterfaceIDs[tabID]], super.mouseX, getTabContentY(), super.mouseY, 0);
+				buildInterfaceMenu(sidePanel.tabContent.x, RSInterface.interfaceCache[tabInterfaceIDs[tabID]], super.mouseX, sidePanel.tabContent.y, super.mouseY, 0);
 			}
 		}
 		if (anInt886 != anInt1048) {
@@ -6410,16 +6315,14 @@ public class Game extends RSApplet {
 			anInt1048 = anInt886;
 		}
 		anInt886 = 0;
-		if (isChatVisible() && super.mouseX > getChatX() && super.mouseY > getChatY()
-				&& super.mouseX < getChatX() + getChatW() && super.mouseY < getChatY() + getChatH()) {
+		if (isChatVisible() && viewport.chatLayout.containsPanel(super.mouseX, super.mouseY)) {
 			if (backDialogID != -1) {
 				buildInterfaceMenu(getChatX(), RSInterface.interfaceCache[backDialogID], super.mouseX,
 						getChatY() + getDialogueYOffset(), super.mouseY, 0);
 			} else if (dialogID != -1) {
 				buildInterfaceMenu(getChatX(), RSInterface.interfaceCache[dialogID], super.mouseX,
 						getChatY() + getDialogueYOffset(), super.mouseY, 0);
-			} else if (super.mouseY < getChatY() + getChatMessageHeight()
-					&& super.mouseX < getChatX() + getChatW() - 53) {
+			} else if (viewport.chatLayout.containsMessages(super.mouseX, super.mouseY)) {
 				buildChatAreaMenu(super.mouseY - getChatY());
 			}
 		}
@@ -6567,7 +6470,7 @@ public class Game extends RSApplet {
 				anInt1131 = (int) (Math.random() * 110D) - 55;
 				anInt896 = (int) (Math.random() * 80D) - 40;
 				minimapInt2 = (int) (Math.random() * 120D) - 60;
-				minimapInt3 = (int) (Math.random() * 30D) - 20;
+				minimapInt3 = MinimapLayout.baseZoomOffset(ClientPreferences.minimapScalePreset);
 				minimapInt1 = (int) (Math.random() * 20D) - 10 & 0x7ff;
 				anInt1021 = 0;
 				anInt985 = -1;
@@ -7821,9 +7724,11 @@ public class Game extends RSApplet {
 			
 			if (myUsername != "" && myPassword != "")
 				login(myUsername, myPassword, false);
+			aBoolean831 = false;
 			return;
 		} catch (Exception exception) {
-			Signlink.reporterror("loaderror " + aString1049 + " " + anInt1079);
+			ClientLogger.error("Client startup failed at \"" + aString1049 + "\" (" + anInt1079 + "%)", exception);
+			Signlink.reporterror("loaderror " + aString1049 + " " + anInt1079, exception);
 		}
 		loadingError = true;
 	}
@@ -7863,16 +7768,17 @@ public class Game extends RSApplet {
 
 	public void processMainScreenClick() {
 		if (super.clickMode3 == 1) {
-			int i = super.saveClickX - 25 - getMinimapX();
-			int j = super.saveClickY - 5 - 4;
-			if (i >= 0 && j >= 0 && i < 146 && j < 151) {
-				i -= 73;
-				j -= 75;
+			ViewportLayout viewport = getViewportLayout();
+			int[] walkOffset = viewport.minimapLayout.mapWalkOffset(super.saveClickX, super.saveClickY);
+			if (walkOffset != null) {
+				int i = walkOffset[0];
+				int j = walkOffset[1];
 				int k = minimapInt1 + minimapInt2 & 0x7ff;
 				int i1 = Texture.anIntArray1470[k];
 				int j1 = Texture.anIntArray1471[k];
-				i1 = i1 * (minimapInt3 + 256) >> 8;
-				j1 = j1 * (minimapInt3 + 256) >> 8;
+				int zoomMultiplier = viewport.minimapLayout.zoomMultiplier(minimapInt3);
+				i1 = i1 * zoomMultiplier >> 8;
+				j1 = j1 * zoomMultiplier >> 8;
 				int k1 = j * i1 + i * j1 >> 11;
 				int l1 = j * j1 - i * i1 >> 11;
 				int i2 = myPlayer.x + k1 >> 7;
@@ -7928,7 +7834,12 @@ public class Game extends RSApplet {
 	}
 
 	public void showErrorScreen() {
-		Graphics g = getGameComponent().getGraphics();
+		Graphics g = super.presentation != null
+				? super.presentation.beginFrame()
+				: (getGameComponent() != null ? getGameComponent().getGraphics() : null);
+		if (g == null) {
+			return;
+		}
 		g.setColor(Color.black);
 		g.fillRect(0, 0, 765, 503);
 		method4(1);
@@ -7977,6 +7888,11 @@ public class Game extends RSApplet {
 			l += 30;
 			g.drawString("2: Try rebooting your computer, and reloading", 30, l);
 			l += 30;
+		}
+		if (super.presentation != null) {
+			super.presentation.endFrame();
+		} else {
+			g.dispose();
 		}
 	}
 
@@ -8311,6 +8227,64 @@ public class Game extends RSApplet {
 
 	// --- Resizable window support ---
 
+	ViewportLayout getViewportLayout() {
+		if (viewportLayout == null) {
+			viewportLayout = ViewportLayout.forGame(this);
+		}
+		return viewportLayout;
+	}
+
+	private void refreshViewportLayout() {
+		viewportLayout = ViewportLayout.forGame(this);
+		inputRouter.update(viewportLayout, super.mouseX, super.mouseY);
+	}
+
+	private void drawUiDebugOutlines() {
+		ViewportLayout viewport = getViewportLayout();
+		UiTransform transform = viewport.uiTransform;
+		for (UiBounds logical : viewport.loginLayout.debugRegions()) {
+			drawDebugOutline(transform.toScreen(logical), 0xffff00);
+		}
+		for (UiBounds logical : viewport.navbarLayout.debugRegions()) {
+			drawDebugOutline(transform.toScreen(logical), 0x00ffff);
+		}
+		for (UiBounds region : viewport.chatLayout.debugRegions()) {
+			drawDebugOutline(region, 0x00ff00);
+		}
+		for (UiBounds region : viewport.sidePanelLayout.debugRegions()) {
+			drawDebugOutline(region, 0xff8800);
+		}
+		for (UiBounds region : viewport.tabLayout.debugRegions(viewport.sidePanelLayout)) {
+			drawDebugOutline(region, 0xff00ff);
+		}
+		for (UiBounds region : viewport.minimapLayout.debugRegions()) {
+			drawDebugOutline(region, 0x0088ff);
+		}
+		drawDebugOutline(viewport.worldViewport, 0xff0000);
+	}
+
+	private void drawDebugOutline(UiBounds bounds, int color) {
+		if (bounds.width <= 0 || bounds.height <= 0) {
+			return;
+		}
+		DrawingArea.fillPixels(bounds.y, 1, color, bounds.x, bounds.width);
+		DrawingArea.fillPixels(bounds.y + bounds.height - 1, 1, color, bounds.x, bounds.width);
+		DrawingArea.fillPixels(bounds.y, bounds.height, color, bounds.x, 1);
+		DrawingArea.fillPixels(bounds.y, bounds.height, color, bounds.x + bounds.width - 1, 1);
+	}
+
+	private void consumePendingResize() {
+		PendingResizeRequest request = super.pendingResizePublisher.poll();
+		if (request == null) {
+			return;
+		}
+		applyResizeRequest(request);
+	}
+
+	private void applyResizeRequest(PendingResizeRequest request) {
+		onResize(request.width, request.height);
+	}
+
 	public void onResize(int w, int h) {
 		if (w < 765) w = 765;
 		if (h < 503) h = 503;
@@ -8318,9 +8292,48 @@ public class Game extends RSApplet {
 		super.myHeight = h;
 		super.dynamicGameAreaW = getDesiredGameAreaWidth();
 		super.dynamicGameAreaH = getDesiredGameAreaHeight();
-		setPreferredSize(new Dimension(w, h));
-		super.graphics = getGameComponent().getGraphics();
+		if (super.gameCanvas != null) {
+			super.gameCanvas.updateLogicalSize(w, h);
+		}
+		recreatePresentationBuffers();
 		super.layoutDirty = true;
+	}
+
+	private void invalidateSceneVisibilityMap() {
+		visibilityMapWidth = -1;
+		visibilityMapHeight = -1;
+		visibilityMapDrawDistance = -1;
+	}
+
+	private void ensureSceneVisibilityMap() {
+		if (aRSImageProducer_1165 == null) {
+			return;
+		}
+
+		int gameW = aRSImageProducer_1165.getWidth();
+		int gameH = aRSImageProducer_1165.getHeight();
+		int drawDistance = WorldController.drawDistance;
+
+		if (visibilityMapWidth == gameW
+				&& visibilityMapHeight == gameH
+				&& visibilityMapDrawDistance == drawDistance) {
+			return;
+		}
+
+		int[] pitchHeights = new int[9];
+		for (int index = 0; index < pitchHeights.length; index++) {
+			int pitch = 128 + index * 32 + 15;
+			int cameraDistance = 600 + pitch * 3;
+			pitchHeights[index] =
+					cameraDistance * Texture.anIntArray1470[pitch] >> 16;
+		}
+
+		WorldController.method310(
+				500, 800, gameW, gameH, pitchHeights);
+
+		visibilityMapWidth = gameW;
+		visibilityMapHeight = gameH;
+		visibilityMapDrawDistance = drawDistance;
 	}
 
 	private void applyLayoutChange() {
@@ -8350,14 +8363,8 @@ public class Game extends RSApplet {
 		tabAreaOffsets = Texture.method365_ret(190, tabH);
 		gameScreenOffsets = Texture.method365_ret(super.myWidth, super.myHeight);
 
-		int[] ai = new int[9];
-		for (int i = 0; i < 9; i++) {
-			int k = 128 + i * 32 + 15;
-			int l = 600 + k * 3;
-			int m = Texture.anIntArray1470[k];
-			ai[i] = l * m >> 16;
-		}
-		WorldController.method310(500, 800, gameW, gameH, ai);
+		invalidateSceneVisibilityMap();
+		ensureSceneVisibilityMap();
 
 		Texture.textureInt1 = gameW / 2;
 		Texture.textureInt2 = gameH / 2;
@@ -8375,46 +8382,16 @@ public class Game extends RSApplet {
 	int getGameAreaWidth() { return super.dynamicGameAreaW; }
 	int getGameAreaHeight() { return super.dynamicGameAreaH; }
 	int getRightPanelX() { return super.myWidth - 219; }
-	int getTabContentX() {
-		return isClassicSidePanel() ? super.myWidth - 212 : super.myWidth - TAB_CONTENT_WIDTH - RIGHT_UI_MARGIN;
-	}
-	int getTabContentY() {
-		if (isClassicSidePanel()) {
-			return 205;
-		}
-		return isModernSidePanel()
-				? Math.max(4, getTopIconsY() - TAB_CONTENT_HEIGHT)
-				: getTopIconsY() + TOP_TAB_BAR_HEIGHT;
-	}
-	int getTabContentHeight() { return TAB_CONTENT_HEIGHT; }
-	int getMinimapX() {
-		return isClassicSidePanel() ? super.myWidth - 215 : super.myWidth - MINIMAP_WIDTH - RIGHT_UI_MARGIN;
-	}
-	int getTopIconsX() {
-		if (isModernSidePanel()) {
-			return Math.max(0, super.myWidth - MODERN_TAB_BAR_WIDTH - RIGHT_UI_MARGIN);
-		}
-		return super.myWidth - 249;
-	}
-	int getTopIconsY() {
-		if (isClassicSidePanel()) {
-			return 160;
-		}
-		if (isModernSidePanel()) {
-			return super.myHeight - MODERN_TAB_BAR_HEIGHT - RIGHT_UI_MARGIN;
-		}
-		return super.myHeight - BOTTOM_TAB_BAR_HEIGHT - RIGHT_UI_MARGIN - TAB_CONTENT_HEIGHT - TOP_TAB_BAR_HEIGHT;
-	}
-	int getBotIconsX() {
-		return isModernSidePanel() ? getTopIconsX() + TOP_TAB_BAR_WIDTH : super.myWidth - 269;
-	}
-	int getBotIconsY() {
-		return isModernSidePanel()
-				? super.myHeight - BOTTOM_TAB_BAR_HEIGHT - RIGHT_UI_MARGIN
-				: getTabContentY() + getTabContentHeight();
-	}
-	int getModernTabBarX() { return Math.max(RIGHT_UI_MARGIN, super.myWidth - MODERN_TAB_BAR_WIDTH - RIGHT_UI_MARGIN); }
-	int getModernTabBarY() { return super.myHeight - MODERN_TAB_BAR_HEIGHT - RIGHT_UI_MARGIN; }
+	int getTabContentX() { return getViewportLayout().sidePanelLayout.tabContent.x; }
+	int getTabContentY() { return getViewportLayout().sidePanelLayout.tabContent.y; }
+	int getTabContentHeight() { return SidePanelLayout.TAB_CONTENT_HEIGHT; }
+	int getMinimapX() { return getViewportLayout().sidePanelLayout.minimap.x; }
+	int getTopIconsX() { return getViewportLayout().sidePanelLayout.topTabBar.x; }
+	int getTopIconsY() { return getViewportLayout().sidePanelLayout.topTabBar.y; }
+	int getBotIconsX() { return getViewportLayout().sidePanelLayout.bottomTabBar.x; }
+	int getBotIconsY() { return getViewportLayout().sidePanelLayout.bottomTabBar.y; }
+	int getModernTabBarX() { return getViewportLayout().sidePanelLayout.modernTabBar.x; }
+	int getModernTabBarY() { return getViewportLayout().sidePanelLayout.modernTabBar.y; }
 	int getChatX() { return 17; }
 	int getChatY() { return super.myHeight - CHAT_FOOTER_HEIGHT - getChatH(); }
 	int getChatW() { return STANDARD_CHAT_WIDTH; }
@@ -8431,37 +8408,15 @@ public class Game extends RSApplet {
 		if (!ClientPreferences.chatOverlay) {
 			return false;
 		}
-		if (x >= 0 && x < 496 && y >= getChatFooterY()
-				&& y < getChatFooterY() + CHAT_FOOTER_HEIGHT) {
-			return true;
-		}
-		return isChatVisible() && x >= getChatX() && x < getChatX() + getChatW()
-				&& y >= getChatY() && y < getChatY() + getChatH();
+		ViewportLayout viewport = getViewportLayout();
+		inputRouter.update(viewport, x, y);
+		return inputRouter.isOverChat(viewport);
 	}
 
 	private boolean isPointOverRightUi(int x, int y) {
-		if (isClassicSidePanel()) {
-			return false;
-		}
-		if (x >= getMinimapX() && x < getMinimapX() + MINIMAP_WIDTH
-				&& y >= 4 && y < 4 + MINIMAP_HEIGHT) {
-			return true;
-		}
-		int panelLeft = getTabContentX() - (isModernSidePanel() ? 0 : OVERLAY_PANEL_LEFT_EDGE_WIDTH);
-		if (x >= panelLeft && x < getTabContentX() + TAB_CONTENT_WIDTH
-				&& y >= getTabContentY() && y < getTabContentY() + TAB_CONTENT_HEIGHT) {
-			return true;
-		}
-		if (isModernSidePanel()) {
-			return x >= getModernTabBarX() && x < getModernTabBarX() + MODERN_TAB_BAR_WIDTH
-					&& y >= getModernTabBarY() && y < getModernTabBarY() + MODERN_TAB_BAR_HEIGHT;
-		}
-		if (x >= getTopIconsX() && x < getTopIconsX() + TOP_TAB_BAR_WIDTH
-				&& y >= getTopIconsY() && y < getTopIconsY() + TOP_TAB_BAR_HEIGHT) {
-			return true;
-		}
-		return x >= getBotIconsX() && x < getBotIconsX() + BOTTOM_TAB_BAR_WIDTH
-				&& y >= getBotIconsY() && y < getBotIconsY() + BOTTOM_TAB_BAR_HEIGHT;
+		ViewportLayout viewport = getViewportLayout();
+		inputRouter.update(viewport, x, y);
+		return inputRouter.isOverRightUi(viewport);
 	}
 
 	private int getDesiredGameAreaHeight() {
@@ -8543,7 +8498,49 @@ public class Game extends RSApplet {
 	private static final int GAME_AREA_OVERLAY_MARGIN = 8;
 	private static final int CHAT_BACKGROUND_EDGE_WIDTH = 16;
 	private static final int CHAT_BACKGROUND_EDGE_HEIGHT = 12;
-	private static final float CHAT_OVERLAY_OPACITY = 0.88F;
+
+	private float getChatOverlayOpacity() {
+		return ClientPreferences.chatOpacity;
+	}
+
+	private void scrollTabByWheel(int notches) {
+		if (notches == 0) {
+			return;
+		}
+		int direction = notches > 0 ? 1 : -1;
+		int currentTab = tabID;
+		for (int attempt = 0; attempt < TabLayout.TAB_COUNT; attempt++) {
+			int nextTab = (currentTab + direction + TabLayout.TAB_COUNT) % TabLayout.TAB_COUNT;
+			if (isTabAvailable(nextTab)) {
+				if (nextTab != tabID) {
+					needDrawTabArea = true;
+					tabID = nextTab;
+					tabAreaAltered = true;
+				}
+				return;
+			}
+			currentTab = nextTab;
+		}
+	}
+
+	private void scrollChatByWheel(int notches) {
+		if (backDialogID != -1 || notches == 0) {
+			return;
+		}
+		int messageHeight = getChatMessageHeight();
+		int maxScroll = Math.max(0, anInt1211 - messageHeight);
+		int nextScroll = anInt1089 + notches * getChatLineHeight();
+		if (nextScroll < 0) {
+			nextScroll = 0;
+		}
+		if (nextScroll > maxScroll) {
+			nextScroll = maxScroll;
+		}
+		if (anInt1089 != nextScroll) {
+			anInt1089 = nextScroll;
+			inputTaken = true;
+		}
+	}
 	private static final int DIALOGUE_PORTRAIT_STRIP_WIDTH = 100;
 	private static final int TAB_CONTENT_HEIGHT = 261;
 	private static final int TAB_CONTENT_WIDTH = 190;
@@ -8662,10 +8659,11 @@ public class Game extends RSApplet {
 			int messageHeight = getChatMessageHeight();
 			int scrollbarX = getChatW() - 16;
 			aClass9_1059.scrollPosition = anInt1211 - anInt1089 - messageHeight;
-			if (super.mouseX > getChatX() + scrollbarX - 15
-					&& super.mouseX < getChatX() + getChatW()
-					&& super.mouseY > getChatY() - 25) {
-				method65(scrollbarX, messageHeight, super.mouseX - getChatX(), super.mouseY - getChatY(),
+			ViewportLayout viewport = getViewportLayout();
+			if (viewport.chatLayout.containsScrollbar(super.mouseX, super.mouseY)) {
+				int chatLocalX = super.mouseX - getChatX();
+				int chatLocalY = super.mouseY - getChatY();
+				method65(scrollbarX, messageHeight, chatLocalX, chatLocalY,
 						aClass9_1059, 0, false, anInt1211);
 			}
 			int i = anInt1211 - messageHeight - aClass9_1059.scrollPosition;
@@ -9476,10 +9474,18 @@ public class Game extends RSApplet {
 			showErrorScreen();
 			return;
 		}
+		consumePendingResize();
+		refreshViewportLayout();
 		anInt1061++;
 		if (!loggedIn) {
+			updateLoginHandCursor();
+			drawWelcomeScreenBackground();
 			drawLoginScreen(false);
 		} else {
+			if (loginHandCursorActive) {
+				getGameComponent().setCursor(Cursor.getDefaultCursor());
+				loginHandCursorActive = false;
+			}
 			drawGameScreen();
 		}
 		anInt1213 = 0;
@@ -9705,70 +9711,54 @@ public class Game extends RSApplet {
 
 		i += 8;
 		int l = 15 * menuActionRow + 21;
-		if (super.saveClickX > 4 && super.saveClickY > 4 && super.saveClickX < 4 + getGameAreaWidth() && super.saveClickY < 4 + getGameAreaHeight()) {
-			int i1 = super.saveClickX - 4 - i / 2;
-			if (i1 + i > getGameAreaWidth()) {
-				i1 = getGameAreaWidth() - i;
-			}
-			if (i1 < 0) {
-				i1 = 0;
-			}
-			int l1 = super.saveClickY - 4;
-			if (l1 + l > getGameAreaHeight()) {
-				l1 = getGameAreaHeight() - l;
-			}
-			if (l1 < 0) {
-				l1 = 0;
-			}
-			menuOpen = true;
-			menuScreenArea = 0;
-			menuOffsetX = i1;
-			menuOffsetY = l1;
-			menuWidth = i;
-			anInt952 = 15 * menuActionRow + 22;
+		ViewportLayout viewport = getViewportLayout();
+		ContextMenuLayout.ScreenArea area = ContextMenuLayout.areaAt(
+				viewport,
+				inputRouter.logicalClickX(viewport, super.saveClickX),
+				inputRouter.logicalClickY(viewport, super.saveClickY),
+				super.saveClickX,
+				super.saveClickY,
+				isChatVisible());
+		if (area == ContextMenuLayout.ScreenArea.GAME) {
+			ContextMenuLayout.Placement placement = ContextMenuLayout.placeAtClick(
+					ContextMenuLayout.ScreenArea.GAME,
+					super.saveClickX - viewport.worldViewport.x,
+					super.saveClickY - viewport.worldViewport.y,
+					i,
+					l,
+					getGameAreaWidth(),
+					getGameAreaHeight());
+			applyMenuPlacement(placement, i);
+		} else if (area == ContextMenuLayout.ScreenArea.TAB) {
+			ContextMenuLayout.Placement placement = ContextMenuLayout.placeAtClick(
+					ContextMenuLayout.ScreenArea.TAB,
+					viewport.sidePanelLayout.tabContentLocalX(super.saveClickX),
+					viewport.sidePanelLayout.tabContentLocalY(super.saveClickY),
+					i,
+					l,
+					SidePanelLayout.TAB_CONTENT_WIDTH,
+					SidePanelLayout.TAB_CONTENT_HEIGHT);
+			applyMenuPlacement(placement, i);
+		} else if (area == ContextMenuLayout.ScreenArea.CHAT) {
+			ContextMenuLayout.Placement placement = ContextMenuLayout.placeAtClick(
+					ContextMenuLayout.ScreenArea.CHAT,
+					super.saveClickX - viewport.chatLayout.panel.x,
+					super.saveClickY - viewport.chatLayout.panel.y,
+					i,
+					l,
+					getChatW(),
+					getChatH());
+			applyMenuPlacement(placement, i);
 		}
-		if (super.saveClickX > getTabContentX() && super.saveClickY > getTabContentY() && super.saveClickX < getTabContentX() + 190 && super.saveClickY < getTabContentY() + getTabContentHeight()) {
-			int j1 = super.saveClickX - getTabContentX() - i / 2;
-			if (j1 < 0) {
-				j1 = 0;
-			} else if (j1 + i > 190) {
-				j1 = 190 - i;
-			}
-			int i2 = super.saveClickY - getTabContentY();
-			if (i2 < 0) {
-				i2 = 0;
-			} else if (i2 + l > getTabContentHeight()) {
-				i2 = getTabContentHeight() - l;
-			}
-			menuOpen = true;
-			menuScreenArea = 1;
-			menuOffsetX = j1;
-			menuOffsetY = i2;
-			menuWidth = i;
-			anInt952 = 15 * menuActionRow + 22;
-		}
-		if (isChatVisible() && super.saveClickX > getChatX() && super.saveClickY > getChatY()
-				&& super.saveClickX < getChatX() + getChatW()
-				&& super.saveClickY < getChatY() + getChatH()) {
-			int k1 = super.saveClickX - getChatX() - i / 2;
-			if (k1 < 0) {
-				k1 = 0;
-			} else if (k1 + i > getChatW()) {
-				k1 = getChatW() - i;
-			}
-			int j2 = super.saveClickY - getChatY();
-			if (j2 < 0) {
-				j2 = 0;
-			} else if (j2 + l > getChatH()) {
-				j2 = getChatH() - l;
-			}
-			menuOpen = true;
-			menuScreenArea = 2;
-			menuOffsetX = k1;
-			menuOffsetY = j2;
-			menuWidth = i;
-			anInt952 = 15 * menuActionRow + 22;
-		}
+	}
+
+	private void applyMenuPlacement(ContextMenuLayout.Placement placement, int menuW) {
+		menuOpen = true;
+		menuScreenArea = placement.area.legacyId;
+		menuOffsetX = placement.offsetX;
+		menuOffsetY = placement.offsetY;
+		menuWidth = menuW;
+		anInt952 = 15 * menuActionRow + 22;
 	}
 
 	public void method117(Stream stream) {
@@ -10015,11 +10005,10 @@ public class Game extends RSApplet {
 	}
 
 	public String getParameter(String s) {
-		if (Signlink.mainapp != null) {
-			return Signlink.mainapp.getParameter(s);
-		} else {
-			return super.getParameter(s);
+		if (Signlink.mainapp instanceof java.applet.Applet) {
+			return ((java.applet.Applet) Signlink.mainapp).getParameter(s);
 		}
+		return null;
 	}
 
 	public int extractInterfaceValues(RSInterface class9, int j) {
@@ -10512,7 +10501,7 @@ public class Game extends RSApplet {
 			j1 += j2;
 		}
 
-		aRSImageProducer_1110.drawGraphics(0, super.graphics, 0);
+		drawWelcomeLayer(aRSImageProducer_1110, getViewportLayout().uiTransform, 0, 0);
 		System.arraycopy(aClass30_Sub2_Sub1_Sub1_1202.pixels, 0, aRSImageProducer_1111.anIntArray315, 0, 33920);
 
 		i1 = 0;
@@ -10538,7 +10527,7 @@ public class Game extends RSApplet {
 			j1 += 128 - k3 - i3;
 		}
 
-		aRSImageProducer_1111.drawGraphics(0, super.graphics, 637);
+		drawWelcomeLayer(aRSImageProducer_1111, getViewportLayout().uiTransform, 637, 0);
 	}
 
 	public void method134(Stream stream) {
@@ -10596,46 +10585,52 @@ public class Game extends RSApplet {
 
 	public void drawLoginScreen(boolean flag) {
 		resetImageProducers();
+		ViewportLayout viewport = getViewportLayout();
+		LoginLayout layout = viewport.loginLayout;
+		UiBounds loginPanelScreen = viewport.loginPanelScreen;
 		aRSImageProducer_1109.initDrawingArea();
 		aBackground_966.method361(0, 0);
 		char c = '\u0168';
 		char c1 = '\310';
+		boolean mouseDown = super.clickMode2 != 0;
 		if (loginScreenState == 0) {
 			int i = c1 / 2 + 80;
 			aTextDrawingArea_1270.textCenterShadow(0x75a9a9, c / 2, onDemandFetcher.statusString, i, true);
 			i = c1 / 2 - 20;
 			chatTextDrawingArea.textCenterShadow(0xffff00, c / 2, "Welcome to " + ClientSettings.SERVER_NAME + "", i, true);
-			i += 30;
-			int l = c / 2 - 80;
-			int k1 = c1 / 2 + 20;
-			aBackground_967.method361(l - 73, k1 - 20);
-			chatTextDrawingArea.textCenterShadow(0xffffff, l, "New User", k1 + 5, true);
-			l = c / 2 + 80;
-			aBackground_967.method361(l - 73, k1 - 20);
-			chatTextDrawingArea.textCenterShadow(0xffffff, l, "Existing User", k1 + 5, true);
+			drawLoginButton(layout, layout.newUserButton, "New User", mouseDown);
+			drawLoginButton(layout, layout.existingUserButton, "Existing User", mouseDown);
 		}
 		if (loginScreenState == 2) {
-			int j = c1 / 2 - 40;
+			int headerY = layout.credentialsHeaderY() - layout.panelY;
 			if (loginMessage1.length() > 0) {
-				chatTextDrawingArea.textCenterShadow(0xffff00, c / 2, loginMessage1, j - 15, true);
-				chatTextDrawingArea.textCenterShadow(0xffff00, c / 2, loginMessage2, j, true);
-				j += 30;
+				chatTextDrawingArea.textCenterShadow(0xffff00, c / 2, loginMessage1, headerY - 15, true);
+				chatTextDrawingArea.textCenterShadow(0xffff00, c / 2, loginMessage2, headerY, true);
 			} else {
-				chatTextDrawingArea.textCenterShadow(0xffff00, c / 2, loginMessage2, j - 7, true);
-				j += 30;
+				chatTextDrawingArea.textCenterShadow(0xffff00, c / 2, loginMessage2, headerY, true);
 			}
-			chatTextDrawingArea.textLeftShadow(true, c / 2 - 90, 0xffffff, "Username: " + myUsername + (loginScreenCursorPos == 0 & loopCycle % 40 < 20 ? "@yel@|" : ""), j);
-			j += 15;
-			chatTextDrawingArea.textLeftShadow(true, c / 2 - 88, 0xffffff, "Password: " + TextClass.passwordAsterisks(myPassword) + (loginScreenCursorPos == 1 & loopCycle % 40 < 20 ? "@yel@|" : ""), j);
-			j += 15;
+			drawLoginFieldFocus(layout, layout.usernameField, loginScreenCursorPos == LoginController.FOCUS_USERNAME);
+			drawLoginFieldFocus(layout, layout.passwordField, loginScreenCursorPos == LoginController.FOCUS_PASSWORD);
+			String usernameSuffix = loginScreenCursorPos == LoginController.FOCUS_USERNAME && loopCycle % 40 < 20 ? "@yel@|" : "";
+			String passwordText = loginController.displayPassword(myPassword, loginController.showPassword);
+			String passwordSuffix = loginScreenCursorPos == LoginController.FOCUS_PASSWORD && loopCycle % 40 < 20 ? "@yel@|" : "";
+			chatTextDrawingArea.textLeftShadow(true, layout.localFieldX(layout.usernameField), 0xffffff,
+					"Username: " + myUsername + usernameSuffix, layout.localTextY(layout.usernameField));
+			chatTextDrawingArea.textLeftShadow(true, layout.localFieldX(layout.passwordField), 0xffffff,
+					"Password: " + passwordText + passwordSuffix, layout.localTextY(layout.passwordField));
+			drawLoginCheckbox(layout, layout.rememberUsernameCheckbox, loginController.rememberUsername,
+					"Remember username", loginScreenCursorPos == LoginController.FOCUS_REMEMBER);
+			drawLoginCheckbox(layout, layout.showPasswordCheckbox, loginController.showPassword,
+					"Show password", loginScreenCursorPos == LoginController.FOCUS_SHOW_PASSWORD);
+			UiBounds worldLocal = layout.toLocal(layout.worldSelector);
+			chatTextDrawingArea.textCenterShadow(0xffffff, c / 2, loginController.worldLabel(), worldLocal.y + 12, true);
+			if (loginController.shouldShowCapsLockWarning(loginScreenCursorPos, LoginController.isCapsLockOn())) {
+				chatTextDrawingArea.textCenterShadow(0xff0000, c / 2, "Warning: Caps Lock is on",
+						layout.capsLockWarningLocalY(), true);
+			}
 			if (!flag) {
-				int i1 = c / 2 - 80;
-				int l1 = c1 / 2 + 50;
-				aBackground_967.method361(i1 - 73, l1 - 20);
-				chatTextDrawingArea.textCenterShadow(0xffffff, i1, "Login", l1 + 5, true);
-				i1 = c / 2 + 80;
-				aBackground_967.method361(i1 - 73, l1 - 20);
-				chatTextDrawingArea.textCenterShadow(0xffffff, i1, "Cancel", l1 + 5, true);
+				drawLoginButton(layout, layout.loginButton, "Login", mouseDown);
+				drawLoginButton(layout, layout.cancelButton, "Cancel", mouseDown);
 			}
 		}
 		if (loginScreenState == 3) {
@@ -10648,22 +10643,100 @@ public class Game extends RSApplet {
 			chatTextDrawingArea.textCenterShadow(0xffffff, c / 2, "Log in with any credentials you want and an", k, true);
 			k += 15;
 			chatTextDrawingArea.textCenterShadow(0xffffff, c / 2, "account will automatically be created for you.", k, true);
-			k += 15;
-			int j1 = c / 2;
-			int i2 = c1 / 2 + 50;
-			aBackground_967.method361(j1 - 73, i2 - 20);
-			chatTextDrawingArea.textCenterShadow(0xffffff, j1, "Cancel", i2 + 5, true);
+			drawLoginButton(layout, layout.createAccountCancelButton, "Cancel", mouseDown);
 		}
-		aRSImageProducer_1109.drawGraphics(171, super.graphics, 202);
-		if (welcomeScreenRaised) {
-			welcomeScreenRaised = false;
-			aRSImageProducer_1107.drawGraphics(0, super.graphics, 128);
-			aRSImageProducer_1108.drawGraphics(371, super.graphics, 202);
-			aRSImageProducer_1112.drawGraphics(265, super.graphics, 0);
-			aRSImageProducer_1113.drawGraphics(265, super.graphics, 562);
-			aRSImageProducer_1114.drawGraphics(171, super.graphics, 128);
-			aRSImageProducer_1115.drawGraphics(171, super.graphics, 562);
+		aRSImageProducer_1109.drawGraphics(loginPanelScreen.y, super.graphics, loginPanelScreen.x);
+	}
+
+	private void drawWelcomeScreenBackground() {
+		if (super.graphics == null || aRSImageProducer_1110 == null) {
+			return;
 		}
+		super.graphics.setColor(Color.black);
+		super.graphics.fillRect(0, 0, super.myWidth, super.myHeight);
+		UiTransform transform = getViewportLayout().uiTransform;
+		drawWelcomeLayer(aRSImageProducer_1110, transform, 0, 0);
+		drawWelcomeLayer(aRSImageProducer_1111, transform, 637, 0);
+		drawWelcomeLayer(aRSImageProducer_1107, transform, 128, 0);
+		drawWelcomeLayer(aRSImageProducer_1108, transform, 202, 371);
+		drawWelcomeLayer(aRSImageProducer_1112, transform, 0, 265);
+		drawWelcomeLayer(aRSImageProducer_1113, transform, 562, 265);
+		drawWelcomeLayer(aRSImageProducer_1114, transform, 128, 171);
+		drawWelcomeLayer(aRSImageProducer_1115, transform, 562, 171);
+	}
+
+	private void drawWelcomeLayer(RSImageProducer producer, UiTransform transform, int logicalX, int logicalY) {
+		drawWelcomeLayer(producer, transform, super.graphics, logicalX, logicalY);
+	}
+
+	private void drawWelcomeLayer(
+			RSImageProducer producer, UiTransform transform, Graphics graphics, int logicalX, int logicalY) {
+		if (producer == null || graphics == null || transform == null) {
+			return;
+		}
+		producer.drawGraphics(transform.toScreenY(logicalY), graphics, transform.toScreenX(logicalX));
+	}
+
+	private void drawLoginButton(LoginLayout layout, UiBounds logicalBounds, String label, boolean mouseDown) {
+		LoginController.ButtonVisual visual = loginController.buttonVisual(
+				logicalBounds, inputRouter.logicalX, inputRouter.logicalY, mouseDown);
+		UiBounds local = layout.toLocal(logicalBounds);
+		int drawX = local.centerX() - 73;
+		int drawY = local.centerY() - 20;
+		if (visual == LoginController.ButtonVisual.PRESSED) {
+			drawY++;
+		}
+		aBackground_967.method361(drawX, drawY);
+		if (visual == LoginController.ButtonVisual.HOVER) {
+			DrawingArea.fillPixels(drawY + 2, local.height - 4, 0xffff00, drawX + 2, 134);
+		}
+		chatTextDrawingArea.textCenterShadow(0xffffff, local.centerX(), label, local.centerY() + 5, true);
+	}
+
+	private void drawLoginFieldFocus(LoginLayout layout, UiBounds logicalBounds, boolean focused) {
+		if (!focused) {
+			return;
+		}
+		UiBounds local = layout.toLocal(logicalBounds);
+		DrawingArea.fillPixels(local.y + local.height - 1, 1, 0xffff00, local.x, local.width);
+	}
+
+	private void drawLoginCheckbox(LoginLayout layout, UiBounds logicalBounds, boolean checked, String label, boolean focused) {
+		UiBounds local = layout.toLocal(logicalBounds);
+		int boxSize = 12;
+		int boxY = local.y;
+		// RS text Y is baseline; align baseline near the bottom of the checkbox square.
+		int labelBaseline = boxY + boxSize - 1;
+		DrawingArea.fillPixels(boxY, boxSize, focused ? 0xffff00 : 0xffffff, local.x, boxSize);
+		if (checked) {
+			chatTextDrawingArea.textLeftShadow(true, local.x + 2, 0xffff00, "X", labelBaseline);
+		}
+		chatTextDrawingArea.textLeftShadow(true, local.x + boxSize + 4, 0xffffff, label, labelBaseline);
+	}
+
+	private void updateLoginHandCursor() {
+		LoginLayout layout = getViewportLayout().loginLayout;
+		boolean hand = loginController.isOverClickable(
+				layout, inputRouter.logicalX, inputRouter.logicalY, loginScreenState);
+		Component component = getGameComponent();
+		if (hand) {
+			if (!loginHandCursorActive) {
+				component.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+				loginHandCursorActive = true;
+			}
+		} else if (loginHandCursorActive) {
+			component.setCursor(Cursor.getDefaultCursor());
+			loginHandCursorActive = false;
+		}
+	}
+
+	private void submitLoginAttempt() {
+		if (!loginController.canSubmit(this)) {
+			return;
+		}
+		loginFailures = 0;
+		loginController.persistRememberedUsername(myUsername);
+		login(myUsername, myPassword, false);
 	}
 
 	public void drawFlames() {
@@ -11045,108 +11118,126 @@ public class Game extends RSApplet {
 	}
 
 	public void processLoginScreenInput() {
-		// Login screen is drawn into a fixed 360x200 producer at (202,171).
-		// Use the same local c/c1 coords as drawLoginScreen() for hit detection.
-		final int c = 360;
-		final int c1 = 200;
-		final int producerX = 202;
-		final int producerY = 171;
-		if (loginScreenState == 0) {
-			int i = producerX + c / 2 - 80;
-			int l = producerY + c1 / 2 + 20;
-			l += 20;
-			if (super.clickMode3 == 1 && super.saveClickX >= i - 75 && super.saveClickX <= i + 75 && super.saveClickY >= l - 20 && super.saveClickY <= l + 20) {
-				loginScreenState = 3;
-				loginScreenCursorPos = 0;
+		ViewportLayout viewport = getViewportLayout();
+		LoginLayout layout = viewport.loginLayout;
+		if (super.clickMode3 == 1) {
+			int logicalClickX = inputRouter.logicalClickX(viewport, super.saveClickX);
+			int logicalClickY = inputRouter.logicalClickY(viewport, super.saveClickY);
+			LoginController.ClickTarget target = loginController.hitTest(
+					layout, logicalClickX, logicalClickY, loginScreenState);
+			if (handleLoginClick(target)) {
+				return;
 			}
-			i = producerX + c / 2 + 80;
-			if (super.clickMode3 == 1 && super.saveClickX >= i - 75 && super.saveClickX <= i + 75 && super.saveClickY >= l - 20 && super.saveClickY <= l + 20) {
+		}
+		if (loginScreenState == 2) {
+			processLoginCredentialsKeys();
+		} else if (loginScreenState == 0 || loginScreenState == 3) {
+			processLoginNavigationKeys();
+		}
+	}
+
+	private boolean handleLoginClick(LoginController.ClickTarget target) {
+		switch (target) {
+			case NEW_USER:
+				loginScreenState = 3;
+				loginScreenCursorPos = LoginController.FOCUS_USERNAME;
+				return true;
+			case EXISTING_USER:
 				loginMessage1 = "";
 				loginMessage2 = "Enter your username & password.";
 				loginScreenState = 2;
-				loginScreenCursorPos = 0;
+				loginScreenCursorPos = LoginController.FOCUS_USERNAME;
+				loginController.restoreRememberedUsername(this);
+				return true;
+			case USERNAME:
+				loginScreenCursorPos = LoginController.FOCUS_USERNAME;
+				loginController.usernameSelectAll = false;
+				return true;
+			case PASSWORD:
+				loginScreenCursorPos = LoginController.FOCUS_PASSWORD;
+				loginController.passwordSelectAll = false;
+				return true;
+			case REMEMBER_USERNAME:
+				loginController.toggleRememberUsername(myUsername);
+				loginScreenCursorPos = LoginController.FOCUS_REMEMBER;
+				return true;
+			case SHOW_PASSWORD:
+				loginController.toggleShowPassword();
+				loginScreenCursorPos = LoginController.FOCUS_SHOW_PASSWORD;
+				return true;
+			case LOGIN:
+				loginScreenCursorPos = LoginController.FOCUS_LOGIN;
+				submitLoginAttempt();
+				return loggedIn;
+			case CANCEL:
+				loginScreenState = 0;
+				loginScreenCursorPos = LoginController.FOCUS_USERNAME;
+				return true;
+			case CREATE_CANCEL:
+				loginScreenState = 0;
+				loginScreenCursorPos = LoginController.FOCUS_USERNAME;
+				return true;
+			default:
+				return false;
+		}
+	}
+
+	private void processLoginCredentialsKeys() {
+		do {
+			int key = readChar(-796);
+			if (key == -1) {
+				break;
 			}
-		} else {
-			if (loginScreenState == 2) {
-				int j = producerY + c1 / 2 - 40;
-				j += 30;
-				j += 25;
-				if (super.clickMode3 == 1 && super.saveClickY >= j - 15 && super.saveClickY < j) {
-					loginScreenCursorPos = 0;
-				}
-				j += 15;
-				if (super.clickMode3 == 1 && super.saveClickY >= j - 15 && super.saveClickY < j) {
-					loginScreenCursorPos = 1;
-				}
-				j += 15;
-				int i1 = producerX + c / 2 - 80;
-				int k1 = producerY + c1 / 2 + 50;
-				k1 += 20;
-				if (super.clickMode3 == 1 && super.saveClickX >= i1 - 75 && super.saveClickX <= i1 + 75 && super.saveClickY >= k1 - 20 && super.saveClickY <= k1 + 20) {
-					loginFailures = 0;
-					login(myUsername, myPassword, false);
+			if (key == 27) {
+				loginScreenState = 0;
+				loginScreenCursorPos = LoginController.FOCUS_USERNAME;
+				return;
+			}
+			if (key == 9) {
+				loginScreenCursorPos = RSApplet.shiftDown
+						? loginController.tabBackward(loginScreenCursorPos)
+						: loginController.tabForward(loginScreenCursorPos);
+				continue;
+			}
+			if (key == 10 || key == 13) {
+				if (loginScreenCursorPos == LoginController.FOCUS_PASSWORD) {
+					submitLoginAttempt();
 					if (loggedIn) {
 						return;
 					}
-				}
-				i1 = producerX + c / 2 + 80;
-				if (super.clickMode3 == 1 && super.saveClickX >= i1 - 75 && super.saveClickX <= i1 + 75 && super.saveClickY >= k1 - 20 && super.saveClickY <= k1 + 20) {
+				} else if (loginScreenCursorPos == LoginController.FOCUS_CANCEL) {
 					loginScreenState = 0;
-					// myUsername = "";
-					// myPassword = "";
+					loginScreenCursorPos = LoginController.FOCUS_USERNAME;
+					return;
+				} else if (loginScreenCursorPos == LoginController.FOCUS_LOGIN) {
+					submitLoginAttempt();
+					if (loggedIn) {
+						return;
+					}
+				} else if (loginController.activateFocusedControl(this, loginScreenCursorPos)) {
+					if (loginScreenCursorPos == LoginController.FOCUS_CANCEL) {
+						loginScreenState = 0;
+						loginScreenCursorPos = LoginController.FOCUS_USERNAME;
+						return;
+					}
+				} else {
+					loginScreenCursorPos = loginController.tabForward(loginScreenCursorPos);
 				}
-				do {
-					int l1 = readChar(-796);
-					if (l1 == -1) {
-						break;
-					}
-					boolean flag1 = false;
-					for (int i2 = 0; i2 < validUserPassChars.length(); i2++) {
-						if (l1 != validUserPassChars.charAt(i2)) {
-							continue;
-						}
-						flag1 = true;
-						break;
-					}
-
-					if (loginScreenCursorPos == 0) {
-						if (l1 == 8 && myUsername.length() > 0) {
-							myUsername = myUsername.substring(0, myUsername.length() - 1);
-						}
-						if (l1 == 9 || l1 == 10 || l1 == 13) {
-							loginScreenCursorPos = 1;
-						}
-						if (flag1) {
-							myUsername += (char) l1;
-						}
-						if (myUsername.length() > 12) {
-							myUsername = myUsername.substring(0, 12);
-						}
-					} else if (loginScreenCursorPos == 1) {
-						if (l1 == 8 && myPassword.length() > 0) {
-							myPassword = myPassword.substring(0, myPassword.length() - 1);
-						}
-						if (l1 == 9 || l1 == 10 || l1 == 13) {
-							login(myUsername, myPassword, false);
-							loginScreenCursorPos = 0;
-						}
-						if (flag1) {
-							myPassword += (char) l1;
-						}
-						if (myPassword.length() > 20) {
-							myPassword = myPassword.substring(0, 20);
-						}
-					}
-				} while (true);
-				return;
+				continue;
 			}
+			if (loginScreenCursorPos == LoginController.FOCUS_USERNAME) {
+				loginController.handleUsernameKey(this, key, RSApplet.ctrlDown);
+			} else if (loginScreenCursorPos == LoginController.FOCUS_PASSWORD) {
+				loginController.handlePasswordKey(this, key, RSApplet.ctrlDown);
+			}
+		} while (true);
+	}
+
+	private void processLoginNavigationKeys() {
+		int key = readChar(-796);
+		if (key == 27) {
 			if (loginScreenState == 3) {
-				int k = producerX + c / 2;
-				int j1 = producerY + c1 / 2 + 50;
-				j1 += 20;
-				if (super.clickMode3 == 1 && super.saveClickX >= k - 75 && super.saveClickX <= k + 75 && super.saveClickY >= j1 - 20 && super.saveClickY <= j1 + 20) {
-					loginScreenState = 0;
-				}
+				loginScreenState = 0;
 			}
 		}
 	}
@@ -12535,7 +12626,27 @@ public class Game extends RSApplet {
 
 	public static int zoom = 3;
 
+	private void bindWorldViewport() {
+		if (aRSImageProducer_1165 == null) {
+			return;
+		}
+
+		aRSImageProducer_1165.initDrawingArea();
+
+		// This legacy field name is misleading: in the resizable client it stores
+		// the scanline offsets for the dynamically sized world/game producer.
+		Texture.lineOffsets = chatBoxAreaOffsets;
+
+		Texture.textureInt1 = getGameAreaWidth() / 2;
+		Texture.textureInt2 = getGameAreaHeight() / 2;
+
+		// Restore clipping to the complete active world producer.
+		DrawingArea.defaultDrawingAreaSize();
+	}
+
 	public void method146() {
+		bindWorldViewport();
+		ensureSceneVisibilityMap();
 		anInt1265++;
 		method47(true);
 		method26(true);
@@ -12610,37 +12721,8 @@ public class Game extends RSApplet {
 		// Allow stuff inside the tabs to work
 		draw3dScreen();
 		if (showInfo) {
-			int debugX = 0;
-			int debugY = 234;
-			int debugItems = 5;
-			int debugWidth = 140;
-			int debugHeight = 25 + (debugItems * 15);
-			int fill = 0x5d5447;
-			int fill2 = Color.BLACK.hashCode();
-			int opacity = 140;
-	
-			DrawingArea.fillArea(fill, debugY, debugWidth, debugHeight, opacity, debugX);
-			DrawingArea.fillArea(fill2, debugY + 1, debugWidth - 2, 16, opacity, debugX + 1);
-			DrawingArea.fillPixels(debugY + 18, debugHeight - 19, fill2, debugX + 1, debugWidth - 2);
-			chatTextDrawingArea.textLeft(Color.WHITE.darker().hashCode(), "Debug Info", debugY += 14, debugX + 3);
-			chatTextDrawingArea.textLeft(super.fps > 40 ? Color.YELLOW.hashCode() : super.fps > 25 ? Color.ORANGE.hashCode() : Color.RED.hashCode(), super.fps + "fps", debugY, debugX + debugWidth - chatTextDrawingArea.getTextWidth(super.fps + "fps") - 3);
-
-			// Bump Y value
-			debugY += 3;
-			
-			// Draw items
-			Runtime runtime = Runtime.getRuntime();
-			int memKB = (int) ((runtime.totalMemory() - runtime.freeMemory()) / 1024L);
-			chatTextDrawingArea.textLeftShadow(true, debugX + 4, Color.WHITE.hashCode(), "Memory:", debugY += 15);
-			chatTextDrawingArea.textRightShadow(true, debugX + debugWidth - 4, Color.YELLOW.hashCode(), (memKB / 1024) + "mb", debugY);
-			chatTextDrawingArea.textLeftShadow(true, debugX + 4, Color.WHITE.hashCode(), "Mouse:", debugY += 15);
-			chatTextDrawingArea.textRightShadow(true, debugX + debugWidth - 4, Color.YELLOW.hashCode(), super.mouseX + ", " + super.mouseY, debugY);
-			chatTextDrawingArea.textLeftShadow(true, debugX + 4, Color.WHITE.hashCode(), "Coords:", debugY += 15);
-			chatTextDrawingArea.textRightShadow(true, debugX + debugWidth - 4, Color.YELLOW.hashCode(), (myPlayer.smallX[0] + baseX) + ", " + (myPlayer.smallY[0] + baseY), debugY);
-			chatTextDrawingArea.textLeftShadow(true, debugX + 4, Color.WHITE.hashCode(), "Interface:", debugY += 15);
-			chatTextDrawingArea.textRightShadow(true, debugX + debugWidth - 4, Color.YELLOW.hashCode(), "" + openInterfaceID, debugY);
-			chatTextDrawingArea.textLeftShadow(true, debugX + 4, Color.WHITE.hashCode(), "Zoom level:", debugY += 15);
-			chatTextDrawingArea.textRightShadow(true, debugX + debugWidth - 4, Color.YELLOW.hashCode(), "" + zoom, debugY);
+			drawUiDebugOutlines();
+			ClientDebugOverlay.draw(chatTextDrawingArea, ClientDebugSnapshot.fromGame(this), 0, 234);
 		}
 		
 		if (customSettingShowExperiencePerHour) {
@@ -12876,6 +12958,8 @@ public class Game extends RSApplet {
 		messagePromptRaised = false;
 		loginMessage1 = "";
 		loginMessage2 = "";
+		loginController = new LoginController();
+		loginController.restoreRememberedUsername(this);
 		backDialogID = -1;
 		anInt1279 = 2;
 		bigX = new int[4000];
@@ -12895,6 +12979,9 @@ public class Game extends RSApplet {
 	public volatile boolean aBoolean831;
 	public Socket aSocket832;
 	public int loginScreenState;
+	public final InputRouter inputRouter = new InputRouter();
+	private ViewportLayout viewportLayout;
+	public final LoginController loginController;
 	public Stream aStream_834;
 	public NPC[] npcArray;
 	public int npcCount;
@@ -13292,6 +13379,7 @@ public class Game extends RSApplet {
 	public int anInt1265;
 	public String loginMessage1;
 	public String loginMessage2;
+	public boolean loginHandCursorActive;
 	public int anInt1268;
 	public int anInt1269;
 	public TextDrawingArea aTextDrawingArea_1270;
@@ -13632,30 +13720,38 @@ public class Game extends RSApplet {
 
 	public final void mouseWheelMoved(MouseWheelEvent e) {
 		int notches = e.getWheelRotation();
+		ViewportLayout viewport = getViewportLayout();
+		inputRouter.update(viewport, e.getX(), e.getY());
+		InputRouter.WheelTarget target = inputRouter.wheelTarget(viewport, openInterfaceID != -1);
+		if (target == InputRouter.WheelTarget.CHAT_SCROLL) {
+			scrollChatByWheel(notches);
+			return;
+		}
+		if (target == InputRouter.WheelTarget.TAB_SCROLL) {
+			scrollTabByWheel(notches);
+			return;
+		}
 		if (ClientSettings.CONTROL_KEY_ZOOMING && !e.isControlDown()) {
 			return;
 		}
-		int x = e.getX();
-		int y = e.getY();
-		boolean overGameArea = x >= 0 && y >= 0
-				&& x < getGameAreaWidth() && y < getGameAreaHeight()
-				&& !isPointOverChatOverlay(x, y)
-				&& !isPointOverRightUi(x, y);
-		// If mouse over the visible game world, without anything else opened
-		if (openInterfaceID == -1 && overGameArea) {
-			if (notches < 0) {
-				if (zoom > -1) {
-					zoom--;
-					if (ClientSettings.SHOW_ZOOM_LEVEL_MESSAGES) {
-						pushMessage("Your zoom level is now: " + zoom, 0, "");
-					}
+		if (target != InputRouter.WheelTarget.WORLD_ZOOM) {
+			return;
+		}
+		if (inputRouter.isOverRightUi(viewport)) {
+			return;
+		}
+		if (notches < 0) {
+			if (zoom > -1) {
+				zoom--;
+				if (ClientSettings.SHOW_ZOOM_LEVEL_MESSAGES) {
+					pushMessage("Your zoom level is now: " + zoom, 0, "");
 				}
-			} else {
-				if (zoom < (WorldController.drawDistance / 3)) {
-					zoom++;
-					if (ClientSettings.SHOW_ZOOM_LEVEL_MESSAGES) {
-						pushMessage("Your zoom level is now: " + zoom, 0, "");
-					}
+			}
+		} else {
+			if (zoom < (WorldController.drawDistance / 3)) {
+				zoom++;
+				if (ClientSettings.SHOW_ZOOM_LEVEL_MESSAGES) {
+					pushMessage("Your zoom level is now: " + zoom, 0, "");
 				}
 			}
 		}

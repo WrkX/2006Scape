@@ -70,6 +70,11 @@ const ID_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/;
 const COMMAND_PATTERN = /^[a-z0-9][a-z0-9._-]{0,63}$/;
 const SPECIAL_NAME_PATTERN = /^[a-z][a-z0-9_-]*$/;
 
+/** Command aliases owned by the Java admin transport (WP1 route registry). */
+const RESERVED_COMMANDS: ReadonlySet<string> = new Set([
+  "scripts", "reload", "scriptdir",
+]);
+
 function validateArena(arena: BossArena, bossName: string): void {
   const label = "arena";
   assert(
@@ -221,12 +226,18 @@ export function createBoss(options: BossOptions): BossDefinition {
       COMMAND_PATTERN.test(options.command),
     `${name}: command must be a lower-case command name of at most 64 ` +
       "characters");
+    assert(!RESERVED_COMMANDS.has(options.command),
+      `${name}: command alias '${options.command}' is reserved for the ` +
+        "engine admin transport and cannot be registered by content");
   }
   if (options.closeCommand !== undefined) {
     assert(typeof options.closeCommand === "string" &&
       COMMAND_PATTERN.test(options.closeCommand),
     `${name}: closeCommand must be a lower-case command name of at most 64 ` +
       "characters");
+    assert(!RESERVED_COMMANDS.has(options.closeCommand),
+      `${name}: closeCommand alias '${options.closeCommand}' is reserved ` +
+        "for the engine admin transport and cannot be registered by content");
   }
   if (hasObjectEntry) {
     const entry = options.objectEntry!;
@@ -295,13 +306,24 @@ export function createBoss(options: BossOptions): BossDefinition {
     spawn: Object.freeze({ ...options.spawn }),
     command: options.command,
     closeCommand: options.closeCommand,
-    objectEntry: options.objectEntry,
-    entryTeleport: options.entryTeleport,
+    objectEntry: options.objectEntry
+      ? Object.freeze({ ...options.objectEntry })
+      : undefined,
+    entryTeleport: options.entryTeleport
+      ? Object.freeze({ ...options.entryTeleport })
+      : undefined,
     onSpawn: options.onSpawn,
     onTick: options.onTick,
     onDeath: options.onDeath,
-    phases: options.phases,
-    specials: options.specials,
+    phases: options.phases
+      ? Object.freeze(options.phases.map(
+          (phase) => Object.freeze({ ...phase })))
+      : undefined,
+    specials: options.specials
+      ? Object.freeze(Object.fromEntries(
+          Object.entries(options.specials).map(([name, special]) =>
+            [name, Object.freeze({ ...special })] as const)))
+      : undefined,
     dropTable: options.dropTable,
     privateTicks: options.privateTicks,
     cleanupPolicy: options.cleanupPolicy ?? "close-on-terminal",

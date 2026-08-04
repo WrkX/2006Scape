@@ -6,9 +6,11 @@
   "scripts": {
     "build": "tsc",
     "watch": "tsc --watch",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "tsc && node --test \"dist/sdk/__tests__/*.test.js\""
   },
   "devDependencies": {
+    "@types/node": "^26.1.2",
     "typescript": "^5.8.3"
   }
 }

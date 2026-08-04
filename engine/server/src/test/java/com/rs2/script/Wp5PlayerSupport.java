@@ -131,7 +131,9 @@ final class Wp5PlayerSupport {
 			526, 536, 560, 565, 577, 579, 995, 1079, 1127, 1147, 1149,
 			1163, 1215, 1305, 1387,
 			// Dragon Island scripted shop stock.
-			372, 379, 590, 954, 1540, 2434, 3144
+			372, 379, 590, 954, 1540, 2434, 3144,
+			// Woodcutting gathering resources (bronze axe, logs, oak logs).
+			1351, 1511, 1521
 	};
 
 	/**

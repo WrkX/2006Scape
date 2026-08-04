@@ -68,12 +68,18 @@ public final class ScriptLifecycleService {
 
 	public void onExplicitLogout(Player player) {
 		ScriptEncounterService.getInstance().onPlayerLogout(player);
+		com.rs2.script.raid.ScriptRaidRuntime.getInstance()
+				.onPlayerLogout(player);
 		ScriptScheduler.getInstance().cancelPlayer(player);
 	}
 
 	public void onPlayerRemoved(Player player) {
 		ScriptEncounterService.getInstance().onPlayerRemoved(player);
 		com.rs2.script.shop.ScriptShopRuntime.getInstance()
+				.onPlayerRemoved(player);
+		com.rs2.script.raid.ScriptRaidRuntime.getInstance()
+				.onPlayerRemoved(player);
+		com.rs2.script.resource.ScriptResourceRuntime.getInstance()
 				.onPlayerRemoved(player);
 		if (!ScriptHost.getInstance().executeInActiveGeneration(
 				new ScriptHost.ActiveGenerationOperation() {
@@ -164,15 +170,23 @@ public final class ScriptLifecycleService {
 			@Override
 			public void run(long generation) {
 				processAreasUnderLease(generation);
+				com.rs2.script.raid.ScriptRaidRuntime.getInstance()
+						.processGameTick(generation);
 			}
 		});
 	}
 
 	/**
 	 * Captures terminal player state and performs callback-free encounter
-	 * ownership cleanup immediately before core death bookkeeping.
+	 * ownership cleanup immediately before core death bookkeeping. Raid
+	 * membership marks the dead member departed (or wipes on owner/barrier
+	 * death) without running guest code.
 	 */
 	public ScriptPlayerDeathTicket beginPlayerDeath(Player player) {
+		com.rs2.script.raid.ScriptRaidRuntime.getInstance()
+				.onPlayerDeath(player);
+		com.rs2.script.resource.ScriptResourceRuntime.getInstance()
+				.onPlayerDeath(player);
 		return ScriptEncounterService.getInstance().beginPlayerDeath(player);
 	}
 
@@ -216,6 +230,7 @@ public final class ScriptLifecycleService {
 				areaStates.put(player, new AreaState(generation,
 						new ScriptedPosition(player.absX, player.absY, player.heightLevel),
 						memberships));
+				com.rs2.game.content.quests.QuestAssistant.sendStages(player);
 			}
 		}
 	}

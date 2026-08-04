@@ -31,6 +31,7 @@ public final class ScriptStateCodec {
 	ScriptStateCodec(Map<String, ScriptStateVersionDecoder> migrations) {
 		Map<String, ScriptStateVersionDecoder> configured = new LinkedHashMap<>();
 		configured.put("v1", this::decodeV1);
+		configured.put("v0", this::decodeV0);
 		for (Map.Entry<String, ScriptStateVersionDecoder> migration
 				: migrations.entrySet()) {
 			String version = migration.getKey();
@@ -119,17 +120,8 @@ public final class ScriptStateCodec {
 	}
 
 	private ScriptStateSnapshot decodeV1(String encodedBody) {
-		if (!encodedBody.matches(BASE64_URL)) {
-			throw new ScriptStateException("Malformed script-state Base64URL");
-		}
+		byte[] bytes = decodeBase64Body(encodedBody);
 		try {
-			byte[] bytes = Base64.getUrlDecoder().decode(encodedBody);
-			String canonical = Base64.getUrlEncoder().withoutPadding()
-					.encodeToString(bytes);
-			if (!canonical.equals(encodedBody)) {
-				throw new ScriptStateException(
-						"Non-canonical script-state Base64URL");
-			}
 			DataInputStream input = new DataInputStream(new ByteArrayInputStream(bytes));
 			int namespaceCount = input.readUnsignedShort();
 			if (namespaceCount > ScriptStateLimits.MAX_NAMESPACES) {
@@ -187,12 +179,99 @@ public final class ScriptStateCodec {
 				throw new ScriptStateException("Trailing bytes in script-state payload");
 			}
 			return new ScriptStateSnapshot(namespaces);
-		} catch (IllegalArgumentException e) {
-			throw new ScriptStateException("Malformed script-state Base64", e);
 		} catch (EOFException e) {
 			throw new ScriptStateException("Truncated script-state payload", e);
 		} catch (IOException e) {
 			throw new ScriptStateException("Unable to decode script state", e);
+		}
+	}
+
+	/**
+	 * Decodes and migrates the built-in historical flat v0 body: canonical
+	 * unpadded Base64URL over {@code u16 entryCount} followed by repeated
+	 * bounded {@code u16 namespace UTF-8}, {@code u16 key UTF-8}, {@code u8
+	 * type}, and the existing v1 type payload. Entries are grouped by
+	 * namespace; duplicate namespace/key pairs and every current aggregate,
+	 * UTF-8, and value limit are enforced. Encoding remains v1 only.
+	 */
+	private ScriptStateSnapshot decodeV0(String encodedBody) {
+		byte[] bytes = decodeBase64Body(encodedBody);
+		try {
+			DataInputStream input = new DataInputStream(new ByteArrayInputStream(bytes));
+			int entryCount = input.readUnsignedShort();
+			if (entryCount > ScriptStateLimits.MAX_TOTAL_ENTRIES) {
+				throw new ScriptStateException("Too many script-state entries");
+			}
+			Map<String, Map<String, ScriptStateValue>> namespaces =
+					new LinkedHashMap<>();
+			for (int i = 0; i < entryCount; i++) {
+				String namespace = readString(input, 2,
+						ScriptStateLimits.MAX_NAMESPACE_BYTES);
+				ScriptStateLimits.validateStoredNamespace(namespace);
+				String key = readString(input, 2,
+						ScriptStateLimits.MAX_KEY_BYTES);
+				ScriptStateLimits.validateStoredKey(namespace, key);
+				int type = input.readUnsignedByte();
+				ScriptStateValue value;
+				if (type == 1) {
+					int bool = input.readUnsignedByte();
+					if (bool != 0 && bool != 1) {
+						throw new ScriptStateException("Invalid boolean state value");
+					}
+					value = ScriptStateValue.of(bool == 1);
+				} else if (type == 2) {
+					value = ScriptStateValue.of(input.readDouble());
+				} else if (type == 3) {
+					value = ScriptStateValue.of(readString(input, 4,
+							ScriptStateLimits.MAX_STRING_BYTES));
+				} else {
+					throw new ScriptStateException("Invalid script-state type tag");
+				}
+				Map<String, ScriptStateValue> entries = namespaces.get(namespace);
+				if (entries == null) {
+					if (namespaces.size() >= ScriptStateLimits.MAX_NAMESPACES) {
+						throw new ScriptStateException(
+								"Too many script-state namespaces");
+					}
+					entries = new LinkedHashMap<>();
+					namespaces.put(namespace, entries);
+				}
+				if (entries.containsKey(key)) {
+					throw new ScriptStateException(
+							"Duplicate script-state key: " + key);
+				}
+				if (entries.size() >= ScriptStateLimits.MAX_ENTRIES_PER_NAMESPACE) {
+					throw new ScriptStateException(
+							"Too many entries in namespace: " + namespace);
+				}
+				entries.put(key, value);
+			}
+			if (input.read() != -1) {
+				throw new ScriptStateException("Trailing bytes in script-state payload");
+			}
+			return new ScriptStateSnapshot(namespaces);
+		} catch (EOFException e) {
+			throw new ScriptStateException("Truncated script-state payload", e);
+		} catch (IOException e) {
+			throw new ScriptStateException("Unable to decode script state", e);
+		}
+	}
+
+	private static byte[] decodeBase64Body(String encodedBody) {
+		if (!encodedBody.matches(BASE64_URL)) {
+			throw new ScriptStateException("Malformed script-state Base64URL");
+		}
+		try {
+			byte[] bytes = Base64.getUrlDecoder().decode(encodedBody);
+			String canonical = Base64.getUrlEncoder().withoutPadding()
+					.encodeToString(bytes);
+			if (!canonical.equals(encodedBody)) {
+				throw new ScriptStateException(
+						"Non-canonical script-state Base64URL");
+			}
+			return bytes;
+		} catch (IllegalArgumentException e) {
+			throw new ScriptStateException("Malformed script-state Base64", e);
 		}
 	}
 

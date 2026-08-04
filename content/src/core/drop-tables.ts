@@ -1,59 +1,49 @@
 /**
- * Drop table builder — validated factory for {@link LootTable} definitions
- * with weighted entries, amount ranges, and auto-normalised weights.
+ * Canonical named drop tables.
  *
- * Drop tables are used by bosses, NPCs, chests, and raid reward chambers.
- * The `DropTableBuilder` provides a chainable API that validates entries and
- * auto-computes normalised probabilities.
+ * {@link createDropTable} validates and deep-freezes a schema-v1
+ * {@link DropTableDefinition} against the exact bounds the Java
+ * `DropTableDefinitionParser` enforces and registers it through
+ * `defineDropTable`. The fluent {@link DropTableBuilder} emits the same
+ * canonical output: integral amounts and weights only, `always` entries
+ * with weight `0`, and no `Infinity` or fractional weights — the legacy
+ * author forms fail with a migration message instead of being silently
+ * converted.
  *
  * @module core/drop-tables
  *
- * @example Manual construction
+ * @example
  * ```ts
- * import { createLootTable } from "./drop-tables.js";
- *
- * const dragonLoot = createLootTable({
+ * createDropTable({
  *   id: "dragon_king_loot",
- *   drops: [
- *     { id: "dragon_bones", amount: 1, weight: 100 },
- *     { id: "dragon_platebody", amount: 1, weight: 1 },
- *     { id: "coins", amount: [10000, 50000], weight: 30 },
+ *   entries: [
+ *     { itemId: 536, minAmount: 1, maxAmount: 1, weight: 0, always: true },
+ *     { itemId: 995, minAmount: 20000, maxAmount: 50000, weight: 128, always: false },
  *   ],
- *   rareDropMessage: "The dragon king drops a legendary item!",
  * });
  * ```
  *
- * @example Builder pattern
+ * @example Fluent builder
  * ```ts
- * import { dropTable } from "./drop-tables.js";
- *
- * const guardLoot = dropTable("guard_loot")
- *   .common("bones", 1)
- *   .uncommon("iron_med_helm", 1, 5)
- *   .rare("rune_med_helm", 1, 1)
- *   .always("bones", 1)  // guaranteed drop, independent of other rolls
- *   .rareMessage("A guard drops something valuable!")
+ * const table = dropTable("guard_loot")
+ *   .always("bones", 1)
+ *   .common("coins", [5, 25])
+ *   .uncommon("bronze_spear", 1)
+ *   .rare("goblin_mail", 1)
  *   .build();
- * ```
- *
- * @example Using convenience weight presets
- * ```ts
- * import { DropTableBuilder } from "./drop-tables.js";
- *
- * const table = new DropTableBuilder("treasure_chest")
- *   .entry("coins", [50, 200], DropTableBuilder.COMMON)     // weight 128
- *   .entry("uncut_sapphire", 1, DropTableBuilder.UNCOMMON)   // weight 32
- *   .entry("uncut_diamond", 1, DropTableBuilder.RARE)        // weight 1
- *   .build();
+ * defineDropTable(table);
  * ```
  */
 
-import type { ItemId, LootEntry, LootTable } from "./types.js";
-import type { DropTableDefinition } from "./runtime.js";
+import type { ItemId } from "./types.js";
+import type { DropTableDefinition, DropTableEntry } from "./runtime.js";
 
-// ─── Internal helpers ─────────────────────────────────────────────────────────
+const ID_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/;
 
-const MODULE_ID_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/;
+const MAX_ENTRIES = 64;
+const MAX_AMOUNT = 1000000;
+const MAX_WEIGHT = 1000000;
+const MAX_ITEM_ID = 14999;
 
 function assert(condition: boolean, message: string): asserts condition {
   if (!condition) {
@@ -61,238 +51,229 @@ function assert(condition: boolean, message: string): asserts condition {
   }
 }
 
-function isValidItemId(id: ItemId): boolean {
-  return (typeof id === "number" && id > 0) ||
-    (typeof id === "string" && id.length > 0);
+function integral(value: number, min: number, max: number): boolean {
+  return Number.isSafeInteger(value) && value >= min && value <= max;
 }
 
-// ─── Drop table options ───────────────────────────────────────────────────────
-
-/**
- * Options for creating a loot table manually.
- */
-export interface LootTableOptions {
-  readonly id: string;
-  readonly drops: readonly LootEntry[];
-  readonly rareDropMessage?: string;
-}
-
-/**
- * Create a validated {@link LootTable}.
- *
- * Validation rules:
- * - `id` must be a non-empty string.
- * - `drops` must have at least one entry.
- * - Every entry must have a valid item id, positive weight, and valid amount
- *   (positive number or `[min, max]` range where `min >= 1` and `max >= min`).
- * - Total weight must be greater than zero.
- *
- * @param options  Loot table configuration.
- * @returns A frozen {@link LootTable}.
- */
-export function createLootTable(options: LootTableOptions): LootTable {
-  assert(typeof options.id === "string" && options.id.length > 0,
-    "LootTable id must be a non-empty string");
-  assert(Array.isArray(options.drops) && options.drops.length > 0,
-    `LootTable "${options.id}": drops must be a non-empty array`);
-
-  let totalWeight = 0;
-  for (let i = 0; i < options.drops.length; i++) {
-    const entry = options.drops[i];
-    const label = `LootTable "${options.id}" drops[${i}]`;
-
-    assert(isValidItemId(entry.id),
-      `${label}: id must be a positive number or non-empty string`);
-    assert(typeof entry.weight === "number" && entry.weight > 0,
-      `${label}: weight must be positive, got ${entry.weight}`);
-
-    if (Array.isArray(entry.amount)) {
-      assert(entry.amount.length === 2,
-        `${label}: amount range must have exactly 2 elements`);
-      assert(Number.isInteger(entry.amount[0]) && entry.amount[0] >= 1,
-        `${label}: amount range min must be >= 1, got ${entry.amount[0]}`);
-      assert(Number.isInteger(entry.amount[1]) && entry.amount[1] >= entry.amount[0],
-        `${label}: amount range max must be >= min (${entry.amount[1]} vs ${entry.amount[0]})`);
-    } else {
-      assert(typeof entry.amount === "number" && Number.isInteger(entry.amount) && entry.amount >= 1,
-        `${label}: amount must be a positive integer, got ${entry.amount}`);
-    }
-
-    totalWeight += entry.weight;
+function validateEntry(entry: DropTableEntry, index: number): void {
+  const label = `entries[${index}]`;
+  const isNumeric = typeof entry.itemId === "number";
+  const isName = typeof entry.itemId === "string" && entry.itemId.length > 0;
+  assert(isNumeric || isName,
+    `${label} must carry a numeric item id or a non-empty item name`);
+  if (isNumeric) {
+    assert(integral(entry.itemId, 1, MAX_ITEM_ID),
+      `${label} item id must be an integer 1..${MAX_ITEM_ID} or an item name`);
   }
-
-  assert(totalWeight > 0,
-    `LootTable "${options.id}": total weight must be > 0`);
-
-  return Object.freeze({
-    id: options.id,
-    drops: options.drops,
-    rareDropMessage: options.rareDropMessage,
-  });
+  assert(integral(entry.minAmount, 1, MAX_AMOUNT),
+    `${label} minAmount must be an integer 1..${MAX_AMOUNT}, ` +
+      `got ${entry.minAmount}`);
+  assert(integral(entry.maxAmount, 1, MAX_AMOUNT),
+    `${label} maxAmount must be an integer 1..${MAX_AMOUNT}, ` +
+      `got ${entry.maxAmount}`);
+  assert(entry.minAmount <= entry.maxAmount,
+    `${label} minAmount must not exceed maxAmount`);
+  assert(integral(entry.weight, 0, MAX_WEIGHT),
+    `${label} weight must be an integer 0..${MAX_WEIGHT}, ` +
+      `got ${entry.weight}`);
+  assert(typeof entry.always === "boolean",
+    `${label} always must be a boolean`);
+  assert(entry.always === (entry.weight === 0),
+    `${label} always requires weight 0 and non-always entries require a ` +
+      "positive weight");
 }
 
-// ─── Convenience weight constants ─────────────────────────────────────────────
-
 /**
- * Common weight presets for drop tables.
+ * Validate, deep-freeze, and register a canonical
+ * {@link DropTableDefinition} through `defineDropTable`.
  *
- * These produce roughly the following probabilities in a weight-128 system:
+ * Mirrors the Java parser bounds: `1..64` entries with exactly the
+ * declared item id, `minAmount`/`maxAmount` (`1..1000000`,
+ * `minAmount <= maxAmount`), integral `weight` (`0..1000000`), and
+ * `always`; `always` requires weight `0`, an all-always table is valid,
+ * and the weighted weight sum must stay `1..1000000`. String item ids
+ * resolve once at candidate load by the engine; this factory validates
+ * the shape only.
  *
- * | Constant    | Weight | ~Probability |
- * |-------------|--------|--------------|
- * | `COMMON`    | 128    | ~50%         |
- * | `UNCOMMON`  | 32     | ~12.5%       |
- * | `RARE`      | 1      | ~0.4%        |
- * | `VERY_RARE` | 0.25   | ~0.1%        |
+ * @param definition  Raw drop table configuration.
+ * @returns The frozen canonical {@link DropTableDefinition} that was
+ *          registered.
  */
-export const DropWeights = {
-  COMMON: 128,
-  UNCOMMON: 32,
-  RARE: 1,
-  VERY_RARE: 0.25,
-} as const;
+export function createDropTable(definition: DropTableDefinition): DropTableDefinition {
+  assert(typeof definition.id === "string" && ID_PATTERN.test(definition.id),
+    `invalid drop table id '${String(definition.id)}': expected at most 64 ` +
+      "characters of letters, digits, '.', '_', or '-'");
+  assert(definition.entries.length >= 1 && definition.entries.length <= MAX_ENTRIES,
+    `Drop table '${definition.id}' must contain 1..${MAX_ENTRIES} entries`);
+
+  let weightedSum = 0;
+  const hasWeighted = definition.entries.some((entry) => !entry.always);
+  const entries = definition.entries.map((entry, index) => {
+    validateEntry(entry, index);
+    if (!entry.always) {
+      weightedSum += entry.weight;
+    }
+    return Object.freeze({ ...entry });
+  });
+  assert(weightedSum <= MAX_WEIGHT && (weightedSum > 0 || !hasWeighted),
+    `Drop table '${definition.id}' weighted weight sum must be ` +
+      `1..${MAX_WEIGHT}`);
+
+  const frozen = Object.freeze({
+    id: definition.id,
+    entries: Object.freeze(entries),
+  });
+  defineDropTable(frozen);
+  return frozen;
+}
+
+// ─── Fluent builder ──────────────────────────────────────────────────────────
+
+/** Weight preset: common (~50% in a weight-128 table). */
+export const COMMON_WEIGHT = 128;
+/** Weight preset: uncommon (~12.5% in a weight-128 table). */
+export const UNCOMMON_WEIGHT = 32;
+/** Weight preset: rare (~0.4% in a weight-128 table). */
+export const RARE_WEIGHT = 1;
 
 /**
- * Builder for constructing a {@link LootTable} with a chainable API.
+ * Builder for constructing a canonical {@link DropTableDefinition} with a
+ * chainable API.
  *
- * Entries are added with convenience methods (`common`, `uncommon`, `rare`,
- * `veryRare`, `always`) or the generic `entry` method.
- *
- * "Always" entries are not subject to the weight-roll system; they are
- * guaranteed to drop alongside whatever the weight roll produces. The
- * engine interprets an `always` entry as having weight `Infinity`.
+ * Entries are added with convenience methods (`common`, `uncommon`,
+ * `rare`, `always`) or the generic `entry` method. Weights are exact
+ * integral amounts; the legacy `Infinity`/fractional forms are rejected
+ * with a migration message because the canonical Java parser only accepts
+ * integral weights.
  *
  * @example
  * ```ts
- * const table = new DropTableBuilder("demon_loot")
+ * const table = dropTable("demon_loot")
  *   .always("ashes", 1)
  *   .common("coins", [500, 2000])
  *   .uncommon("rune_scimitar", 1)
  *   .rare("dragon_med_helm", 1)
- *   .veryRare("abyssal_whip", 1)
  *   .build();
  * ```
  */
 export class DropTableBuilder {
   /** Weight preset: common (~50% in a weight-128 system). */
-  static readonly COMMON = DropWeights.COMMON;
+  static readonly COMMON = COMMON_WEIGHT;
   /** Weight preset: uncommon (~12.5% in a weight-128 system). */
-  static readonly UNCOMMON = DropWeights.UNCOMMON;
+  static readonly UNCOMMON = UNCOMMON_WEIGHT;
   /** Weight preset: rare (~0.4% in a weight-128 system). */
-  static readonly RARE = DropWeights.RARE;
-  /** Weight preset: very rare (~0.1% in a weight-128 system). */
-  static readonly VERY_RARE = DropWeights.VERY_RARE;
+  static readonly RARE = RARE_WEIGHT;
 
   private _id: string;
-  private _entries: LootEntry[] = [];
-  private _rareMessage: string | undefined;
-  private _seenIds: Set<string> = new Set();
+  private _entries: DropTableEntry[] = [];
 
   constructor(id: string) {
-    assert(typeof id === "string" && id.length > 0,
-      "DropTable id must be a non-empty string");
+    assert(typeof id === "string" && ID_PATTERN.test(id),
+      `invalid drop table id '${id}': expected at most 64 characters of ` +
+        "letters, digits, '.', '_', or '-'");
     this._id = id;
   }
 
+  private normalizeAmount(
+    id: ItemId,
+    amount: number | readonly [number, number],
+  ): [number, number] {
+    if (typeof amount === "number") {
+      assert(integral(amount, 1, MAX_AMOUNT),
+        `Drop entry "${String(id)}": amount must be an integer 1..` +
+          `${MAX_AMOUNT}, got ${amount}`);
+      return [amount, amount];
+    }
+    assert(amount.length === 2,
+      `Drop entry "${String(id)}": amount range must have exactly 2 elements`);
+    assert(integral(amount[0], 1, MAX_AMOUNT) && integral(amount[1], 1, MAX_AMOUNT),
+      `Drop entry "${String(id)}": amount range bounds must be integers ` +
+        `1..${MAX_AMOUNT}`);
+    assert(amount[1] >= amount[0],
+      `Drop entry "${String(id)}": amount range max must be >= min`);
+    return [amount[0], amount[1]];
+  }
+
   /**
-   * Add a weight-based entry to the drop table.
+   * Add a weighted entry to the drop table.
    *
-   * @param id      Item id (number or string constant).
+   * @param id      Item id (number or item name).
    * @param amount  Fixed amount or `[min, max]` range.
-   * @param weight  Drop weight (higher = more likely). Use the static
-   *                weight constants for readable presets.
+   * @param weight  Integral drop weight `1..1000000`.
    * @returns This builder (chainable).
    */
-  entry(id: ItemId, amount: number | [number, number], weight: number): this {
-    assert(isValidItemId(id), `Drop entry: invalid item id "${String(id)}"`);
-    assert(weight > 0 || weight === Infinity,
-      `Drop entry "${String(id)}": weight must be positive, got ${weight}`);
-
-    if (Array.isArray(amount)) {
-      assert(amount.length === 2 &&
-        Number.isInteger(amount[0]) && amount[0] >= 1 &&
-        Number.isInteger(amount[1]) && amount[1] >= amount[0],
-        `Drop entry "${String(id)}": invalid amount range`);
-    } else {
-      assert(typeof amount === "number" && Number.isInteger(amount) && amount >= 1,
-        `Drop entry "${String(id)}": amount must be a positive integer`);
-    }
-
-    const key = String(id);
-    assert(!this._seenIds.has(key),
-      `Duplicate drop entry for item "${String(id)}"`);
-    this._seenIds.add(key);
-
+  entry(id: ItemId, amount: number | readonly [number, number], weight: number): this {
+    assert(integral(weight, 1, MAX_WEIGHT),
+      `Drop entry "${String(id)}": weight must be an integer 1..` +
+        `${MAX_WEIGHT}, got ${weight}`);
+    const [minAmount, maxAmount] = this.normalizeAmount(id, amount);
     this._entries.push({
-      id,
-      amount,
+      itemId: id,
+      minAmount,
+      maxAmount,
       weight,
+      always: false,
     });
-
     return this;
-  }
-
-  /**
-   * Add a common drop (weight 128, ~50% in a typical table).
-   */
-  common(id: ItemId, amount: number | [number, number]): this {
-    return this.entry(id, amount, DropWeights.COMMON);
-  }
-
-  /**
-   * Add an uncommon drop (weight 32, ~12.5% in a typical table).
-   */
-  uncommon(id: ItemId, amount: number | [number, number], weight?: number): this {
-    return this.entry(id, amount, weight ?? DropWeights.UNCOMMON);
-  }
-
-  /**
-   * Add a rare drop (weight 1, ~0.4% in a typical table).
-   */
-  rare(id: ItemId, amount: number | [number, number]): this {
-    return this.entry(id, amount, DropWeights.RARE);
-  }
-
-  /**
-   * Add a very rare drop (weight 0.25, ~0.1% in a typical table).
-   */
-  veryRare(id: ItemId, amount: number | [number, number]): this {
-    return this.entry(id, amount, DropWeights.VERY_RARE);
   }
 
   /**
    * Add a guaranteed drop (always given, independent of the weight roll).
+   * Represented canonically as `always: true` with weight `0`.
    *
-   * Represented internally as `weight: Infinity` so the engine can recognise
-   * guaranteed entries.  Use this for bones, ashes, keys, or tokens that
-   * always drop.
+   * @param id      Item id (number or item name).
+   * @param amount  Fixed amount or `[min, max]` range.
+   * @returns This builder (chainable).
    */
-  always(id: ItemId, amount: number | [number, number]): this {
-    return this.entry(id, amount, Infinity);
-  }
-
-  /**
-   * Set a message broadcast to all players when a rare drop occurs.
-   * The engine uses a weight threshold (default: <= 1) to determine rarity.
-   */
-  rareMessage(message: string): this {
-    assert(typeof message === "string" && message.length > 0,
-      "rareMessage must be a non-empty string");
-    this._rareMessage = message;
+  always(id: ItemId, amount: number | readonly [number, number]): this {
+    const [minAmount, maxAmount] = this.normalizeAmount(id, amount);
+    this._entries.push({
+      itemId: id,
+      minAmount,
+      maxAmount,
+      weight: 0,
+      always: true,
+    });
     return this;
   }
 
+  /** Add a common drop (weight 128, ~50% in a typical table). */
+  common(id: ItemId, amount: number | readonly [number, number]): this {
+    return this.entry(id, amount, COMMON_WEIGHT);
+  }
+
+  /** Add an uncommon drop (weight 32, ~12.5% in a typical table). */
+  uncommon(id: ItemId, amount: number | readonly [number, number], weight?: number): this {
+    return this.entry(id, amount, weight ?? UNCOMMON_WEIGHT);
+  }
+
+  /** Add a rare drop (weight 1, ~0.4% in a typical table). */
+  rare(id: ItemId, amount: number | readonly [number, number]): this {
+    return this.entry(id, amount, RARE_WEIGHT);
+  }
+
   /**
-   * Build the validated {@link LootTable}.
+   * Legacy very-rare preset. The former `0.25` fractional weight has no
+   * canonical representation; this method fails with a migration message
+   * instead of silently changing the odds.
    */
-  build(): LootTable {
+  veryRare(_id: ItemId, _amount: number | readonly [number, number]): this {
+    throw new Error(
+      "[drop-tables] veryRare() is not supported: the legacy 0.25 " +
+        "fractional weight has no canonical representation. Use " +
+        ".rare(id, amount) or an explicit integral weight with .entry().",
+    );
+  }
+
+  /**
+   * Build the validated canonical {@link DropTableDefinition}.
+   */
+  build(): DropTableDefinition {
     assert(this._entries.length > 0,
       `DropTable "${this._id}": at least one entry is required`);
-
-    return createLootTable({
+    return createDropTable({
       id: this._id,
-      drops: this._entries,
-      rareDropMessage: this._rareMessage,
+      entries: this._entries,
     });
   }
 }
@@ -315,115 +296,4 @@ export class DropTableBuilder {
  */
 export function dropTable(id: string): DropTableBuilder {
   return new DropTableBuilder(id);
-}
-
-// ─── Table merging utilities ──────────────────────────────────────────────────
-
-/**
- * Merge multiple loot tables into one.
- *
- * All entries from all source tables are combined into a single table.
- * The `rareDropMessage` is taken from the first table that has one.
- *
- * @param id      Id for the merged table.
- * @param tables  Source tables to merge.
- * @returns A new frozen {@link LootTable}.
- */
-export function mergeTables(
-  id: string,
-  tables: readonly LootTable[],
-): LootTable {
-  assert(typeof id === "string" && id.length > 0,
-    "Merged table id must be a non-empty string");
-  assert(tables.length > 0,
-    "At least one source table is required to merge");
-
-  const allEntries: LootEntry[] = [];
-  for (const table of tables) {
-    allEntries.push(...table.drops);
-  }
-
-  const rareMessage = tables.find(t => t.rareDropMessage !== undefined)
-    ?.rareDropMessage;
-
-  return createLootTable({
-    id,
-    drops: allEntries,
-    rareDropMessage: rareMessage,
-  });
-}
-
-/**
- * Compute the normalised probability for each entry in a table.
- *
- * Returns entries sorted by probability (highest first) with the
- * percentage chance of hitting each drop on a single roll.
- *
- * Entries with weight `Infinity` (guaranteed drops) get probability 1.
- *
- * @param table  The loot table to analyse.
- * @returns Array of `{ entry, probability }` objects.
- */
-export function analyseTable(
-  table: LootTable,
-): readonly { entry: LootEntry; probability: number }[] {
-  const guaranteed = table.drops.filter(e => e.weight === Infinity);
-  const weighted = table.drops.filter(e => e.weight !== Infinity &&
-    Number.isFinite(e.weight));
-
-  const totalWeight = weighted.reduce((sum, e) => sum + e.weight, 0);
-
-  const weightedResults = weighted.map(entry => ({
-    entry,
-    probability: totalWeight > 0 ? entry.weight / totalWeight : 0,
-  }));
-
-  const guaranteedResults = guaranteed.map(entry => ({
-    entry,
-    probability: 1,
-  }));
-
-  return [...guaranteedResults, ...weightedResults]
-    .sort((a, b) => b.probability - a.probability);
-}
-
-/**
- * Registers one canonical schema-v1 named drop table through the Java
- * bridge.
- *
- * Entries use the exact Phase 4 contract: integral amounts and weights,
- * `always: true` with weight `0`, preserved order, and no `Infinity` or
- * fractional weights at the Java boundary. The Java parser re-validates the
- * complete definition and resolves string item names at candidate load.
- */
-export function createDropTable(definition: DropTableDefinition): void {
-  const id = definition.id;
-  if (!MODULE_ID_PATTERN.test(id)) {
-    throw new Error(
-      `Invalid drop table id '${id}': expected at most 64 characters of ` +
-        "letters, digits, '.', '_', or '-'",
-    );
-  }
-  if (definition.entries.length < 1 || definition.entries.length > 64) {
-    throw new Error(`Drop table '${id}' must contain 1..64 entries`);
-  }
-  let weightedSum = 0;
-  for (const entry of definition.entries) {
-    if (entry.always !== (entry.weight === 0)) {
-      throw new Error(
-        `Drop table '${id}' entry always requires weight 0 and ` +
-          "non-always entries require a positive weight",
-      );
-    }
-    if (entry.always) {
-      continue;
-    }
-    weightedSum += entry.weight;
-  }
-  if (weightedSum > 1_000_000) {
-    throw new Error(
-      `Drop table '${id}' weighted weight sum must be 1..1000000`,
-    );
-  }
-  defineDropTable(definition);
 }

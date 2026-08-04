@@ -305,6 +305,8 @@ public final class ScriptHost {
 				candidateContext.eval(source);
 			}
 			QuestRegistry.validateCandidate(candidateState);
+			com.rs2.script.quest.ScriptQuestJournalService.getInstance()
+					.validateCandidate(candidateState);
 			RegistryStore.State committedState =
 					RegistryStore.finish(candidateState);
 			candidateState = null;
@@ -355,6 +357,25 @@ public final class ScriptHost {
 							.closeGeneration(previousGeneration));
 			runPostCommit("close old-generation scripted shops",
 					() -> com.rs2.script.shop.ScriptShopRuntime.getInstance()
+							.closeGeneration(previousGeneration));
+			runPostCommit("close old-generation raid lobbies and sessions",
+					() -> com.rs2.script.raid.ScriptRaidRuntime.getInstance()
+							.closeGeneration(previousGeneration));
+			runPostCommit("publish resource generation",
+					() -> com.rs2.script.resource.ScriptResourceRuntime
+							.getInstance()
+							.onGenerationPublished(published.generation()));
+			runPostCommit("close old-generation resource sessions",
+					() -> com.rs2.script.resource.ScriptResourceRuntime
+							.getInstance()
+							.closeGeneration(previousGeneration));
+			runPostCommit("publish scripted quest journal mapping",
+					() -> com.rs2.script.quest.ScriptQuestJournalService
+							.getInstance()
+							.onGenerationPublished(published.generation()));
+			runPostCommit("close old-generation quest journal mapping",
+					() -> com.rs2.script.quest.ScriptQuestJournalService
+							.getInstance()
 							.closeGeneration(previousGeneration));
 			runPostCommit("cancel old-generation tasks",
 					() -> ScriptScheduler.getInstance()
@@ -422,6 +443,16 @@ public final class ScriptHost {
 				.closeGeneration(previousGeneration);
 		com.rs2.script.shop.ScriptShopRuntime.getInstance()
 				.closeGeneration(previousGeneration);
+		com.rs2.script.raid.ScriptRaidRuntime.getInstance()
+				.closeGeneration(previousGeneration);
+		com.rs2.script.resource.ScriptResourceRuntime.getInstance()
+				.onGenerationPublished(generation);
+		com.rs2.script.resource.ScriptResourceRuntime.getInstance()
+				.closeGeneration(previousGeneration);
+		com.rs2.script.quest.ScriptQuestJournalService.getInstance()
+				.onGenerationPublished(generation);
+		com.rs2.script.quest.ScriptQuestJournalService.getInstance()
+				.closeGeneration(previousGeneration);
 		clearPendingScriptCallbacks();
 	}
 
@@ -434,6 +465,12 @@ public final class ScriptHost {
 		com.rs2.script.area.ScriptAreaRuntime.getInstance()
 				.resetForTesting();
 		com.rs2.script.shop.ScriptShopRuntime.getInstance()
+				.resetForTesting();
+		com.rs2.script.raid.ScriptRaidRuntime.getInstance()
+				.resetForTesting();
+		com.rs2.script.resource.ScriptResourceRuntime.getInstance()
+				.resetForTesting();
+		com.rs2.script.quest.ScriptQuestJournalService.getInstance()
 				.resetForTesting();
 		projectionAdapter = com.rs2.script.area.ScriptAreaRuntime
 				.getInstance();

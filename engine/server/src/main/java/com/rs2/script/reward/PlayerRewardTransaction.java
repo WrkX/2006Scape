@@ -109,23 +109,12 @@ public final class PlayerRewardTransaction {
 						return Result.MUTATION_FAILED;
 					}
 					xpAwards[skill] += grant.amount();
-					if (xpAwards[skill] > MAX_XP
-							|| (long) oldXp[skill] + xpAwards[skill]
-									> MAX_XP) {
+					if (xpAwards[skill] > MAX_XP) {
 						return Result.XP_CAP;
 					}
 				}
-				for (int skill = 0; skill < xpAwards.length; skill++) {
-					if (xpAwards[skill] == 0) {
-						continue;
-					}
-					int oldBase = PlayerAssistant.getLevelForXP(oldXp[skill]);
-					int delta = oldLevels[skill] - oldBase;
-					nextXp[skill] = (int) ((long) oldXp[skill]
-							+ xpAwards[skill]);
-					int newBase = PlayerAssistant.getLevelForXP(nextXp[skill]);
-					nextLevels[skill] = Math.max(0, Math.min(255,
-							newBase + delta));
+				if (!planExperience(nextXp, nextLevels, xpAwards)) {
+					return Result.XP_CAP;
 				}
 
 				System.arraycopy(nextItems, 0, player.playerItems, 0,
@@ -163,9 +152,33 @@ public final class PlayerRewardTransaction {
 		}
 	}
 
-	private static void applyState(Player player,
-			RewardDefinition.StateMutation mutation) {
-		// The store's set() returns false only for an idempotent no-change;
+	/**
+	 * Computes {@code nextXp}/{@code nextLevels} from the accumulated
+	 * {@code awards} against a starting snapshot. Returns {@code false} when
+	 * any award exceeds the 200,000,000 cap; the copies are discarded on
+	 * refusal.
+	 */
+	static boolean planExperience(int[] nextXp, int[] nextLevels,
+			long[] awards) {
+		for (int skill = 0; skill < awards.length; skill++) {
+			if (awards[skill] == 0) {
+				continue;
+			}
+			if (awards[skill] > MAX_XP
+					|| (long) nextXp[skill] + awards[skill] > MAX_XP) {
+				return false;
+			}
+			int oldBase = PlayerAssistant.getLevelForXP(nextXp[skill]);
+			int delta = nextLevels[skill] - oldBase;
+			nextXp[skill] = (int) ((long) nextXp[skill] + awards[skill]);
+			int newBase = PlayerAssistant.getLevelForXP(nextXp[skill]);
+			nextLevels[skill] = Math.max(0, Math.min(255, newBase + delta));
+		}
+		return true;
+	}
+
+	static void applyState(Player player,
+			RewardDefinition.StateMutation mutation) {		// The store's set() returns false only for an idempotent no-change;
 		// validation and limit violations throw ScriptStateException.
 		if (mutation.isBoolean()) {
 			player.getScriptState().set(mutation.namespace(),
@@ -179,7 +192,7 @@ public final class PlayerRewardTransaction {
 		}
 	}
 
-	private static boolean addToCandidate(int[] items, int[] amounts,
+	static boolean addToCandidate(int[] items, int[] amounts,
 			RewardDefinition.ItemReward reward) {
 		ItemDefinition[] definitions = ItemDefinition.getDefinitions();
 		int id = reward.itemId();
@@ -238,7 +251,7 @@ public final class PlayerRewardTransaction {
 		return count;
 	}
 
-	private static void verify(Player player, PlayerRewardStateOwner owner,
+	static void verify(Player player, PlayerRewardStateOwner owner,
 			long ownerVersion, int[] items, int[] amounts, int[] xp,
 			int[] levels, int points) {
 		if (owner.version() != ownerVersion) {
@@ -257,7 +270,7 @@ public final class PlayerRewardTransaction {
 		}
 	}
 
-	private static void restore(Player player, int[] items, int[] amounts,
+	static void restore(Player player, int[] items, int[] amounts,
 			double weight, int[] xp, int[] levels, int points,
 			ScriptStateSnapshot state) {
 		System.arraycopy(items, 0, player.playerItems, 0, items.length);

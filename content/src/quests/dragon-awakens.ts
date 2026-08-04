@@ -136,9 +136,9 @@ onNpcDeath(DRAGON_GUARDIAN_NPC, ({ killer }) => {
 onLogin(({ player }) => {
   const quest = player.quest(DRAGON_AWAKENS_ID);
   if (quest !== null && quest.state() === "in_progress") {
-    const stage = quest.stage();
-    if (stage !== null) {
-      player.message(`Dragon Awakens objective: ${stage + 1}/5.`);
+    const objective = quest.objective();
+    if (objective !== null) {
+      player.message(`Dragon Awakens: ${objective}`);
     }
   }
 });

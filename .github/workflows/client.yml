@@ -1,0 +1,65 @@
+name: Client
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'engine/client/**'
+      - 'engine/pom.xml'
+      - 'engine/mvnw'
+      - 'engine/mvnw.cmd'
+      - 'engine/.mvn/**'
+      - 'scripts/package-client.sh'
+      - '.github/workflows/client.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'engine/client/**'
+      - 'engine/pom.xml'
+      - 'engine/mvnw'
+      - 'engine/mvnw.cmd'
+      - 'engine/.mvn/**'
+      - 'scripts/package-client.sh'
+      - '.github/workflows/client.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: maven
+
+      - name: Build and test client
+        working-directory: engine
+        run: ./mvnw -B -pl client test package
+
+      - name: Verify Java 17 release build
+        working-directory: engine
+        shell: bash
+        run: |
+          JAR="client/target/client-1.0-jar-with-dependencies.jar"
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            JAR=$(cygpath -w "$JAR")
+          fi
+          "$JAVA_HOME/bin/javap" -verbose -classpath "$JAR" Main | grep -E "major version: (6[0-9])"
+
+      - name: Verify manifest metadata
+        working-directory: engine
+        shell: bash
+        run: |
+          JAR="client/target/client-1.0-jar-with-dependencies.jar"
+          unzip -p "$JAR" META-INF/MANIFEST.MF | grep -E "Implementation-(Title|Vendor|Version)"

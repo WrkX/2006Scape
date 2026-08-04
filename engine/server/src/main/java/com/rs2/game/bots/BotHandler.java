@@ -150,6 +150,7 @@ public class BotHandler {
     public static void closeShop(Player player) {
         Client shop = getPlayerShop(player.playerName);
         if (shop == null) return;
+        String shopBotName = getShopName(player.playerName);
         ShopHandler.closePlayerShop(shop);
         shop.getPlayerAssistant().movePlayer(0, 0, 0);
         new Thread(() -> {
@@ -158,11 +159,13 @@ public class BotHandler {
                 shop.disconnected = true;
                 shop.logout(true);
                 for (int index = 0; index < botList.size(); index++) {
-                    if (botList.get(index).getBotClient().properName.equalsIgnoreCase(player.properName)) {
+                    Bot bot = botList.get(index);
+                    if (bot != null && bot.getBotClient() != null
+                            && bot.getBotClient().playerName.equalsIgnoreCase(shopBotName)) {
+                        bot.shutdown();
                         botList.remove(index);
                         return;
                     }
-                    index++;
                 }
             } catch (Exception e) {
                 System.err.println(e);

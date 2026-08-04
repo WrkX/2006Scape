@@ -1,5 +1,6 @@
 package com.rs2.script.quest;
 
+import com.rs2.game.content.quests.QuestAssistant;
 import com.rs2.game.players.Player;
 import com.rs2.game.players.PlayerAssistant;
 import com.rs2.script.quest.QuestDefinition.ItemAmount;
@@ -10,6 +11,8 @@ import com.rs2.script.state.ScriptStateSnapshot;
  * Java-owned quest state machine.
  */
 public final class QuestService {
+
+	public static final String COMPLETED_OBJECTIVE = "Quest complete.";
 
 	private static final QuestService INSTANCE =
 			new QuestService(new QuestRewardTransaction());
@@ -33,6 +36,34 @@ public final class QuestService {
 	public Integer stage(Player player, String id) {
 		synchronized (player) {
 			return QuestStateAccess.stage(player, id);
+		}
+	}
+
+	/**
+	 * Read-only projection of the active quest objective: {@code null} while
+	 * not started or when no stage is stored, the current stage text while in
+	 * progress, and the stable completion summary once completed.
+	 */
+	public String objective(Player player, QuestDefinition definition) {
+		synchronized (player) {
+			QuestState state = QuestStateAccess.state(player, definition.getId());
+			if (state == QuestState.COMPLETED) {
+				return COMPLETED_OBJECTIVE;
+			}
+			if (state != QuestState.IN_PROGRESS) {
+				return null;
+			}
+			Integer stage = QuestStateAccess.stage(player, definition.getId());
+			if (stage == null) {
+				return null;
+			}
+			for (QuestDefinition.Stage candidate
+					: definition.getStages()) {
+				if (candidate.getStage() == stage.intValue()) {
+					return candidate.getObjective();
+				}
+			}
+			return null;
 		}
 	}
 
@@ -75,6 +106,7 @@ public final class QuestService {
 				QuestStateAccess.setStage(player, definition.getId(), 0);
 				QuestStateAccess.setState(player, definition.getId(),
 						QuestState.IN_PROGRESS);
+				QuestAssistant.sendStages(player);
 				return QuestResult.changed(QuestResultCode.STARTED);
 			} catch (RuntimeException failure) {
 				player.getScriptState().replace(snapshot);
@@ -103,6 +135,7 @@ public final class QuestService {
 						QuestResultCode.INVALID_STAGE);
 			}
 			QuestStateAccess.setStage(player, definition.getId(), nextStage);
+			QuestAssistant.sendStages(player);
 			return QuestResult.changed(QuestResultCode.ADVANCED);
 		}
 	}

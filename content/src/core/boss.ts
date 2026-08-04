@@ -239,12 +239,12 @@ export interface BossContext {
   useSpecial(attackName: string): void;
 
   /**
-   * Roll on a named loot table and distribute loot to the top damage
+   * Roll on a named drop table and distribute loot to the top damage
    * dealers (or all participants if damage tracking is unavailable).
    *
-   * @param lootTableId The id of a {@link LootTable} to roll on.
+   * @param dropTableId The id of a named drop table to roll on.
    */
-  rollLoot(lootTableId: string): void;
+  rollLoot(dropTableId: string): void;
 
   /**
    * Heal the boss by a flat amount (capped at max HP).

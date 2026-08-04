@@ -90,6 +90,16 @@ public class ScriptHostTest {
 					.get("dragon_island"));
 			assertNotNull(com.rs2.script.shop.ShopDefinitionRegistry
 					.get("dragon_island_general"));
+			com.rs2.script.resource.GatheringResourceDefinition treeResource =
+					com.rs2.script.resource.GatheringResourceRegistry
+							.get("tree");
+			assertNotNull(treeResource);
+			assertEquals(1276, treeResource.objectId());
+			assertEquals("first", treeResource.action());
+			assertEquals(com.rs2.Constants.WOODCUTTING, treeResource.skill());
+			assertEquals(1511, treeResource.rewards().get(0).itemId());
+			assertNotNull(com.rs2.script.resource.GatheringResourceRegistry
+					.get("oak-tree"));
 			assertNotNull(NpcHandlerRegistry.get(1, "first"));
 			assertNotNull(CommandHandlerRegistry.get("hello"));
 			assertNotNull(ItemHandlerRegistry.getItem(14990, "first"));
@@ -177,6 +187,16 @@ public class ScriptHostTest {
 					.get("dragon_island"));
 			assertNotNull(com.rs2.script.shop.ShopDefinitionRegistry
 					.get("dragon_island_general"));
+			com.rs2.script.resource.GatheringResourceDefinition treeResource =
+					com.rs2.script.resource.GatheringResourceRegistry
+							.get("tree");
+			assertNotNull(treeResource);
+			assertEquals(1276, treeResource.objectId());
+			assertEquals("first", treeResource.action());
+			assertEquals(com.rs2.Constants.WOODCUTTING, treeResource.skill());
+			assertEquals(1511, treeResource.rewards().get(0).itemId());
+			assertNotNull(com.rs2.script.resource.GatheringResourceRegistry
+					.get("oak-tree"));
 			assertNotNull(NpcHandlerRegistry.get(1, "first"));
 			assertNotNull(CommandHandlerRegistry.get("hello"));
 			assertNotNull(ItemHandlerRegistry.getItem(14990, "first"));
@@ -221,7 +241,22 @@ public class ScriptHostTest {
 							com.rs2.script.definition.DefinitionKind.RAID,
 							"temple_of_zaros");
 			assertNotNull(raid);
-			assertTrue(raid.isGuestPayload());
+			assertFalse("the compiled loader raid must be a typed canonical "
+					+ "record", raid.isGuestPayload());
+			com.rs2.script.raid.RaidDefinition raidDefinition =
+					raid.raidPayload();
+			assertNotNull(raidDefinition);
+			assertEquals("temple_of_zaros", raidDefinition.id());
+			assertEquals("temple-of-zaros", raidDefinition.command());
+			assertEquals(2, raidDefinition.rooms().size());
+			assertEquals("dragon-king",
+					raidDefinition.rooms().get(1).boss().id());
+			assertEquals(1, raidDefinition.rewards().size());
+			assertEquals("zaros_raid_reward",
+					raidDefinition.rewards().get(0).id());
+			assertTrue(raidDefinition.hasRewardTable());
+			assertEquals("zaros_raid_loot", raidDefinition.rewardTable());
+			assertEquals(200, raidDefinition.privateTicks());
 			com.rs2.script.definition.DefinitionRecord area =
 					com.rs2.script.definition.DefinitionRegistry.get(
 							com.rs2.script.definition.DefinitionKind.AREA,
@@ -314,6 +349,13 @@ public class ScriptHostTest {
 			assertFalse(commands.get("dragon-king").isGuest());
 			assertTrue(commands.containsKey("dragon-king-close"));
 			assertFalse(commands.get("dragon-king-close").isGuest());
+			assertTrue(commands.containsKey("temple-of-zaros"));
+			assertFalse("the raid command route must be a Java host consumer",
+					commands.get("temple-of-zaros").isGuest());
+			assertNotNull(com.rs2.script.reward.RewardRegistry
+					.get("zaros_raid_reward"));
+			assertEquals(6, com.rs2.script.reward.RewardRegistry
+					.get("zaros_raid_reward").items().size());
 
 			assertEquals(0, ScriptHost.getInstance().getRuntimeReport()
 					.moduleCount());
@@ -342,7 +384,7 @@ public class ScriptHostTest {
 				"registerContentModule({id:'demo-module',schemaVersion:1},"
 						+ "function () {"
 						+ canonicalBossJs(9500, "demo-boss", "demo-boss-cmd")
-						+ "defineRaid({id:'demo-raid'});"
+						+ canonicalRaidJs("demo-raid", "demo-raid-cmd")
 						+ "onCommand('demo-command', function () {});"
 						+ "});"
 						+ "onCommand('legacy-command', function () {});")
@@ -477,6 +519,25 @@ public class ScriptHostTest {
 				+ command + "',onSpawn:function(){}});";
 	}
 
+	/**
+	 * Compact canonical schema-v1 raid source for host tests: one named
+	 * reward registered before the raid, no boss room. The reward item id
+	 * is only definition-checked while item definitions are loaded.
+	 */
+	private static String canonicalRaidJs(String id, String command) {
+		return "defineReward({id:'" + id + "-reward',items:[{id:995,"
+				+ "amount:1}],experience:[],questPoints:0,state:[]});"
+				+ "defineRaid({id:'" + id + "',command:'" + command + "',"
+				+ "bounds:{minX:100,minY:100,maxX:110,maxY:110,plane:0},"
+				+ "muster:{minX:100,minY:100,maxX:104,maxY:104},"
+				+ "entrance:{x:105,y:105,plane:0},minPlayers:1,maxPlayers:4,"
+				+ "timeLimitTicks:6000,rewards:['" + id + "-reward'],"
+				+ "rooms:[{id:'room-one',name:'Room One',"
+				+ "bounds:{minX:100,minY:100,maxX:110,maxY:110,plane:0},"
+				+ "onEnter:function(){},onTick:function(){return "
+				+ "{status:'completed'};},onComplete:function(){}}]});";
+	}
+
 	@Test
 	public void invalidAndDuplicateLifecycleRegistrationsRetainLastGoodGeneration()
 			throws Exception {
@@ -553,7 +614,7 @@ public class ScriptHostTest {
 				canonicalBossJs(9100, "stable-boss", "stable-boss-cmd")
 				+ "defineQuest({id:'stable-quest',name:'Stable Quest',"
 				+ "summary:'Stable.',stages:[{stage:0,objective:'Stay stable.'}]});"
-				+ "defineRaid({ id: 'stable-raid' });"
+				+ canonicalRaidJs("stable-raid", "stable-raid-cmd")
 				+ "defineArea({ id: 'stable-area', name: 'Stable',"
 				+ "bounds:{minX:100,minY:100,maxX:110,maxY:110,plane:0},"
 				+ "npcs:[],objects:[],shops:[],quests:[],bosses:[],raids:[]});"
@@ -825,7 +886,7 @@ public class ScriptHostTest {
 
 		Files.write(loader, (
 				canonicalBossJs(9400, "candidate-boss", "candidate-boss-cmd")
-				+ "defineRaid({id:'candidate-raid'});"
+				+ canonicalRaidJs("candidate-raid", "candidate-raid-cmd")
 				+ "defineArea({id:'candidate-area',name:'Candidate',"
 				+ "bounds:{minX:100,minY:100,maxX:110,maxY:110,plane:0},"
 				+ "npcs:[],objects:[],shops:[],quests:[],bosses:[],raids:[]});"
@@ -875,7 +936,7 @@ public class ScriptHostTest {
 		private final Context context;
 		private final com.rs2.script.boss.BossDefinition boss;
 		private final QuestDefinition quest;
-		private final Value raid;
+		private final com.rs2.script.raid.RaidDefinition raid;
 		private final com.rs2.script.area.AreaDefinition area;
 		private final Value npc;
 		private final Value object;

@@ -419,6 +419,8 @@ public class GameEngine {
 		ScriptLifecycleService.getInstance().processGameTick();
 		com.rs2.script.area.ScriptAreaRuntime.getInstance().processGameTick();
 		com.rs2.script.shop.ScriptShopRuntime.getInstance().processGameTick();
+		com.rs2.script.resource.ScriptResourceRuntime.getInstance()
+				.processGameTick();
 	}
 	
 	private static void checkAndLogDuration(String processName, long duration) {

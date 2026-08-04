@@ -21,6 +21,7 @@ import com.rs2.game.objects.Objects;
 import com.rs2.game.players.Player;
 import com.rs2.net.Packet;
 import com.rs2.net.packets.PacketType;
+import com.rs2.script.ScriptHost;
 import com.rs2.script.registries.ObjectHandlerRegistry;
 import com.rs2.world.ResolvedWorldObject;
 import com.rs2.world.WorldObjectService;
@@ -40,7 +41,13 @@ public class ClickObject implements PacketType {
 	}
 
 	static boolean isScriptedClick(int objectId, String action) {
-		return ObjectHandlerRegistry.get(objectId, action) != null;
+		// An exact guest callback or Java host consumer route makes the key
+		// authoritative: legacy pre-dispatch must not also run. Host routes
+		// (for example the gathering resource runtime) are not guest values,
+		// so the record lookup (which covers both) is used here.
+		return ScriptHost.getInstance().readActiveRegistry(
+				state -> ObjectHandlerRegistry.getRecord(state, objectId,
+						action)) != null;
 	}
 
 	public void onObjectReached(Player player, BiConsumer<Player, Objects> consumer) {
@@ -167,7 +174,9 @@ public class ClickObject implements PacketType {
 			}
 			if (HauntedWoodsTorch.isTorch(player.objectId)) {
 				HauntedWoodsTorch.light(player);
-			} else if (Woodcutting.playerTrees(player, player.objectId) && player.objectId != 1292) {
+			} else if (Woodcutting.playerTrees(player, player.objectId)
+					&& player.objectId != 1292
+					&& !isScriptedClick(player.objectId, "first")) {
 				Woodcutting.startWoodcutting(player, player.objectId, player.objectX, player.objectY, player.clickObjectType);
 			}
 			switch (player.objectId) {

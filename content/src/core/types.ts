@@ -202,24 +202,6 @@ export interface Quests {
   all(): Iterable<QuestEntry>;
 }
 
-// ─── Rewards & Loot ────────────────────────────────────────────────────────
-
-/** A weighted entry in a loot table. */
-export interface LootEntry {
-  readonly id: ItemId;
-  readonly amount: number | [number, number];
-  /** Relative weight; higher = more likely. */
-  readonly weight: number;
-}
-
-/** A named loot/reward table. */
-export interface LootTable {
-  readonly id: string;
-  readonly drops: readonly LootEntry[];
-  /** Optional rare-drop broadcast message. */
-  readonly rareDropMessage?: string;
-}
-
 // ─── Dialogue ──────────────────────────────────────────────────────────────
 
 /** A single dialogue option shown to the player. */
@@ -280,20 +262,6 @@ export interface Shop {
   readonly items: readonly ShopEntry[];
   /** If true the shop is shared across all players (general store). */
   readonly shared: boolean;
-}
-
-// ─── Drop Tables ───────────────────────────────────────────────────────────
-
-/** Associates NPC ids with their loot tables. */
-export interface NpcDropTable {
-  readonly npcId: number;
-  readonly table: LootTable;
-}
-
-/** Associates an object id with a drop table (e.g. a chest). */
-export interface ObjectDropTable {
-  readonly objectId: number;
-  readonly table: LootTable;
 }
 
 // ─── Discord-like Status ──────────────────────────────────────────────────

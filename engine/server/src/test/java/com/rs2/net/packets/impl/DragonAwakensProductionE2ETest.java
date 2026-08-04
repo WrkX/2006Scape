@@ -195,9 +195,15 @@ public class DragonAwakensProductionE2ETest {
 				PacketFixtures.actionButton(9157));
 		assertNull(player.pendingScriptOption);
 		assertEquals(Integer.valueOf(0), quest(player).stage());
+		assertEquals("Speak to Chronozon again for instructions.",
+				quest(player).objective());
+		assertEquals("@yel@Dragon Awakens",
+				player.interfaceText(journalRowString()));
 
 		clickNpc(player, giverIndex);
 		assertEquals(Integer.valueOf(1), quest(player).stage());
+		assertEquals("Slay a green dragon and recover its dragon bones.",
+				quest(player).objective());
 
 		killThroughProductionStateMachine(firstDragon, 2);
 		assertTrue(GameEngine.itemHandler.itemExists(
@@ -235,10 +241,14 @@ public class DragonAwakensProductionE2ETest {
 				DRAGON_BONES, bonesSlot, ALTAR, ALTAR_X, ALTAR_Y));
 		assertEquals(0, player.getItemAssistant().getItemAmount(DRAGON_BONES));
 		assertEquals(Integer.valueOf(3), quest(player).stage());
+		assertEquals("Defeat another green dragon to seal the rite.",
+				quest(player).objective());
 
 		killThroughProductionStateMachine(secondDragon, 4);
 		assertEquals(Integer.valueOf(4), quest(player).stage());
 		assertEquals("in_progress", quest(player).state());
+		assertEquals("Return to Chronozon to claim your reward.",
+				quest(player).objective());
 
 		Arrays.fill(player.playerItems, 2);
 		Arrays.fill(player.playerItemsN, 1);
@@ -254,8 +264,11 @@ public class DragonAwakensProductionE2ETest {
 		player.playerItemsN[0] = 0;
 		clickNpc(player, giverIndex);
 		assertEquals("completed", quest(player).state());
+		assertEquals("Quest complete.", quest(player).objective());
 		assertEquals(3, player.questPoints);
 		assertEquals(1000, player.getItemAssistant().getItemAmount(995));
+		assertEquals("@gre@Dragon Awakens",
+				player.interfaceText(journalRowString()));
 
 		player = saveAndReload(player);
 		assertEquals("completed", quest(player).state());
@@ -264,6 +277,53 @@ public class DragonAwakensProductionE2ETest {
 		assertEquals(1000, player.getItemAssistant().getItemAmount(995));
 		assertEquals("dragon-rite-sealed", new ScriptedPlayer(player)
 				.state("dragon-awakens").getString("ending"));
+	}
+
+	@Test
+	public void mappedQuestButtonOpensTheGenericJournalFromAuthoritativeState()
+			throws Exception {
+		int giverIndex = findNpc(CHRONOZON, 3156, 3704);
+		int firstDragon = findNpc(GREEN_DRAGON, 3150, 3704);
+		assertTrue(giverIndex > 0);
+		assertTrue(firstDragon > 0);
+		int row = journalRow();
+
+		new ClickNPC().processPacket(player,
+				PacketFixtures.npcFirstClick(giverIndex));
+		player.absY = 3705;
+		CycleEventHandler.getSingleton().process();
+		new Dialogue().processPacket(player, PacketFixtures.dialogueContinue());
+		new ClickingButtons().processPacket(player,
+				PacketFixtures.actionButton(9157));
+		assertEquals(Integer.valueOf(0), quest(player).stage());
+
+		new ClickingButtons().processPacket(player,
+				PacketFixtures.actionButton(row));
+		assertEquals("@dre@Dragon Awakens", player.interfaceText(8144));
+		assertEquals("Complete Chronozon's dragon-bone rite in the Wilderness.",
+				player.interfaceText(8147));
+		assertEquals("Level 1 Magic", player.interfaceText(8150));
+		assertEquals("@yel@In progress", player.interfaceText(8152));
+		assertEquals("Objective: Speak to Chronozon again for instructions.",
+				player.interfaceText(8154));
+		assertEquals(8134, player.lastMainFrameInterface);
+
+		clickNpc(player, giverIndex);
+		assertEquals(Integer.valueOf(1), quest(player).stage());
+
+		killThroughProductionStateMachine(firstDragon, 2);
+		assertTrue(GameEngine.itemHandler.itemExists(
+				DRAGON_BONES, 3150, 3704));
+		player.absX = 3150;
+		player.absY = 3704;
+		new PickupItem().processPacket(player,
+				PacketFixtures.pickup(DRAGON_BONES, 3150, 3704));
+		CycleEventHandler.getSingleton().process();
+
+		new ClickingButtons().processPacket(player,
+				PacketFixtures.actionButton(row));
+		assertEquals("Objective: Use the dragon bones on an altar.",
+				player.interfaceText(8154));
 	}
 
 	private void assertProductionWorldFiles() throws Exception {
@@ -375,6 +435,38 @@ public class DragonAwakensProductionE2ETest {
 			}
 		}
 		return -1;
+	}
+
+	/**
+	 * The first usable legacy quest-tab row, mirroring the journal pool
+	 * filter: dragon-awakens is the only scripted quest in the compiled
+	 * loader, so it owns the lowest usable button.
+	 */
+	private static int journalRow() {
+		return journalRowSlot()[0];
+	}
+
+	private static int journalRowString() {
+		return journalRowSlot()[1];
+	}
+
+	private static int[] journalRowSlot() {
+		int[] lowest = null;
+		for (com.rs2.game.content.quests.QuestAssistant.Quests quest
+				: com.rs2.game.content.quests.QuestAssistant.Quests.values()) {
+			if (!quest.questStatus()
+					&& !com.rs2.game.content.quests.QuestAssistant
+							.isLegacyQuestButton(quest.getButton())) {
+				if (lowest == null || quest.getButton() < lowest[0]) {
+					lowest = new int[] { quest.getButton(),
+							quest.getStringId() };
+				}
+			}
+		}
+		if (lowest == null) {
+			throw new AssertionError("No usable legacy quest-tab row");
+		}
+		return lowest;
 	}
 
 	private static Client savableClient(String name) {

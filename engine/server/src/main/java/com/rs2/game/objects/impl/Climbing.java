@@ -884,42 +884,32 @@ public class Climbing {
 		player.dialogueAction = 147;
 	}
 
-	private static void close(Player client, int actionButtonId) {
-		if (actionButtonId == 9157) {
-			client.getPacketSender().sendMessage("You climb up.");
-			client.startAnimation(CLIMB_UP);
-			client.resetWalkingQueue();
-		} else if (actionButtonId == 9158) {
-			client.getPacketSender().sendMessage("You climb down.");
-			client.startAnimation(827);
-			client.resetWalkingQueue();
-		}
-		client.getPacketSender().closeAllWindows();
-		client.nextChat = 0;
-	}
-
 	public static void handleLadderButtons(Player client, int actionButtonId) {
 		if (client.dialogueAction != 147) {
 			return;
 		}
 		switch (actionButtonId) {
 			case 9157:
-				if (client.heightLevel == 1) {
-					client.getPlayerAssistant().movePlayer(client.absX, client.absY, 2);
-					close(client, actionButtonId);
-				} else if (client.heightLevel == 2) {
-					client.getPlayerAssistant().movePlayer(client.absX, client.absY, 3);
-					close(client, actionButtonId);
+				if (KeldagrimStairs.isStaircase(client.objectId, client.objectX,
+						client.objectY, client.heightLevel)) {
+					KeldagrimStairs.climbUp(client);
+				} else {
+					climbUp(client);
 				}
+				client.getPacketSender().closeAllWindows();
+				client.dialogueAction = 0;
+				client.nextChat = 0;
 				break;
 			case 9158:
-				if (client.heightLevel == 2) {
-					client.getPlayerAssistant().movePlayer(client.absX, client.absY, 1);
-					close(client, actionButtonId);
-				} else if (client.heightLevel == 1) {
-					client.getPlayerAssistant().movePlayer(client.absX, client.absY, 0);
-					close(client, actionButtonId);
+				if (KeldagrimStairs.isStaircase(client.objectId, client.objectX,
+						client.objectY, client.heightLevel)) {
+					KeldagrimStairs.climbDown(client);
+				} else {
+					climbDown(client);
 				}
+				client.getPacketSender().closeAllWindows();
+				client.dialogueAction = 0;
+				client.nextChat = 0;
 				break;
 		}
 	}

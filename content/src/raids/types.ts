@@ -8,10 +8,13 @@
  */
 
 export type {
-  RoomContext,
-  RaidRoom,
+  RaidBounds,
+  RaidMuster,
+  RaidEntrance,
+  RaidRoomContext,
   RoomResult,
   RaidBossRoom,
+  RaidRoomDefinition,
   RaidDefinition,
   DefineRaid,
 } from "../core/raid.js";

@@ -113,9 +113,16 @@ public final class ScriptFunctions {
 	public Consumer<Value> getDefineRaid() {
 		return def -> {
 			requireObject("defineRaid", def);
-			String id = requireStringMember("defineRaid", def, "id");
-			rejectDuplicateRecord("defineRaid(" + id + ")",
-					DefinitionRegistry.put(DefinitionKind.RAID, id, def));
+			com.rs2.script.raid.RaidDefinition raid =
+					new com.rs2.script.raid.RaidDefinitionParser(
+							ModuleScope.currentSource(),
+							ModuleScope.currentSchemaVersion()).parse(def);
+			rejectDuplicateRecord("defineRaid(" + raid.id() + ")",
+					com.rs2.script.raid.RaidDefinitionRegistry.put(raid));
+			// The exact WP1 host command route is part of the candidate;
+			// duplicate keys and reserved aliases reject it.
+			com.rs2.script.raid.ScriptRaidRuntime.getInstance()
+					.registerRoutes(raid);
 		};
 	}
 
@@ -130,6 +137,29 @@ public final class ScriptFunctions {
 					com.rs2.script.area.AreaDefinitionRegistry.put(area));
 			com.rs2.script.area.ScriptAreaRuntime.getInstance()
 					.registerArea(area);
+		};
+	}
+
+	/**
+	 * Registers one canonical gathering resource: the guest payload is parsed
+	 * into a Java-owned typed descriptor with definition-backed object/tool/
+	 * reward ids, deterministic success chance, and the depletion/respawn
+	 * contract. The exact host object route is part of the candidate;
+	 * duplicate keys and reserved aliases reject it.
+	 */
+	public Consumer<Value> getDefineGatheringResource() {
+		return def -> {
+			requireObject("defineGatheringResource", def);
+			com.rs2.script.resource.GatheringResourceDefinition resource =
+					new com.rs2.script.resource.GatheringResourceDefinitionParser(
+							ModuleScope.currentSource(),
+							ModuleScope.currentSchemaVersion()).parse(def);
+			rejectDuplicateRecord("defineGatheringResource(" + resource.id()
+					+ ")",
+					com.rs2.script.resource.GatheringResourceRegistry
+							.put(resource));
+			com.rs2.script.resource.ScriptResourceRuntime.getInstance()
+					.registerRoutes(resource);
 		};
 	}
 

@@ -1,4 +1,3 @@
-import java.net.InetAddress;
 import java.net.UnknownHostException;
 
 public final class Main {
@@ -13,7 +12,16 @@ public final class Main {
 
 	public static void main(String[] args) {
 		try {
+			ClientLogger.initialize();
+			// Account storage policy: username may be remembered in client.properties when
+			// the player opts in; passwords are never stored locally, accepted from CLI in
+			// production, or written to logs or crash reports. Future credential convenience
+			// should use OS keychains or server-issued tokens, not reversible local encryption.
 			ClientPreferences.load();
+			UiScale.applyFromPreferences();
+			ClientPreferences.applyAccountSettings();
+
+			boolean developmentMode = ClientArguments.isDevelopmentMode(args);
 
 			// Process client arguments to connect to
 			for (int i = 0; i < args.length; i++) {
@@ -82,37 +90,30 @@ public final class Main {
 
 			Game game = new Game();
 
-			// Process other arguments
+			ClientArguments.Credentials credentials = ClientArguments.parseCredentials(args, developmentMode);
+			if (credentials.username != null) {
+				game.myUsername = credentials.username;
+			}
+			if (credentials.password != null) {
+				game.myPassword = credentials.password;
+			}
+
 			for (int i = 0; i < args.length; i++) {
-				if (args[i].startsWith("-") && (i + 1) < args.length  && !args[i + 1].startsWith("-")) {
-					switch(args[i]) {
-						case "-u":
-						case "-user":
-						case "-username":
-							game.myUsername = args[++i];
-							break;
-						case "-p":
-						case "-pass":
-						case "-password":
-							game.myPassword = args[++i];
-							break;
+				if (args[i].startsWith("-") && (i + 1) < args.length && !args[i + 1].startsWith("-")) {
+					switch (args[i]) {
 						case "-w":
 						case "-world":
 							ClientSettings.SERVER_WORLD = Integer.parseInt(args[++i]);
+							break;
+						default:
 							break;
 					}
 				}
 			}
 
-			Game.nodeID = 10;
-			Game.portOff = 0;
-			Game.setHighMem();
-			Game.isMembers = true;
-			Signlink.storeid = 32;
-			Signlink.startpriv(InetAddress.getLocalHost());
-			game.createClientFrame(503, 765);
+			ClientApplication.start(game);
 		} catch (UnknownHostException e) {
-			e.printStackTrace();
+			ClientLogger.error("Failed to resolve local host address", e);
 		}
 	}
 }

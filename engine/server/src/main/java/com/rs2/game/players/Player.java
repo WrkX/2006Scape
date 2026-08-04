@@ -1726,6 +1726,8 @@ public abstract class Player {
 	public int shopId;
 	/** Active scripted-shop session id, or {@code null} in a legacy shop. */
 	public String scriptShopId;
+	/** Active gathering-resource session token, or {@code 0L} when idle. */
+	public long scriptResourceSessionToken;
 	public int tradeStatus, tradeWith;
 	public boolean forcedChatUpdateRequired, inDuel, tradeAccepted, goodTrade,
 			inTrade, tradeRequested, tradeResetNeeded, tradeConfirmed,

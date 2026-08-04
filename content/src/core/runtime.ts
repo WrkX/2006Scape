@@ -101,6 +101,19 @@ export interface ScriptDropEntry {
   readonly always: boolean;
 }
 
+/**
+ * One canonical named drop-table row. String item ids resolve once at
+ * candidate load through the exact item-name resolver; runtime
+ * transactions use copied numeric ids only.
+ */
+export interface DropTableEntry {
+  readonly itemId: number | string;
+  readonly minAmount: number;
+  readonly maxAmount: number;
+  readonly weight: number;
+  readonly always: boolean;
+}
+
 /** Immutable logical drop result; one handle owns the complete identity set. */
 export interface ScriptDropResult {
   itemId(): number;
@@ -314,16 +327,47 @@ export interface RewardGrantResult {
 /** Canonical schema-v1 named drop table passed to `defineDropTable`. */
 export interface DropTableDefinition {
   readonly id: string;
-  readonly entries: readonly ScriptDropEntry[];
+  readonly entries: readonly DropTableEntry[];
 }
 
 /** Canonical schema-v1 named reward passed to `defineReward`. */
 export interface RewardDefinition {
   readonly id: string;
-  readonly items?: readonly RewardItem[];
-  readonly experience?: readonly RewardExperience[];
-  readonly questPoints?: number;
-  readonly state?: readonly RewardStateMutation[];
+  readonly items: readonly RewardItem[];
+  readonly experience: readonly RewardExperience[];
+  readonly questPoints: number;
+  readonly state: readonly RewardStateMutation[];
+}
+
+/** Canonical schema-v1 gathering resource passed to `defineGatheringResource`. */
+export interface GatheringResourceDefinition {
+  readonly id: string;
+  readonly name: string;
+  readonly objectId: number;
+  readonly action: "first" | "second" | "third" | "fourth";
+  readonly skill: string;
+  readonly level: number;
+  readonly tools: readonly GatheringResourceTool[];
+  readonly animation: number;
+  readonly intervalTicks: number;
+  readonly successChance: {
+    readonly numerator: number;
+    readonly denominator: number;
+  };
+  readonly rewards: readonly GatheringResourceReward[];
+  readonly experience: number;
+  readonly depletedObjectId: number;
+  readonly respawnTicks: number;
+}
+
+export interface GatheringResourceTool {
+  readonly itemId: number | string;
+  readonly consume?: boolean;
+}
+
+export interface GatheringResourceReward {
+  readonly itemId: number | string;
+  readonly amount: number;
 }
 
 export interface RewardItem {
@@ -344,6 +388,9 @@ export interface RewardStateMutation {
 
 export type DefineDropTable = (definition: DropTableDefinition) => void;
 export type DefineReward = (definition: RewardDefinition) => void;
+export type DefineGatheringResource = (
+  definition: GatheringResourceDefinition,
+) => void;
 
 export interface PlayerStateNamespace {
   has(key: string): boolean;
@@ -391,6 +438,7 @@ export interface ScriptedQuest {
   summary(): string;
   state(): ScriptQuestState;
   stage(): number | null;
+  objective(): string | null;
   canStart(): QuestResult;
   start(): QuestResult;
   setStage(expectedCurrent: number, nextStage: number): QuestResult;
@@ -790,4 +838,5 @@ declare global {
   const registerContentModule: RegisterContentModule;
   const defineDropTable: DefineDropTable;
   const defineReward: DefineReward;
+  const defineGatheringResource: DefineGatheringResource;
 }

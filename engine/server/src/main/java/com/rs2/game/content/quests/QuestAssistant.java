@@ -26,6 +26,24 @@ public class QuestAssistant {
 
 	public static final int MAXIMUM_QUESTPOINTS = 26;
 
+	/**
+	 * Buttons the legacy quest tab handles directly; the scripted-quest
+	 * journal pool must never reuse them. Mirrors the switch cases below.
+	 */
+	private static final java.util.Set<Integer> LEGACY_QUEST_BUTTONS =
+			new java.util.HashSet<>(java.util.Arrays.asList(Integer.valueOf(28164),
+					Integer.valueOf(28165), Integer.valueOf(28167),
+					Integer.valueOf(28168), Integer.valueOf(28169),
+					Integer.valueOf(28172), Integer.valueOf(28173),
+					Integer.valueOf(28175), Integer.valueOf(28176),
+					Integer.valueOf(28177), Integer.valueOf(28178),
+					Integer.valueOf(28179), Integer.valueOf(28180),
+					Integer.valueOf(28192), Integer.valueOf(28199)));
+
+	public static boolean isLegacyQuestButton(int buttonId) {
+		return LEGACY_QUEST_BUTTONS.contains(Integer.valueOf(buttonId));
+	}
+
 	public static void sendStages(Player player) {
 		player.getPacketSender().sendString("QP: " + player.questPoints + " ", 3985);
 		for (Quests quests : Quests.values()) {
@@ -140,6 +158,8 @@ public class QuestAssistant {
 		} else {
 			player.getPacketSender().sendString("@yel@Lost City", 7367);
 		}
+		com.rs2.script.quest.ScriptQuestJournalService.getInstance()
+				.refreshTab(player);
 	}
 
 	public enum Quests {
@@ -286,6 +306,10 @@ public class QuestAssistant {
 	}
 
 	public static void questButtons(Player player, int buttonId) {
+		if (com.rs2.script.quest.ScriptQuestJournalService.getInstance()
+				.handleButton(player, buttonId)) {
+			return;
+		}
 		switch (buttonId) {
 
 		case 28165:

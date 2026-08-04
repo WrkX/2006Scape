@@ -17,6 +17,8 @@ public class Bot {
     private Client botClient;
     static Timer timer = new Timer();
     private Stream inStream;
+    private volatile boolean active = true;
+    private TradeChat tradeChatTask;
     
     public Bot(String username, Integer x, Integer y, Integer z) {
         botClient = new Client(null);
@@ -45,19 +47,34 @@ public class Bot {
         if (x != null) {
             botClient.getPlayerAssistant().movePlayer(x, y, z);
         }
-        new TradeChat().run();
+        tradeChatTask = new TradeChat();
+        tradeChatTask.run();
     }
 
     public Client getBotClient() {
         return botClient;
     }
 
+    public void shutdown() {
+        active = false;
+        if (tradeChatTask != null) {
+            tradeChatTask.cancel();
+        }
+    }
+
     class TradeChat extends TimerTask {
         @Override
         public void run() {
+            if (!active) {
+                return;
+            }
             sendTradeChat();
+            if (!active) {
+                return;
+            }
             int delay = (5 + new Random().nextInt(15)) * 1000;
-            timer.schedule(new TradeChat(), delay);
+            tradeChatTask = new TradeChat();
+            timer.schedule(tradeChatTask, delay);
         }
 
     }

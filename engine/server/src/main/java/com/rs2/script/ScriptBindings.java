@@ -41,6 +41,8 @@ public final class ScriptBindings {
 				consumeValue(functions.getDefineReward()));
 		globals.putMember("defineShop",
 				consumeValue(functions.getDefineShop()));
+		globals.putMember("defineGatheringResource",
+				consumeValue(functions.getDefineGatheringResource()));
 		globals.putMember("registerContentModule",
 				biValue(functions.getRegisterContentModule()));
 		globals.putMember("onObject", triIntStr(functions.getOnObject()));

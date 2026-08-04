@@ -131,6 +131,10 @@ public final class DefinitionRecord {
 		return (com.rs2.script.shop.ShopDefinition) typedPayload;
 	}
 
+	public com.rs2.script.raid.RaidDefinition raidPayload() {
+		return (com.rs2.script.raid.RaidDefinition) typedPayload;
+	}
+
 	@Override
 	public String toString() {
 		return kind.name().toLowerCase(java.util.Locale.ROOT) + ":" + key

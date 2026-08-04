@@ -107,6 +107,12 @@ public class ObjectsActions {
         if (BrimhavenAgilityArena.handleObject(player, objectType, objectX, objectY)) {
             return;
         }
+        if (KeldagrimStairs.isStaircase(objectType, objectX, objectY,
+                player.heightLevel)) {
+            Climbing.handleLadder(player);
+            player.dialogueAction = 147;
+            return;
+        }
         if (Boundary.isIn(player, Boundary.PARTY_ROOM) && objectType >= 115 && objectType <= 122) {
             PartyRoom.popBalloon(player, objectX, objectY);
             return;
@@ -2816,6 +2822,11 @@ public class ObjectsActions {
         if (Farming.inspectObject(player, obX, obY)) {
             return;
         }
+        if (KeldagrimStairs.isStaircase(objectType, obX, obY,
+                player.heightLevel)) {
+            KeldagrimStairs.climbUp(player);
+            return;
+        }
         switch (objectType) {
             case 6:
                 player.getCannon().loadCannon(obX, obY);
@@ -3079,6 +3090,11 @@ public class ObjectsActions {
             return;
         }
         if (!Region.objectExists(objectType, obX, obY, player.heightLevel)) {
+            return;
+        }
+        if (KeldagrimStairs.isStaircase(objectType, obX, obY,
+                player.heightLevel)) {
+            KeldagrimStairs.climbDown(player);
             return;
         }
         OpenObject.interactObject(player, objectType);

@@ -103,6 +103,35 @@ public class QuestServiceTest {
 		assertEquals("already_completed", again.code());
 	}
 
+	@Test
+	public void objectiveProjectsNullStageTextAndStableCompletionSummary() {
+		Player player = new Player(-1) { };
+		QuestDefinition definition = definition("objective-quest", 1,
+				emptyRequirements(), emptyRewards());
+		QuestService service = new QuestService(new QuestRewardTransaction());
+
+		assertNull(service.objective(player, definition));
+		service.start(player, definition);
+		assertEquals("Stage 0", service.objective(player, definition));
+		service.advance(player, definition, 0);
+		assertEquals("Stage 1", service.objective(player, definition));
+		service.complete(player, definition, 1);
+		assertEquals(QuestService.COMPLETED_OBJECTIVE,
+				service.objective(player, definition));
+	}
+
+	@Test
+	public void inProgressQuestWithoutStoredStageHasNoObjective() {
+		Player player = new Player(-1) { };
+		QuestDefinition definition = definition("stage-less", 0,
+				emptyRequirements(), emptyRewards());
+		QuestService service = new QuestService(new QuestRewardTransaction());
+		QuestStateAccess.setState(player, definition.getId(),
+				QuestState.IN_PROGRESS);
+		assertNull(service.objective(player, definition));
+		assertNull(service.stage(player, definition.getId()));
+	}
+
 	static QuestDefinition definition(String id, int finalStage,
 			QuestDefinition.Requirements requirements,
 			QuestDefinition.Rewards rewards) {

@@ -1,156 +1,90 @@
 /**
  * Temple of Zaros raid definition.
  *
- * A 4-room instanced raid deep beneath Dragon Island.  Players fight
- * through guardian chambers, solve an ancient puzzle, defeat a crypt
- * boss, and finally face Zaros himself.
+ * A 2-room raid beneath Crandor on plane 1: a guardian hall that clears
+ * after a few ticks and a crypt whose boss fight embeds the canonical
+ * {@code dragon-king} declarative boss (loaded Black dragon 54) by stable id
+ * reference, borrowing the raid's sole encounter handle. Minimum 2 players,
+ * maximum 5. Time limit: 7200 ticks (~2 hours).
  *
- * Minimum 2 players, maximum 5.  Time limit: 7200 ticks (~2 hours).
- * Rewards are drawn from the "zaros_raid_loot" table.
+ * Completion commits the {@code zaros_raid_reward} roster-wide and
+ * atomically, then rolls the {@code zaros_raid_loot} table once as private
+ * ground deliveries through the raid-session RNG owner.
+ *
+ * The legacy fixture's custom NPC ids 7001/7002/7003 have no npc.json
+ * definitions; WP5 migrated the raid to the loaded dragon-king boss and the
+ * canonical schema-v1 command/lobby/muster/room contract.
  *
  * @module raids/temple-of-zaros/raid
  */
 
 import { createRaid, createRaidRoom, createBossRoom } from "../../raids/raid-builder.js";
 import { createDropTable } from "../../core/drop-tables.js";
-import type { RoomContext, RoomResult } from "../../raids/types.js";
-import type { BossContext } from "../../core/boss.js";
+import type { RaidRoomContext, RoomResult } from "../../raids/types.js";
 
 // ─── Room 1: Guardian Chamber ────────────────────────────────────────────────
 
 const guardianRoom = createRaidRoom({
   id: "guardian",
   name: "Hall of Guardians",
-  onEnter(ctx: RoomContext): void {
+  bounds: { minX: 2264, minY: 4688, maxX: 2275, maxY: 4695, plane: 1 },
+  onEnter(ctx: RaidRoomContext): void {
     ctx.announce("Ancient guardians stir from their slumber...");
   },
-  onTick(ctx: RoomContext): RoomResult {
-    // Room completes when no players are in combat.
-    const allClear = ctx.players.every((p) => !p.inCombat);
-    return allClear ? { status: "completed" } : { status: "in_progress" };
+  onTick(ctx: RaidRoomContext): RoomResult {
+    return ctx.elapsedTicks() >= 3
+      ? { status: "completed" }
+      : { status: "in_progress" };
   },
-  onComplete(ctx: RoomContext): void {
+  onComplete(ctx: RaidRoomContext): void {
     ctx.announce("The guardians crumble to dust. The path opens forward.");
   },
 });
 
-// ─── Room 2: Puzzle ──────────────────────────────────────────────────────────
-
-const puzzleRoom = createRaidRoom({
-  id: "puzzle",
-  name: "Chamber of Riddles",
-  onEnter(ctx: RoomContext): void {
-    ctx.announce("Ancient Zarosian runes glow on the walls...");
-    ctx.announce("Solve the puzzle to unlock the gate ahead.");
-  },
-  onTick(_ctx: RoomContext): RoomResult {
-    // Puzzle completion is tracked by the engine when players interact
-    // with the rune objects.  For now, the room remains in progress
-    // until the puzzle state is resolved externally.
-    return { status: "in_progress" };
-  },
-  onComplete(ctx: RoomContext): void {
-    ctx.announce("The runes align and the gate groans open.");
-  },
-});
-
-// ─── Room 3: Crypt (Boss) ────────────────────────────────────────────────────
-
-const cryptBossRoom = createBossRoom({
-  npcId: 7001,
-  combatLevel: 400,
-  maxHitpoints: 800,
-  onTick(ctx: BossContext): void {
-    if (ctx.hpPercent < 0.3) {
-      ctx.useSpecial("shadow_blast");
-      ctx.spawnMinions(7002, 2);
-    }
-  },
-  onDeath(ctx: BossContext): void {
-    ctx.say("Zaros... will... return...");
-  },
-});
+// ─── Room 2: Crypt (Boss) ─────────────────────────────────────────────────────
 
 const cryptRoom = createRaidRoom({
   id: "crypt",
   name: "Crypt of the Fallen",
-  onEnter(ctx: RoomContext): void {
+  bounds: { minX: 2264, minY: 4696, maxX: 2287, maxY: 4711, plane: 1 },
+  onEnter(ctx: RaidRoomContext): void {
     ctx.announce("A fallen Zarosian priest rises from its sarcophagus!");
   },
-  onTick(_ctx: RoomContext): RoomResult {
+  onTick(_ctx: RaidRoomContext): RoomResult {
+    // Boss rooms complete only through the embedded boss controller.
     return { status: "in_progress" };
   },
-  onComplete(ctx: RoomContext): void {
-    ctx.announce("The crypt falls silent. Only the final chamber remains.");
+  onComplete(ctx: RaidRoomContext): void {
+    ctx.announce("The crypt falls silent. Only the reward barrier remains.");
   },
-  boss: cryptBossRoom,
-});
-
-// ─── Room 4: Zaros (Final Boss) ──────────────────────────────────────────────
-
-const zarosBossRoom = createBossRoom({
-  npcId: 7003,
-  combatLevel: 600,
-  maxHitpoints: 1500,
-  onTick(ctx: BossContext): void {
-    if (ctx.hpPercent < 0.5) {
-      ctx.useSpecial("doom_curse");
-    }
-    if (ctx.hpPercent < 0.25) {
-      ctx.useSpecial("void_strike");
-    }
-  },
-  onDeath(ctx: BossContext): void {
-    ctx.say("No! The cycle... cannot end...");
-  },
-});
-
-const zarosRoom = createRaidRoom({
-  id: "zaros",
-  name: "Throne of Zaros",
-  onEnter(ctx: RoomContext): void {
-    ctx.announce("Zaros turns his gaze upon you. 'You dare trespass in my sanctum?'");
-  },
-  onTick(_ctx: RoomContext): RoomResult {
-    return { status: "in_progress" };
-  },
-  onComplete(ctx: RoomContext): void {
-    ctx.announce("The temple begins to collapse! Grab your rewards and escape!");
-  },
-  boss: zarosBossRoom,
+  boss: createBossRoom({ bossId: "dragon-king" }),
 });
 
 // ─── Raid Definition ─────────────────────────────────────────────────────────
 
-const templeOfZarosRaid = createRaid("temple_of_zaros", {
-  entrance: { x: 7100, y: 7100, plane: 0 },
-  minPlayers: 2,
-  maxPlayers: 5,
-  rooms: [guardianRoom, puzzleRoom, cryptRoom, zarosRoom],
-  rewardTable: "zaros_raid_loot",
-  timeLimitTicks: 7200,
-
-  onStart(ctx: RoomContext): void {
-    ctx.announce("The temple doors seal behind you. There is no turning back.");
-  },
-
-  onComplete(ctx: RoomContext): void {
-    ctx.announce("The Temple of Zaros has been cleared!");
-    ctx.announce("Ancient Zarosian treasures await each of you.");
-  },
-
-  onWipe(ctx: RoomContext, reason: string): void {
-    ctx.announce(`The raid has failed: ${reason}`);
-    ctx.announce("All players are teleported outside the temple.");
-  },
+/**
+ * Canonical named reward committed roster-wide and atomically at completion
+ * by the WP5 raid runtime. Every legacy loot-table item id is preserved so
+ * the migration loses no silent reward.
+ */
+defineReward({
+  id: "zaros_raid_reward",
+  items: [
+    { id: 995, amount: 50000 },
+    { id: 1149, amount: 1 },
+    { id: 1127, amount: 1 },
+    { id: 1305, amount: 1 },
+    { id: 1215, amount: 1 },
+    { id: 1079, amount: 1 },
+  ],
+  experience: [],
+  questPoints: 0,
+  state: [],
 });
 
-defineRaid(templeOfZarosRaid);
-
 /**
- * Canonical named reward table referenced by the raid definition's
- * {@code rewardTable}. Phase 5 WP5 consumes this record with the raid
- * runtime; the registration proves the reference is not silent data loss.
+ * Canonical named reward table rolled once after the roster commit through
+ * the raid-session RNG owner as private ground deliveries.
  */
 createDropTable({
   id: "zaros_raid_loot",
@@ -163,3 +97,33 @@ createDropTable({
     { itemId: 1079, minAmount: 1, maxAmount: 1, weight: 16, always: false },
   ],
 });
+
+const templeOfZarosRaid = createRaid("temple_of_zaros", {
+  command: "temple-of-zaros",
+  bounds: { minX: 2264, minY: 4688, maxX: 2287, maxY: 4711, plane: 1 },
+  muster: { minX: 2264, minY: 4688, maxX: 2287, maxY: 4695 },
+  entrance: { x: 2268, y: 4690, plane: 1 },
+  minPlayers: 2,
+  maxPlayers: 5,
+  timeLimitTicks: 7200,
+  rooms: [guardianRoom, cryptRoom],
+  rewards: ["zaros_raid_reward"],
+  rewardTable: "zaros_raid_loot",
+  privateTicks: 200,
+
+  onStart(ctx: RaidRoomContext): void {
+    ctx.announce("The temple doors seal behind you. There is no turning back.");
+  },
+
+  onComplete(ctx: RaidRoomContext): void {
+    ctx.announce("The Temple of Zaros has been cleared!");
+    ctx.announce("Ancient Zarosian treasures await each of you.");
+  },
+
+  onWipe(ctx: RaidRoomContext, reason: string): void {
+    ctx.announce(`The raid has failed: ${reason}`);
+    ctx.announce("The temple seals close and the raid instance is disbanded.");
+  },
+});
+
+defineRaid(templeOfZarosRaid);

@@ -108,7 +108,7 @@ public class Midi implements Runnable {
 			}
 			return true;
 		} catch (Exception e) {
-			e.printStackTrace();
+			ClientLogger.warn("Failed to set MIDI volume", e);
 			return false;
 		}
 	}
@@ -172,7 +172,7 @@ public class Midi implements Runnable {
 			sequencer.open();
 			sequencer.start();
 		} catch (Exception exception) {
-			exception.printStackTrace();
+			ClientLogger.warn("Failed to start MIDI playback: " + midiDir, exception);
 		}
 	}
 }

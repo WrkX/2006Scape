@@ -454,6 +454,13 @@ public final class ScriptNpcService {
                 && !owned.npc.isDead && !owned.npc.applyDead;
     }
 
+    /** Test-only exact-handle resolution for one owned NPC allocation. */
+    public synchronized ScriptNpcHandle handleForTesting(Npc npc) {
+        OwnedNpc owned = exact(npc);
+        return owned == null ? null
+                : new ScriptNpcHandle(this, owned.npc.allocationToken());
+    }
+
     /** Despawns every area-owned allocation of one area token. */
     public void closeArea(final long areaToken) {
         List<Npc> targets = new ArrayList<Npc>();

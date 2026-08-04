@@ -72,6 +72,11 @@ public final class ScriptedQuest {
 	}
 
 	@HostAccess.Export
+	public String objective() {
+		return service.objective(player, definition());
+	}
+
+	@HostAccess.Export
 	public QuestResult canStart() {
 		return service.canStart(player, definition());
 	}

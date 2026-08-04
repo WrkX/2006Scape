@@ -30,7 +30,7 @@ public class QuestBridgeIntegrationTest {
 	public void graalSeesMethodsTypedNullsAndExpectedStageCas() throws Exception {
 		int slot = 121;
 		Player previous = PlayerHandler.players[slot];
-		Player player = new Player(slot) { };
+		Player player = new TestPlayer(slot);
 		player.initialized = true;
 		player.isActive = true;
 		player.disconnected = false;
@@ -60,6 +60,7 @@ public class QuestBridgeIntegrationTest {
 					"const before=player.quest('bridge-contract');"
 					+ "const eligible=before.canStart();"
 					+ "before.stage()===null"
+					+ " && before.objective()===null"
 					+ " && eligible.ok() && !eligible.changed()"
 					+ " && eligible.code()==='can_start'").asBoolean());
 			assertTrue(context.eval("js",
@@ -67,7 +68,7 @@ public class QuestBridgeIntegrationTest {
 					+ "const started=q.start();"
 					+ "started.ok() && started.changed() && started.code()==='started'"
 					+ " && q.id()==='bridge-contract' && q.state()==='in_progress'"
-					+ " && q.stage()===0"
+					+ " && q.stage()===0 && q.objective()==='Finish.'"
 					+ " && typeof q.setStage==='function'"
 					+ " && typeof q.advance==='function'"
 					+ " && typeof q.complete==='function'").asBoolean());
@@ -87,5 +88,23 @@ public class QuestBridgeIntegrationTest {
 				new QuestDefinition.Rewards(0,
 						Collections.<QuestDefinition.ItemAmount>emptyList(),
 						Collections.<QuestDefinition.ExperienceReward>emptyList()));
+	}
+
+	/**
+	 * Quest transitions refresh the quest-tab presentation through the same
+	 * packet path real players use; a session-less test player must discard
+	 * the flushed bytes instead of writing to a null session.
+	 */
+	private static final class TestPlayer extends Player {
+		private TestPlayer(int slot) {
+			super(slot);
+		}
+
+		@Override
+		public void flushOutStream() {
+			if (outStream != null) {
+				outStream.currentOffset = 0;
+			}
+		}
 	}
 }

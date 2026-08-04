@@ -73,6 +73,7 @@ public final class BossController {
 
 	private Status status = Status.RUNNING;
 	private ScriptNpcHandle boss;
+	private ScriptTaskHandle pollTask;
 	private int phaseIndex;
 	private long pollCount;
 	private boolean terminalNotified;
@@ -181,6 +182,7 @@ public final class BossController {
 			fail("boss poll task registration failed");
 			return;
 		}
+		this.pollTask = pollTask;
 		execute(definition.onSpawn(), "onSpawn");
 	}
 
@@ -313,6 +315,17 @@ public final class BossController {
 		}
 		terminalNotified = true;
 		status = terminalStatus;
+		// The poll task idles once the boss is dead; cancel it at the
+		// terminal so no stale poll can run after the result is known.
+		if (pollTask != null) {
+			try {
+				pollTask.cancel();
+			} catch (RuntimeException cancelFailure) {
+				logger.log(Level.WARNING, "Boss '" + definition.id()
+						+ "' poll cancellation failed; encounter close "
+						+ "remains the safety net", cancelFailure);
+			}
+		}
 		try {
 			terminalListener.onTerminal(this, terminalStatus, deathPosition,
 					killer);

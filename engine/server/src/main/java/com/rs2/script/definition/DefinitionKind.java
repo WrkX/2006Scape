@@ -29,6 +29,9 @@ public enum DefinitionKind {
 	REWARD,
 
 	/** Java-owned scripted shop definitions keyed by stable string id. */
-	SHOP
+	SHOP,
+
+	/** Java-owned gathering resource definitions keyed by stable string id. */
+	RESOURCE
 
 }

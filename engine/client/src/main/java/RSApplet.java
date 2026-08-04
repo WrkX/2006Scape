@@ -3,15 +3,13 @@
 // Decompiler options: packimports(3) 
 
 import javax.swing.*;
-import java.applet.Applet;
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.font.TextAttribute;
 import java.net.URI;
 import java.util.Map;
 
-@SuppressWarnings("serial")
-public class RSApplet extends Applet implements Runnable, MouseListener, MouseWheelListener, MouseMotionListener, KeyListener, FocusListener, WindowListener {
+public class RSApplet implements Runnable, MouseListener, MouseWheelListener, MouseMotionListener, KeyListener, FocusListener, WindowListener {
 
 	public static boolean ctrlDown = false;
 	public static boolean shiftDown = false;
@@ -20,13 +18,16 @@ public class RSApplet extends Applet implements Runnable, MouseListener, MouseWh
 	public static boolean removeShiftDropOnMenuOpen;
 
 	final void createClientFrame(int i, int j) {
-		myWidth = j;
-		myHeight = i;
-		this.setPreferredSize(new Dimension(this.myWidth, this.myHeight));
+		startClient(i, j);
+	}
 
-		gameFrame = new RSFrame(this);
-		graphics = getGameComponent().getGraphics();
-		fullGameScreen = new RSImageProducer(myWidth, myHeight, getGameComponent());
+	final void startClient(int height, int width) {
+		myWidth = width;
+		myHeight = height;
+		gameCanvas = new GameCanvas(this, width, height);
+		presentation = new CanvasPresentation(gameCanvas);
+		clientWindow = new ClientWindow(this, gameCanvas);
+		fullGameScreen = new RSImageProducer(myWidth, myHeight, gameCanvas);
 
 		if (ClientSettings.SHOW_NAVBAR) {
 			try {
@@ -44,7 +45,6 @@ public class RSApplet extends Applet implements Runnable, MouseListener, MouseWh
 				ImageIcon manualImg = new ImageIcon(this.getClass().getResource("navbar_manual.gif"));
 				ImageIcon rulesImg = new ImageIcon(this.getClass().getResource("navbar_rules.gif"));
 
-				// set up containers
 				JLabel background = new JLabel(backgroundImg);
 				background.setBounds(0, 0, backgroundImg.getIconWidth(), backgroundImg.getIconHeight());
 
@@ -58,7 +58,7 @@ public class RSApplet extends Applet implements Runnable, MouseListener, MouseWh
 						try {
 							Desktop.getDesktop().browse(URI.create(ClientSettings.NAV_MAINMENU_LINK));
 						} catch (Exception ex) {
-							ex.printStackTrace();
+							ClientLogger.warn("Failed to open navbar link: " + ClientSettings.NAV_MAINMENU_LINK, ex);
 						}
 					}
 				});
@@ -86,7 +86,6 @@ public class RSApplet extends Applet implements Runnable, MouseListener, MouseWh
 				worldSelect.setBounds(250, 0, menuImg.getIconWidth(), menuImg.getIconHeight());
 				worldSelect.addMouseListener(new MouseAdapter() {
 					public void mouseClicked(MouseEvent e) {
-						// TODO: world select popup? redirect to launcher?
 					}
 				});
 				JLabel worldSelectText = new JLabel();
@@ -116,7 +115,7 @@ public class RSApplet extends Applet implements Runnable, MouseListener, MouseWh
 						try {
 							Desktop.getDesktop().browse(URI.create(ClientSettings.NAV_WORLDMAP_LINK));
 						} catch (Exception ex) {
-							ex.printStackTrace();
+							ClientLogger.warn("Failed to open navbar link: " + ClientSettings.NAV_MAINMENU_LINK, ex);
 						}
 					}
 				});
@@ -147,7 +146,7 @@ public class RSApplet extends Applet implements Runnable, MouseListener, MouseWh
 						try {
 							Desktop.getDesktop().browse(URI.create(ClientSettings.NAV_MANUAL_LINK));
 						} catch (Exception ex) {
-							ex.printStackTrace();
+							ClientLogger.warn("Failed to open navbar link: " + ClientSettings.NAV_MAINMENU_LINK, ex);
 						}
 					}
 				});
@@ -178,7 +177,7 @@ public class RSApplet extends Applet implements Runnable, MouseListener, MouseWh
 						try {
 							Desktop.getDesktop().browse(URI.create(ClientSettings.NAV_RULES_LINK));
 						} catch (Exception ex) {
-							ex.printStackTrace();
+							ClientLogger.warn("Failed to open navbar link: " + ClientSettings.NAV_MAINMENU_LINK, ex);
 						}
 					}
 				});
@@ -202,7 +201,6 @@ public class RSApplet extends Applet implements Runnable, MouseListener, MouseWh
 					}
 				});
 
-				// layer images
 				layers.add(background, 0);
 				layers.add(company, 0);
 				layers.add(mainMenu, 0);
@@ -215,35 +213,72 @@ public class RSApplet extends Applet implements Runnable, MouseListener, MouseWh
 				layers.add(manualText, 0);
 				layers.add(rules, 0);
 				layers.add(rulesText, 0);
-				gameFrame.add(layers, BorderLayout.NORTH);
-				gameFrame.pack();
-				gameFrame.setLocationRelativeTo(null); // re-center based on the new size
+				clientWindow.add(layers, BorderLayout.NORTH);
+				clientWindow.pack();
+				ClientPreferences.applyWindowState(clientWindow);
 			} catch (Exception ex) {
-				ex.printStackTrace();
+				ClientLogger.warn("Failed to initialize client navbar", ex);
 			}
 		}
 
 		startRunnable(this, 1);
-		this.requestFocus();
+		gameCanvas.requestFocusInWindow();
 	}
 
 	final void initClientFrame(int i, int j) {
 		myWidth = j;
 		myHeight = i;
-		graphics = getGameComponent().getGraphics();
-		fullGameScreen = new RSImageProducer(myWidth, myHeight, getGameComponent());
+		Component host = getGameComponent();
+		if (host == null) {
+			return;
+		}
+		if (host instanceof Canvas && presentation == null) {
+			presentation = new CanvasPresentation((Canvas) host);
+		}
+		fullGameScreen = new RSImageProducer(myWidth, myHeight, host);
 		startRunnable(this, 1);
+	}
+
+	void onCanvasDisplayable() {
+		if (presentation != null) {
+			presentation.initialize();
+		}
+	}
+
+	void onWindowClosing() {
+		if (clientWindow != null) {
+			ClientPreferences.captureWindowState(clientWindow);
+		}
+		ClientPreferences.captureSelectedWorld();
+		ClientPreferences.saveImmediately();
+		requestShutdown();
+	}
+
+	public final void requestShutdown() {
+		lifecycle.requestShutdown();
+	}
+
+	void suspendClient() {
+		lifecycle.beginGracefulShutdown(4000 / delayTime);
+	}
+
+	void resumeClient() {
+		lifecycle.startClient();
 	}
 
 	@Override
 	public void run() {
-		getGameComponent().addMouseListener(this);
-		getGameComponent().addMouseMotionListener(this);
-		getGameComponent().addMouseWheelListener(this);
-		getGameComponent().addKeyListener(this);
-		getGameComponent().addFocusListener(this);
-		if (gameFrame != null) {
-			gameFrame.addWindowListener(this);
+		Component gameComponent = getGameComponent();
+		if (gameComponent == null) {
+			return;
+		}
+		gameComponent.addMouseListener(this);
+		gameComponent.addMouseMotionListener(this);
+		gameComponent.addMouseWheelListener(this);
+		gameComponent.addKeyListener(this);
+		gameComponent.addFocusListener(this);
+		if (clientWindow != null) {
+			clientWindow.addWindowListener(this);
 		}
 		drawLoadingText(0, "Loading...");
 		startUp();
@@ -257,13 +292,10 @@ public class RSApplet extends Applet implements Runnable, MouseListener, MouseWh
 		}
 
 		System.currentTimeMillis();
-		while (anInt4 >= 0) {
-			if (anInt4 > 0) {
-				anInt4--;
-				if (anInt4 == 0) {
-					exit();
-					return;
-				}
+		while (lifecycle.isRunning()) {
+			if (lifecycle.tickShutdownCountdown()) {
+				shutdown();
+				return;
 			}
 			int i2 = j;
 			int j2 = k;
@@ -318,15 +350,7 @@ public class RSApplet extends Applet implements Runnable, MouseListener, MouseWh
 			if (delayTime > 0) {
 				fps = 1000 * j / (delayTime * 256);
 			}
-			//macOS: refresh graphics each frame — the initial getGraphics() during
-			//createClientFrame can return a Graphics translated by the Frame title-bar
-			//inset on Java 17, causing a ~28px Y-offset between clicks and visuals.
-			final Graphics prev = graphics;
-			graphics = getGameComponent().getGraphics();
-			if (prev != null) {
-				prev.dispose();
-			}
-			processDrawing();
+			presentFrame();
 			if (shouldDebug) {
 				System.out.println("ntime:" + l1);
 				for (int l2 = 0; l2 < 10; l2++) {
@@ -341,72 +365,74 @@ public class RSApplet extends Applet implements Runnable, MouseListener, MouseWh
 				j1 = 0;
 			}
 		}
-		if (anInt4 == -1) {
-			exit();
+		if (lifecycle.isShutdownRequested()) {
+			shutdown();
 		}
 	}
 
-	private void exit() {
-		anInt4 = -2;
+	void presentFrame() {
+		if (presentation != null) {
+			graphics = presentation.beginFrame();
+			if (graphics != null) {
+				processDrawing();
+				presentation.endFrame();
+				return;
+			}
+		}
+		graphics = getGameComponent() != null ? getGameComponent().getGraphics() : null;
+		if (graphics != null) {
+			processDrawing();
+			graphics.dispose();
+			graphics = null;
+		}
+	}
+
+	/**
+	 * Acquires a graphics context for one-off draws outside the main frame loop
+	 * (for example startup loading text before the first {@link #presentFrame()}).
+	 */
+	Graphics beginStandaloneFrame() {
+		if (presentation != null) {
+			return presentation.beginFrame();
+		}
+		Component component = getGameComponent();
+		return component != null ? component.getGraphics() : null;
+	}
+
+	void endStandaloneFrame(boolean usedPresentation, Graphics frameGraphics) {
+		if (usedPresentation && presentation != null) {
+			presentation.endFrame();
+			return;
+		}
+		if (frameGraphics != null) {
+			frameGraphics.dispose();
+		}
+	}
+
+	void shutdown() {
+		lifecycle.markShutdownComplete();
+		if (presentation != null) {
+			presentation.dispose();
+			presentation = null;
+		}
 		cleanUpForQuit();
-		if (gameFrame != null) {
+		Signlink.shutdown();
+		if (clientWindow != null) {
 			try {
-				Thread.sleep(1000L);
+				Thread.sleep(100L);
 			} catch (Exception _ex) {
 			}
-			try {
-				System.exit(0);
-			} catch (Throwable _ex) {
-			}
+			clientWindow.dispose();
+			clientWindow = null;
+		}
+		try {
+			System.exit(0);
+		} catch (Throwable _ex) {
 		}
 	}
 
 	final void method4(int i) {
 		delayTime = 1000 / i;
-	}
-
-	@Override
-	public final void start() {
-		if (anInt4 >= 0) {
-			anInt4 = 0;
-		}
-	}
-
-	@Override
-	public final void stop() {
-		if (anInt4 >= 0) {
-			anInt4 = 4000 / delayTime;
-		}
-	}
-
-	@Override
-	public final void destroy() {
-		anInt4 = -1;
-		try {
-			Thread.sleep(1000L);
-		} catch (Exception _ex) {
-		}
-		if (anInt4 == -1) {
-			exit();
-		}
-	}
-
-	@Override
-	public final void update(Graphics g) {
-		if (graphics == null) {
-			graphics = g;
-		}
-		shouldClearScreen = true;
-		raiseWelcomeScreen();
-	}
-
-	@Override
-	public final void paint(Graphics g) {
-		if (graphics == null) {
-			graphics = g;
-		}
-		shouldClearScreen = true;
-		raiseWelcomeScreen();
 	}
 
 	public boolean mouseWheelDown;
@@ -650,7 +676,7 @@ public class RSApplet extends Applet implements Runnable, MouseListener, MouseWh
 
 	@Override
 	public final void windowClosing(WindowEvent windowevent) {
-		destroy();
+		onWindowClosing();
 	}
 
 	@Override
@@ -659,10 +685,12 @@ public class RSApplet extends Applet implements Runnable, MouseListener, MouseWh
 
 	@Override
 	public final void windowDeiconified(WindowEvent windowevent) {
+		resumeClient();
 	}
 
 	@Override
 	public final void windowIconified(WindowEvent windowevent) {
+		suspendClient();
 	}
 
 	@Override
@@ -685,7 +713,19 @@ public class RSApplet extends Applet implements Runnable, MouseListener, MouseWh
 	}
 
 	Component getGameComponent() {
-		return this;
+		if (gameCanvas != null) {
+			return gameCanvas;
+		}
+		if (Signlink.mainapp != null) {
+			return Signlink.mainapp;
+		}
+		return null;
+	}
+
+	void recreatePresentationBuffers() {
+		if (presentation != null) {
+			presentation.recreateBuffers();
+		}
 	}
 
 	public void startRunnable(Runnable runnable, int priority) {
@@ -694,17 +734,28 @@ public class RSApplet extends Applet implements Runnable, MouseListener, MouseWh
 		thread.setPriority(priority);
 	}
 
+	void publishPendingResize(int width, int height) {
+		pendingResizePublisher.publish(width, height);
+	}
+
 	void drawLoadingText(int i, String s) {
-		while (graphics == null) {
-			graphics = getGameComponent().getGraphics();
-			try {
-				getGameComponent().repaint();
-			} catch (Exception _ex) {
+		long deadline = System.currentTimeMillis() + 30_000L;
+		while (graphics == null && System.currentTimeMillis() < deadline) {
+			if (presentation != null) {
+				graphics = presentation.beginFrame();
+			} else if (getGameComponent() != null) {
+				graphics = getGameComponent().getGraphics();
 			}
-			try {
-				Thread.sleep(1000L);
-			} catch (Exception _ex) {
+			if (graphics == null) {
+				try {
+					Thread.sleep(20L);
+				} catch (Exception _ex) {
+				}
+				continue;
 			}
+		}
+		if (graphics == null) {
+			return;
 		}
 		Font font = new Font("Helvetica", 1, 13);
 		FontMetrics fontmetrics = getGameComponent().getFontMetrics(font);
@@ -725,6 +776,12 @@ public class RSApplet extends Applet implements Runnable, MouseListener, MouseWh
 		graphics.setFont(font);
 		graphics.setColor(Color.white);
 		graphics.drawString(s, (myWidth - fontmetrics.stringWidth(s)) / 2, j + 22);
+		if (presentation != null) {
+			presentation.endFrame();
+		} else {
+			graphics.dispose();
+		}
+		graphics = null;
 	}
 
 	RSApplet() {
@@ -738,7 +795,7 @@ public class RSApplet extends Applet implements Runnable, MouseListener, MouseWh
 		charQueue = new int[128];
 	}
 
-	private int anInt4;
+	final ClientLifecycle lifecycle = new ClientLifecycle();
 	private int delayTime;
 	int minDelay;
 	private final long[] aLongArray7;
@@ -749,9 +806,12 @@ public class RSApplet extends Applet implements Runnable, MouseListener, MouseWh
 	int dynamicGameAreaW = 512;
 	int dynamicGameAreaH = 334;
 	volatile boolean layoutDirty = true;
+	final PendingResizePublisher pendingResizePublisher = new PendingResizePublisher();
 	Graphics graphics;
 	RSImageProducer fullGameScreen;
-	RSFrame gameFrame;
+	ClientWindow clientWindow;
+	GameCanvas gameCanvas;
+	CanvasPresentation presentation;
 	private boolean shouldClearScreen;
 	boolean awtFocus;
 	int idleTime;

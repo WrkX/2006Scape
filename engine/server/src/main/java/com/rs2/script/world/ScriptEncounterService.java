@@ -767,6 +767,22 @@ public final class ScriptEncounterService {
 		return encounter == null ? 0L : encounter.rng.state();
 	}
 
+	/** Engine-visible participant count for tests; never guest-visible. */
+	public synchronized int participantCountForTesting() {
+		return participants.size();
+	}
+
+	/** Engine-visible open-encounter count for tests; never guest-visible. */
+	public synchronized int encounterCountForTesting() {
+		int count = 0;
+		for (ScriptEncounter encounter : encounters.values()) {
+			if (encounter.open) {
+				count++;
+			}
+		}
+		return count;
+	}
+
 	/** Encounter ordinal used by the focused drop-transaction tests. */
 	public synchronized long encounterOrdinalForTesting(long token) {
 		ScriptEncounter encounter = encounters.get(token);

@@ -228,7 +228,7 @@ public class Boundary {
 		new Boundary(2885, 2895, 3422, 3433),//Nardah
 		new Boundary(3685, 3694, 3461, 3473),//Phasmatys
 		new Boundary(2530, 2550, 4705, 4725),//Mage Bank
-		new Boundary(2834, 2841, 10204, 10215),//Keldagrim
+		new Boundary(2830, 2930, 10160, 10240),//Keldagrim
 		new Boundary(2379, 2386, 4453, 4462),//Zanaris
 		new Boundary(2582, 2591, 3417, 3423),//Fishing Guild
 		new Boundary(3509, 3515, 3475, 3483),//Canifis
