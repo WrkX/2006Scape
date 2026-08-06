@@ -61,6 +61,11 @@ public final class ScriptShopRuntime {
 		}
 	}
 
+	/** Engine-visible active scripted-shop stock count for diagnostics. */
+	public synchronized int shopCount() {
+		return stocks.size();
+	}
+
 	/** Closes every session and discards every stock of a closed generation. */
 	public synchronized void closeGeneration(long generation) {
 		if (generation == 0L) {

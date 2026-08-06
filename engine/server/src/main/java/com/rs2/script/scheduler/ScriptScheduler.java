@@ -209,6 +209,11 @@ public final class ScriptScheduler {
 		return task != null && task.cancelled;
 	}
 
+	/** Engine-visible scheduled-task count for diagnostics. */
+	public synchronized int taskCount() {
+		return tasks.size();
+	}
+
 	public synchronized void cancelGeneration(long generation) {
 		Iterator<Task> iterator = tasks.values().iterator();
 		while (iterator.hasNext()) {

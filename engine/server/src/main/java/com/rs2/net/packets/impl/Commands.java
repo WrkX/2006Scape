@@ -1041,6 +1041,17 @@ public class Commands implements PacketType {
                 } catch (Exception e) {
                 }
                 break;
+            case "reload":
+                com.rs2.script.diagnostics.ScriptAdminCommands.reload(player);
+                break;
+            case "scripts":
+                com.rs2.script.diagnostics.ScriptAdminCommands.handle(
+                        player, arguments);
+                break;
+            case "scriptdir":
+                com.rs2.script.diagnostics.ScriptAdminCommands.handleScriptdir(
+                        player, arguments);
+                break;
             case "master":
                 for (int i = 0; i < 25; i++) {
                     player.playerLevel[i] = 99;
@@ -1245,19 +1256,6 @@ public class Commands implements PacketType {
             case "devmode":
                 player.devMode = !player.devMode;
                 player.getPacketSender().sendMessage("Dev mode: " + (player.devMode ? "ON" : "OFF"));
-                break;
-            case "reload":
-            case "scripts":
-                try {
-                    com.rs2.script.ScriptHost.getInstance().reload();
-                    player.getPacketSender().sendMessage("Scripts reloaded.");
-                } catch (Throwable t) {
-                    player.getPacketSender().sendMessage("Reload failed: " + t.getMessage());
-                    t.printStackTrace();
-                }
-                break;
-            case "scriptdir":
-                player.getPacketSender().sendMessage("Script content dir: " + com.rs2.script.ScriptHost.resolveContentDir().getAbsolutePath());
                 break;
             case "getobject":
                 if (arguments.length == 0) {

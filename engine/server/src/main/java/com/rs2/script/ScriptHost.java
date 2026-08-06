@@ -28,6 +28,8 @@ import com.rs2.script.activation.ProjectionAdapter;
 import com.rs2.script.activation.RuntimeActivationTransaction;
 import com.rs2.script.activation.RuntimeSnapshot;
 import com.rs2.script.activation.ScriptRuntimeReport;
+import com.rs2.script.diagnostics.ScriptReloadResult;
+import com.rs2.script.diagnostics.ScriptRuntimeStatus;
 import com.rs2.script.registries.RegistryStore;
 import com.rs2.script.registries.QuestRegistry;
 import com.rs2.script.route.ExecutableRouteRecord;
@@ -115,6 +117,7 @@ public final class ScriptHost {
 	private ProjectionAdapter projectionAdapter = com.rs2.script.area.ScriptAreaRuntime
 			.getInstance();
 	private final List<String> diagnostics = new ArrayList<>();
+	private String lastReloadFailure;
 
 	private ScriptHost() {
 	}
@@ -171,6 +174,27 @@ public final class ScriptHost {
 	/**
 	 * Evaluates a fresh candidate and atomically publishes it on success.
 	 * The last known-good context remains live when evaluation or the
+	 * activation handoff fails. Returns the bounded outcome of the attempt.
+	 */
+	public synchronized ScriptReloadResult reloadWithResult() {
+		boolean hadContext = activeState != null;
+		long previousGeneration = activeState == null ? 0L : activeState.generation;
+		replaceContext();
+		if (activeState == null) {
+			return ScriptReloadResult.failure(previousGeneration,
+					lastFailedMessage());
+		}
+		if (hadContext && activeState.generation == previousGeneration) {
+			return ScriptReloadResult.failure(previousGeneration,
+					lastFailedMessage());
+		}
+		return ScriptReloadResult.success(activeState.generation,
+				activeState.registry.manifest.size());
+	}
+
+	/**
+	 * Evaluates a fresh candidate and atomically publishes it on success.
+	 * The last known-good context remains live when evaluation or the
 	 * activation handoff fails.
 	 */
 	public synchronized void reload() {
@@ -203,6 +227,57 @@ public final class ScriptHost {
 	 */
 	public synchronized List<String> getRuntimeDiagnostics() {
 		return Collections.unmodifiableList(new ArrayList<>(diagnostics));
+	}
+
+	/**
+	 * Returns the most recent bounded failure message of a rejected reload
+	 * attempt, or {@code null} when no failure has been recorded.
+	 */
+	public synchronized String lastFailedMessage() {
+		return lastReloadFailure;
+	}
+
+	/**
+	 * Returns an immutable logical status snapshot of the active runtime.
+	 *
+	 * <p>All counts are derived from the immutable active registry and the
+	 * Java-owned runtime singletons; no raw guest value, engine object, or
+	 * host path is exposed. The {@code ScriptHost} monitor is held only for
+	 * the short registry/generation read and released before any runtime
+	 * singleton is queried, so inspection never inverts the lock order used
+	 * by runtime singletons that read the active generation under their own
+	 * monitors.
+	 */
+	public ScriptRuntimeStatus getRuntimeStatus() {
+		final RegistryStore.State state = readActiveRegistry(
+				new ActiveRegistryRead<RegistryStore.State>() {
+					@Override
+					public RegistryStore.State read(RegistryStore.State s) {
+						return s;
+					}
+				});
+		final long generation = getActiveGeneration();
+		int scheduled = ScriptScheduler.getInstance().taskCount();
+		int encounters = ScriptEncounterService.getInstance()
+				.activeEncounterCount();
+		int bosses = com.rs2.script.boss.StandaloneBossService.getInstance()
+				.sessionCount();
+		int areas = com.rs2.script.area.ScriptAreaRuntime.getInstance()
+				.selectedAreaCount();
+		int shops = com.rs2.script.shop.ScriptShopRuntime.getInstance()
+				.shopCount();
+		int raidLobbies = com.rs2.script.raid.ScriptRaidRuntime.getInstance()
+				.lobbyCount();
+		int raidSessions = com.rs2.script.raid.ScriptRaidRuntime.getInstance()
+				.sessionCount();
+		int resources = com.rs2.script.resource.ScriptResourceRuntime
+				.getInstance().sessionCount();
+		int journalRows = com.rs2.script.quest.ScriptQuestJournalService
+				.getInstance().mappedRowCount();
+		return new ScriptRuntimeStatus(generation,
+				state.manifest.size(), state.definitions.size(),
+				state.routes.size(), scheduled, encounters, bosses, areas,
+				shops, raidLobbies, raidSessions, resources, journalRows);
 	}
 
 	/**
@@ -390,12 +465,14 @@ public final class ScriptHost {
 				appendDiagnostic("script reload finalize degraded: "
 						+ finalizeFailure);
 			}
+			lastReloadFailure = null;
 			logger.log(Level.INFO, "Loaded " + modules.size()
 					+ " script modules (generation " + published.generation()
 					+ ")");
 		} catch (Throwable e) {
 			RegistryStore.rollback(candidateState);
 			closeQuietly(candidateContext);
+			lastReloadFailure = boundMessage(e.getMessage());
 			appendDiagnostic("script load failed; retaining the "
 					+ "last-known-good context: " + boundMessage(e.getMessage()));
 			if (e instanceof RuntimeActivationTransaction.Aborted) {
@@ -475,6 +552,7 @@ public final class ScriptHost {
 		projectionAdapter = com.rs2.script.area.ScriptAreaRuntime
 				.getInstance();
 		diagnostics.clear();
+		lastReloadFailure = null;
 		activeState = null;
 	}
 

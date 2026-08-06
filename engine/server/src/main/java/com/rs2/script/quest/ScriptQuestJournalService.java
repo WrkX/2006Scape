@@ -103,6 +103,11 @@ public final class ScriptQuestJournalService {
 		}
 	}
 
+	/** Engine-visible mapped scripted-quest row count for diagnostics. */
+	public synchronized int mappedRowCount() {
+		return slotByQuest.size();
+	}
+
 	public synchronized void resetForTesting() {
 		slotByQuest.clear();
 		questIdByButton.clear();

@@ -772,6 +772,11 @@ public final class ScriptEncounterService {
 		return participants.size();
 	}
 
+	/** Engine-visible open-encounter count for diagnostics. */
+	public synchronized int activeEncounterCount() {
+		return encounterCountForTesting();
+	}
+
 	/** Engine-visible open-encounter count for tests; never guest-visible. */
 	public synchronized int encounterCountForTesting() {
 		int count = 0;
