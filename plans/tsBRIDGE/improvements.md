@@ -1,8 +1,12 @@
 # TypeScript Bridge Improvements Roadmap
 
+**Last reviewed:** 2026-08-06 (against codebase + [TYPESCRIPT_BRIDGE_REVIEW.md](../../TYPESCRIPT_BRIDGE_REVIEW.md))
+
 ## Goal
 
 Make `content/` the place you author OSRS-style content (skills, combat, items behavior, UI hooks, social) without writing Java. Java stays the engine/host; every gameplay system you port should have a TS registration or handler surface.
+
+This roadmap is the **Phase 6+ extension** of the completed [typescript-content-platform](../typescript-content-platform/plan.md) plan. It does not replace that platform work — it adds kits, overlays, and host capabilities needed for full OSRS ports.
 
 Scripts are bound to **loaded cache IDs**. ID ceilings are now raised to 65535 (`ScriptEntityLimits`, `content/src/core/limits.ts`, `ItemConstants.ITEM_LIMIT = 65536`). Porting “as much OSRS as possible” still requires growing the bridge **and** shipping an OSRS cache pack for visuals.
 
@@ -30,9 +34,9 @@ Existing pattern to copy everywhere: schema-v1 `defineX` → Java parser → Jav
 | Phase | Status | Notes |
 | --- | --- | --- |
 | **0** — Entity capacity and author truth | **Done** | 65535 ceilings, `player.ts` / `bot.ts` quarantined, docs exist |
-| **0.5** — Bridge hardening | **Next** | See [TYPESCRIPT_BRIDGE_REVIEW.md](../../TYPESCRIPT_BRIDGE_REVIEW.md) Priority 1 |
+| **0.5** — Bridge hardening | **Next** | Prerequisite before new write APIs; see [Priority 1 review items](#phase-05--bridge-hardening-prerequisite-for-new-write-apis) |
 | **1** — Player capability parity | **~90%** | equip/unequip, openBank, prayer, magic routes done; attack styles / venom TBD |
-| **2** — Skilling kits | **Next feature work** | woodcutting exists; mining/fishing + processing port pending |
+| **2** — Skilling kits | **Next feature work** (after 0.5) | woodcutting exists; mining/fishing + one cooking port pending |
 | **3–8** | Pending | See phases below |
 
 ---
@@ -56,13 +60,13 @@ Phases reference these gaps. Keep this table in sync when adding new phases.
 
 ## Route precedence
 
-Incremental OSRS porting depends on a single, documented rule:
+Incremental OSRS porting depends on a single, documented rule. Implementation lives in [ScriptInteractionGate.java](engine/server/src/main/java/com/rs2/net/packets/impl/ScriptInteractionGate.java) and the route registries.
 
-1. **Exact scripted route match** (object/NPC/item id + action + route kind) → script handler runs; legacy Java for that route is suppressed via [ScriptInteractionGate.java](engine/server/src/main/java/com/rs2/script/ScriptInteractionGate.java).
+1. **Exact scripted route match** (object/NPC/item id + action + route kind) → script handler runs; legacy Java for that route is suppressed.
 2. **No scripted registration** for that route → legacy Java behavior runs unchanged.
 3. **Same cache id, different tile** → only the globally registered route fires; unregistered tiles keep legacy behavior (see [woodcutting.ts](content/src/resources/woodcutting.ts) comment on Dragon Island).
 
-Kits must register host routes for every id they own so scripted content wins on port.
+Kits must register host routes for every id they own so scripted content wins on port. Partial overlap during incremental porting is intentional: register only what you have ported; everything else falls through to legacy.
 
 ---
 
@@ -75,6 +79,29 @@ Kits must register host routes for every id they own so scripted content wins on
 | **`defineGatheringResource`** | Tool + deplete/respawn + XP loops (woodcutting, mining, fishing) | Item-on-item processing (cooking, smithing) |
 | **`defineProcessingSkill`** | Extract **after** 1–2 real ports prove the shape; cook/smith/fletch/herblore loops | First port of a skill — use raw `onItemOnObject` / `onItemOnItem` first |
 | **`defineRaid`** | Multi-room PvM with lobby, muster, roster-wide reward barrier | Single-room wave minigames (use `defineMinigame`) |
+| **`defineMinigame`** | Wave/lobby minigames; compose `defineArea` + optional `defineRaid` primitives | Full multi-room raids with roster barriers (use `defineRaid`) |
+
+### `defineMob` vs `defineBoss`
+
+| Concern | `defineBoss` | `defineMob` |
+| --- | --- | --- |
+| Ownership | `ScriptEncounterService`, arena reservation | World spawn; no instance lock |
+| Phases | Multi-phase lifecycle, spawn waves | Single stat block + optional hooks |
+| AI | Encounter scripts drive behavior | **Java-owned** aggression radius, walk-to-target, and basic combat ticks from declarative stats; `onTick` / `onDeath` for custom logic only |
+| Suppression | Encounter-scoped NPC handles | Registered `npcId` suppresses `NpcCombat` switch for that id globally |
+
+`defineMob` does **not** require authors to implement pathing or aggression in callbacks — those come from the runtime when `aggression`, `attackSpeed`, `maxHit`, etc. are set. Callbacks are for ports that need custom behavior beyond stat-driven AI.
+
+---
+
+## Testing strategy (all new kits)
+
+Every new `define*` kit or facade added in Phases 2+ should ship with:
+
+1. **Parser validation tests** — malformed definitions fail content load with a clear error (id out of range, missing required field, duplicate key).
+2. **Route authority tests** — scripted route consumes the packet; unregistered id falls through to legacy Java unchanged.
+3. **Reload tests** — definitions survive `::scripts` reload without duplicate-route errors or stale callbacks.
+4. **One representative content module** — at least one real OSRS-style port exercising the kit end-to-end.
 
 ---
 
@@ -95,17 +122,25 @@ Unblocks real OSRS IDs and stops dual-API confusion.
 
 ## Phase 0.5 — Bridge hardening (prerequisite for new write APIs)
 
-Address Priority 1 findings in [TYPESCRIPT_BRIDGE_REVIEW.md](../../TYPESCRIPT_BRIDGE_REVIEW.md) before adding more mutation surface (mob AI, overlays, trade hooks).
+Address all **Priority 1** findings in [TYPESCRIPT_BRIDGE_REVIEW.md](../../TYPESCRIPT_BRIDGE_REVIEW.md) before adding more mutation surface (mob AI, overlays, trade hooks). New Java exports in Phases 1+ **must** use the shared validation utility.
 
-1. **Input validation layer** — shared `BridgeValidation` (or equivalent) for all new Java exports; null-safe strings, integral ids, coordinate bounds.
-2. **`ScriptHost` locking** — `ReadWriteLock` for registry reads vs writes; consistent snapshot for `getRuntimeStatus()`.
-3. **Mutation guards** — `canMutate()` on `grantReward()` and any new write facades.
-4. **Guest exception handling** — catch `PolyglotException` in `ScriptExecutor` for source location in reload errors.
+| Review item | Deliverable |
+| --- | --- |
+| 1.1 ProxyExecutable lacks input validation | Shared `BridgeValidation` (or equivalent) used by all new facades; audit existing wrappers |
+| 1.2 `SkillView.setLevel()` arbitrary modification | Route mutations through game logic; strengthen `canMutate()` guards |
+| 1.3 / 1.9 `ScriptHost` synchronized bottleneck | `ReadWriteLock` for registry reads vs writes; minimize lock hold during JS interop |
+| 1.4 Null/undefined coercion in string methods | Null-safe string handling in `ScriptedPlayer`, `ScriptedNpc`, and new exports |
+| 1.5 `getRuntimeStatus()` race | Single synchronized snapshot returns generation + registry together |
+| 1.6 `beginEncounter()` coordinate coercion | Integral coordinate validation with range checks |
+| 1.7 `forceChat()` null validation | Same null-safe pattern as player message APIs |
+| 1.8 Hot-path allocations | Cache `ScriptedPosition`; consider wrapper reuse on event dispatch paths |
+| — `grantReward()` mutation guard | `canMutate()` check before reward application |
 
 **Acceptance:**
-- [ ] Priority 1 review items have tests or are explicitly deferred with issue links.
-- [ ] New facades added in Phases 1+ use the validation utility.
+- [ ] All Priority 1 review items have tests or are explicitly deferred with issue links.
+- [ ] New facades added in Phases 1+ use `BridgeValidation`.
 - [ ] `getRuntimeStatus()` returns generation + registry from one synchronized snapshot.
+- [ ] Per-phase gate: no new write API merges without passing the validation checklist above.
 
 ---
 
@@ -137,16 +172,19 @@ Make a script able to do what Java content already does to a player.
 
 Extend the gathering runtime pattern instead of hand-rolling every skill.
 
-1. **Generalize gathering** — mining/fishing/power-chop variants reuse [ScriptResourceRuntime.java](engine/server/src/main/java/com/rs2/script/resource/ScriptResourceRuntime.java). Add TS packs under `content/src/resources/` (mining, fishing) mirroring [woodcutting.ts](content/src/resources/woodcutting.ts).
-2. **One processing port first** — implement cooking (e.g. shrimp on range) via `onItemOnObject` before extracting `defineProcessingSkill`.
-3. **`defineProcessingSkill`** — extract from the cooking port: item-on-object / item-on-item + tick delay + level + success chance + product.
+**Build order within this phase (do not skip):**
+
+1. **Mining + fishing gathering packs** — reuse [ScriptResourceRuntime.java](engine/server/src/main/java/com/rs2/script/resource/ScriptResourceRuntime.java). Add TS modules under `content/src/resources/` mirroring [woodcutting.ts](content/src/resources/woodcutting.ts).
+2. **One processing port via raw handlers** — e.g. cooking shrimp on a range using `onItemOnObject` (prove the loop before abstracting).
+3. **Extract `defineProcessingSkill`** — only after step 2: item-on-object / item-on-item + tick delay + level + success chance + product. Processing loops differ (furnace vs anvil vs range vs herblore vial) — the kit shape must come from a real port, not upfront speculation.
 4. **`defineThievingTarget`**, **`defineFiremakingSpot`**, **`defineAgilityCourse`** — thin declarative kits once 2–3 real OSRS ports prove each shape.
 5. Kits register host routes per [route precedence](#route-precedence) so they win over legacy Java for ported ids.
 
 **Acceptance:**
 - [ ] Mining and fishing resource modules with at least one resource each.
-- [ ] Packet/dispatch test: scripted gathering route consumes legacy for registered object id.
-- [ ] One cooking loop works via handlers; `defineProcessingSkill` only lands after that port.
+- [ ] Parser validation test: malformed gathering def fails load with clear error.
+- [ ] Route authority test: scripted gathering route consumes packet; unregistered object id keeps legacy.
+- [ ] One cooking loop works via raw handlers before `defineProcessingSkill` lands.
 - [ ] Reload test: resources survive `::scripts` without duplicate-route errors.
 
 ---
@@ -156,13 +194,16 @@ Extend the gathering runtime pattern instead of hand-rolling every skill.
 Bosses work via `defineBoss`. Add the missing world-NPC authoring path:
 
 - **`defineMob({ npcId, aggression, combatStyle, attackSpeed, maxHit, onSpawn, onTick, onDeath, ... })`**
-- Java `ScriptMobRuntime` installs behavior for that cache NPC id (suppress legacy `NpcCombat` for registered ids only).
+- Java `ScriptMobRuntime` installs behavior for that cache NPC id.
+- **NpcCombat suppression:** registered `npcId` skips the legacy `NpcCombat` switch; unregistered ids unchanged.
+- **AI split:** runtime handles aggression radius, pathing to target, and basic attack ticks from declarative stats; callbacks are optional overrides, not required for a functioning mob.
 - Reuse encounter NPC handle primitives (walk/face/damage/animate) already on the bridge.
 - **Not** a full custom NPC graphic API — still cache-bound `npcId` until Phase 4 pack ships.
 - **Not** for arena bosses — use `defineBoss` (see [kit boundaries](#kit-boundaries)).
 
 **Acceptance:**
 - [ ] Registered mob id suppresses `NpcCombat` switch; unregistered ids unchanged.
+- [ ] Parser validation test: invalid mob def rejected at load.
 - [ ] `onTick` / `onDeath` callbacks invalidated on reload and NPC despawn.
 - [ ] At least one world mob ported entirely in TS (e.g. a low-tier guard or goblin).
 
@@ -173,14 +214,18 @@ Bosses work via `defineBoss`. Add the missing world-NPC authoring path:
 You cannot invent new client graphics without cache work, but you **can** author server behavior and light metadata from TS:
 
 1. **`defineItemOverlay` / `defineNpcOverlay` / `defineObjectOverlay`**: name, examine, stackability, equip slot/reqs/bonuses, NPC combat stats, object actions — merged at load over cache defs when present; reject unknown ids until cache pack includes them.
-2. **Cache pack pipeline** — use the existing [asset-pipeline](../asset-pipeline/plan.md) (phases 3–8: OSRS import, model backport, custom ID namespace). Asset pipeline produces IDs/assets; bridge overlays attach server behavior to those IDs.
-3. Load order: **cache definition → overlay merge → reject if id missing from cache**.
+2. **Cache pack pipeline — use existing [asset-pipeline](../asset-pipeline/plan.md), not greenfield tooling:**
+   - Phases 1–6 (completed): decoders, OSRS region import, terrain/landscape export, model backport.
+   - **[Phase 7](../asset-pipeline/phases/phase-7.md) (completed):** custom asset namespace — ID allocation registry, object definition encoder, safe custom-range constants.
+   - **[Phase 8](../asset-pipeline/phases/phase-8.md) (completed):** dual model decoder — SMF format for custom models (ID 50000+).
+   - **Handoff:** asset-pipeline produces IDs and cache entries; bridge overlays attach server behavior to those IDs. Without this pipeline, OSRS ports stay remapped onto 2006 ids.
+3. **Load order:** cache definition → overlay merge → reject if id missing from cache.
 4. Keep `onItem` / `onNpc` / `onObject` for one-off interactions; overlays + kits for data-heavy OSRS tables.
 
 **Acceptance:**
 - [ ] Overlay merge is deterministic and logged at `::scripts` load.
 - [ ] Unknown id in overlay fails content load with a clear error.
-- [ ] One OSRS item/NPC/object ported with overlay + asset-pipeline id (not remapped to 2006 id).
+- [ ] One OSRS item/NPC/object ported with overlay + asset-pipeline custom-namespace id (not remapped to 2006 id).
 
 ---
 
@@ -200,20 +245,24 @@ Full “design new interfaces in TS” needs client changes. Practical bridge pa
 
 ## Phase 6 — Economy and social (close gap 5 remainder)
 
-Needed for authentic OSRS ports, not for early skilling/PvM.
+Needed for authentic OSRS ports, not for early skilling/PvM. Tighten scope to avoid ballooning.
 
 **MVP scope (ship this first):**
-1. **Trade gate** — `onTradeRequest` with allow/deny; Java trade UI stays host-owned; no scripted offer mutation in MVP.
-2. **PvP/wilderness queries** — skull state, safe-area check via `getCombat()`; `onPlayerDeath` already exists.
-3. **PM observe** — `onPrivateMessage` event only (no send API in MVP).
 
-**Later:**
+| Capability | MVP behavior |
+| --- | --- |
+| Trade | `onTradeRequest` with allow/deny only; **Java trade UI stays host-owned**; scripts cannot mutate offers in MVP |
+| PvP / wilderness | Skull state, safe-area check via `getCombat()`; `onPlayerDeath` already exists |
+| PM | `onPrivateMessage` observe-only; no send API in MVP |
+
+**Later (explicitly out of MVP):**
 - Trade offer mutate / accept hooks if Java trade cannot express a port.
 - Friends / ignore lists.
 - Grand Exchange (`defineGeOffer` / open GE) — after shop/bank parity; requires Java protocol matching.
 
 **Acceptance:**
 - [ ] Script can block trade initiation with a user-facing message.
+- [ ] Scripts cannot mutate trade offers in MVP (gate-only).
 - [ ] Wilderness skull / safe-area query available on combat facade.
 - [ ] GE explicitly out of MVP; tracked as separate work item.
 
@@ -221,12 +270,15 @@ Needed for authentic OSRS ports, not for early skilling/PvM.
 
 ## Phase 7 — Minigames, randoms, bots (close gaps 7+)
 
-1. **`defineMinigame`**: instance lifecycle, join/leave, score, NPC waves — compose `defineArea` / `defineRaid` where possible; generalize Fight Caves / Pest Control style ports.
+1. **`defineMinigame`**: instance lifecycle, join/leave, score, NPC waves. **Compose existing kits** where possible:
+   - `defineArea` for lobby/arena bounds and entry gates.
+   - `defineRaid` when the minigame needs multi-room PvM with roster-wide reward barriers.
+   - `defineMob` / `defineBoss` for wave NPCs inside the instance.
 2. Random event / login interruption hooks if OSRS parity is required.
 3. **Bots:** wire [bot.ts](content/src/core/bot.ts) to a simulated-player host **or** keep quarantined (already marked design-only). Treat as parallel product, not content-authoring.
 
 **Acceptance:**
-- [ ] One wave-based minigame (e.g. Pest Control lobby + waves) ported with `defineMinigame`.
+- [ ] One wave-based minigame (e.g. Pest Control lobby + waves) ported with `defineMinigame` composing `defineArea`.
 - [ ] Bot module status documented: wired or explicitly deferred.
 
 ---
@@ -249,18 +301,27 @@ Keep iteration cheap while porting:
 
 ## Suggested build order (next PRs)
 
+### Foundation (done)
+
+| Deliverable | Closes |
+| --- | --- |
+| ID ceiling + ScriptedPlayer-only contract | Gap 6 |
+| Equipment + openBank + prayer + magic | Gap 5 (player) |
+| Docs (`SCRIPT_BRIDGE.md`, `API_INVENTORY.md`) + watch workflow | Gap 8 (partial) |
+
+### Next PRs
+
 | Order | Deliverable | Closes | Status |
 | --- | --- | --- | --- |
-| — | ID ceiling + ScriptedPlayer-only contract | Gap 6 | ✅ Done |
-| — | Equipment + openBank + prayer + magic | Gap 5 (player) | ✅ Done |
-| **1** | Bridge hardening (Phase 0.5) | Stability | Next |
+| **1** | Bridge hardening (Phase 0.5) | Stability | **Next** |
 | **2** | Mining/fishing gathering packs | Gap 3 | Pending |
-| **3** | One cooking port → `defineProcessingSkill` | Gap 3 | Pending |
+| **3** | One cooking port (raw handlers) → `defineProcessingSkill` | Gap 3 | Pending |
 | **4** | `defineMob` world AI | Gap 4 | Pending |
-| **5** | Overlays + asset-pipeline handoff | Gap 1 | Pending |
+| **5** | Overlays + asset-pipeline handoff (phases 7–8 ids) | Gap 1 | Pending |
 | **6** | Interface hook packs + presentation helpers | Gap 2 | Pending |
-| **7** | Trade gate + PvP queries | Gap 5 (social) | Pending |
-| **8** | Minigame kit; bot wiring decision | Gaps 7–8 | Pending |
+| **7** | Trade gate + PvP queries (MVP scope) | Gap 5 (social) | Pending |
+| **8** | Minigame kit; bot wiring decision | Gap 7 | Pending |
+| **9** | Reload diagnostics + duplicate-route errors | Gap 8 | Pending |
 
 ---
 
@@ -270,6 +331,7 @@ Keep iteration cheap while porting:
 - Designing brand-new client UIs before a cache pack pipeline exists.
 - Treating aspirational [player.ts](content/src/core/player.ts) / bot types as runnable.
 - Full scripted trade / GE in pure TS without Java protocol support.
+- Speculating `defineProcessingSkill` shape before a real cooking (or smithing) port.
 
 ## What “done enough for OSRS ports” looks like
 
