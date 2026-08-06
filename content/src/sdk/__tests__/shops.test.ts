@@ -56,7 +56,7 @@ test("rejects invalid stock entries", () => {
     items: [{ itemId: 0, amount: 1, price: 1 }],
   })), /item id/);
   assert.throws(() => createShop(shop({
-    items: [{ itemId: 15000, amount: 1, price: 1 }],
+    items: [{ itemId: 65536, amount: 1, price: 1 }],
   })), /item id/);
   assert.throws(() => createShop(shop({
     items: [{ itemId: 379, amount: 0, price: 1 }],

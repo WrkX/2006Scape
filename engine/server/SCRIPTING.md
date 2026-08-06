@@ -2,9 +2,10 @@
 
 > **Canonical contract:** See
 > [`../../docs/SCRIPT_BRIDGE.md`](../../docs/SCRIPT_BRIDGE.md) for the current
-> runtime surface, persistent state, executable quest APIs, scheduling,
-> lifecycle hooks, reload semantics, limits, and result codes. This file is a
-> legacy server-local quickstart and may omit newer content-platform features.
+> runtime surface, author contract (`ScriptedPlayer` only), entity ID ceilings,
+> and reload semantics. See [`../../docs/API_INVENTORY.md`](../../docs/API_INVENTORY.md)
+> for the generated global/SDK inventory. This file is a legacy server-local
+> quickstart and may omit newer content-platform features.
 
 The TypeScript bridge lets you write game content (NPCs, objects, quests, commands) in TypeScript/JavaScript instead of Java. It runs on **GraalJS** — a high-performance JavaScript runtime embedded in the JVM — and supports full ES module syntax.
 

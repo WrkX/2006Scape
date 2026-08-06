@@ -16,15 +16,14 @@ import type {
   GatheringResourceReward,
   GatheringResourceTool,
 } from "../core/runtime.js";
+import { MAX_ITEM_ID, MAX_OBJECT_ID } from "../core/limits.js";
 import { isScriptSkill, type ScriptSkillName } from "./skills.js";
 
 const ID_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/;
 const ACTIONS = ["first", "second", "third", "fourth"] as const;
 
-const MAX_OBJECT_ID = 65535;
 const MAX_TOOLS = 16;
 const MAX_REWARDS = 16;
-const MAX_ITEM_ID = 14999;
 const MAX_ITEM_AMOUNT = 2147483647;
 const MAX_ANIMATION = 65535;
 const MAX_INTERVAL_TICKS = 100000;

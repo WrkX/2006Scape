@@ -160,6 +160,8 @@ engine/server/src/main/java/com/rs2/script/
 | `onItemOnPlayer(itemId, handler)` | `(number, fn) => void` | exact item-on-player handler |
 | `onMagicOnItem(spellId, itemId, handler)` | `(number, number, fn) => void` | exact magic-on-item handler |
 | `onMagicOnObject(spellId, objectId, handler)` | `(number, number, fn) => void` | exact magic-on-object handler |
+| `onMagicOnNpc(spellId, npcId, handler)` | `(number, number, fn) => void` | exact magic-on-NPC-type handler |
+| `onMagicOnPlayer(spellId, handler)` | `(number, fn) => void` | exact magic-on-player spell handler |
 | `onPlayerDeath(handler)` | `(fn) => void` | observe one completed player death per transition |
 | `onLogin(handler)` | `(fn) => void` | observe completed player initialization |
 | `onLogout(handler)` | `(fn) => void` | observe terminal player removal |
@@ -185,10 +187,21 @@ NPC-death observation is the deliberate exception: its one argument contains
 have no player killer. `ScriptContext`-shaped contexts and the `Scripted*`
 wrappers are the Graal boundary contract.
 They are deliberately distinct from the richer `Player` domain interface in
-`content/src/core/player.ts`. That domain interface is useful when modelling
-future content systems, but it is not the object passed to runtime handlers.
-Runtime content must use only the members declared by the bridge-specific
-types in `content/src/core/runtime.ts` and implemented by the Java wrappers.
+`content/src/core/player.ts`. That domain interface and `content/src/core/bot.ts`
+are aspirational design sketches and are **not** injected by the host. Runtime
+content must use only the members declared by the bridge-specific types in
+`content/src/core/runtime.ts` and implemented by the Java wrappers.
+
+### Entity ID ceilings
+
+| Kind | Inclusive max id | Source |
+|------|------------------|--------|
+| Item | `65535` | `ItemConstants.ITEM_LIMIT - 1` / `ScriptEntityLimits.MAX_ITEM_ID` |
+| NPC type | `65535` | `ScriptEntityLimits.MAX_NPC_ID` |
+| Object type | `65535` | `ScriptEntityLimits.MAX_OBJECT_ID` |
+
+TypeScript mirrors these in `content/src/core/limits.ts`. Raising the ceiling
+does not invent cache definitions — ids must still exist in the loaded cache.
 
 ## ScriptedPlayer surface (`ctx.player`)
 
@@ -239,12 +252,23 @@ quest(id: string): ScriptedQuest | null
 questPoints(): number
 getEquipment(): ScriptedEquipment
 getCombat(): ScriptedCombat
+getMagic(): ScriptedMagic
+getPrayer(): ScriptedPrayer
 getMovement(): ScriptedMovement
 getActions(): ScriptedActions
 getPresentation(): ScriptedPresentation
+openBank(): boolean
 beginEncounter(id, minX, minY, maxX, maxY, plane): ScriptEncounterHandle | null
 grantReward(rewardId: string): RewardGrantResult
 ```
+
+`getEquipment()` supports read (`get`/`amount`) and mutation (`equip(itemId)`,
+`unequip(slot)`), plus recalculated combat bonuses (`bonus(index 0..11)`,
+`bonusName(index)`). `getMagic()` checks and consumes spell runes by client
+button id (`MagicData.MAGIC_SPELLS[i][0]`). `getPrayer()` covers prayer indexes `0..25`
+(`isActive`/`activate`/`deactivate`/`deactivateAll`/`name`/`requiredLevel`).
+`getCombat()` also exposes `underAttack()` and `poisoned()` for port guards.
+`openBank()` opens the host bank UI (bank-area and pin rules still apply).
 
 `getSkills()` also exposes current level, base level, XP, and validated
 `addExperience(id, amount)`. Inventory exposes `getCapacity()`,
@@ -484,14 +508,14 @@ and array-producing operations return an empty `ScriptArray`.
 ### Interaction routes
 
 `onButton`, `onItemOnGroundItem`, `onItemOnPlayer`, `onMagicOnItem`,
-`onMagicOnObject`, and `onPlayerDeath` join the Phase 1-3 registrations. All
-packet routes share one normative dispatch state machine: exact payload
-decoding into local primitives, universal safety validation (live player,
-identity, coordinates, definitions, plane/distance), the action-lock gate,
-then one generation-leased exact-key lookup and invocation. A matched handler
-consumes the packet even when it throws; a valid unmatched key alone falls
-through to the legacy continuation. Invalid traffic — registered or not — is
-dropped with zero side effects.
+`onMagicOnObject`, `onMagicOnNpc`, `onMagicOnPlayer`, and `onPlayerDeath`
+join the Phase 1-3 registrations. All packet routes share one normative
+dispatch state machine: exact payload decoding into local primitives,
+universal safety validation (live player, identity, coordinates, definitions,
+plane/distance), the action-lock gate, then one generation-leased exact-key
+lookup and invocation. A matched handler consumes the packet even when it
+throws; a valid unmatched key alone falls through to the legacy continuation.
+Invalid traffic — registered or not — is dropped with zero side effects.
 
 Button keys are sparse `u8*1000+u8` values (`0..255255` with both digits
 `<=255`); unreachable keys such as `256` reject the whole reload candidate.
@@ -514,6 +538,8 @@ unless noted. The executable context members are:
 | `ItemOnPlayerScriptContext` | `item`, `slot`, `target` (`ScriptedPlayer`) |
 | `MagicOnItemScriptContext` | `spellId`, `slot`, `target` (`ScriptedItem`) |
 | `MagicOnObjectScriptContext` | `spellId`, `target` (`ScriptedObject`) |
+| `MagicOnNpcScriptContext` | `spellId`, `target` (`ScriptedNpc`) |
+| `MagicOnPlayerScriptContext` | `spellId`, `target` (`ScriptedPlayer`) |
 | `NpcDeathScriptContext` | `npc`, nullable `killer`, `position`, `action: "death"` (no `player`) |
 | `EncounterNpcDeathScriptContext` | `encounter`, `npc` (immutable `ScriptNpcSnapshot`: `id()`, `name()`, `position()`, `maxHp()`), nullable `killer`, `position`, `action: "encounter-npc-death"` |
 | `ItemPickupScriptContext` | `item`, `amount`, `position` |
@@ -615,10 +641,18 @@ and are invalidated by close, death, logout, or reload.
 
 - `getEquipment()` exposes the 11 named `ItemConstants` slots
   (`hat/cape/amulet/weapon/chest/shield/legs/hands/feet/ring/arrows`); empty
-  slots return `null`/`0`.
+  slots return `null`/`0`. `equip(itemId)` and `unequip(slot)` mutate through
+  `ItemAssistant`. `bonus(index)` recalculates and returns one combat bonus
+  (`0..11`: stab through prayer).
 - `getCombat()` reports live HP and enters the engine hit/death path for
   `damage` (clamped to current HP, cannot damage a dead entity) and `heal`
   (clamped to base max HP, cannot revive). Returns are the observed deltas.
+  `underAttack()` and `poisoned()` mirror the legacy player flags.
+- `getMagic()` resolves spell button ids to `MagicData` rows and exposes
+  silent `hasRunes` / `consumeRunes` plus `requiredLevel` / `hasLevel`.
+- `getPrayer()` activates/deactivates prayer indexes `0..25` through
+  `ActivatePrayers` / `PrayerDrain`.
+- `openBank()` opens the bank UI through `PacketSender.openUpBank()`.
 - `getMovement()` provides `face`, `walkTo` (truthful route result),
   `teleport` (succeeds only after authoritative position/region fields
   reflect the destination), `runEnergy`, `setRunEnergy` (integral `0..100`),
@@ -1054,7 +1088,13 @@ barrel exports:
 - **`sdk/equipment`**: the 11 canonical runtime slot names only; the
   legacy domain names `head`/`neck`/`body`/`ammo` fail with a migration
   message naming their canonical replacement instead of being silently
-  accepted.
+  accepted. Helpers include `equipItem` / `unequipSlot` and
+  `equipmentBonus` / `equipmentBonusName`.
+- **`sdk/magic`**: `hasSpellRunes` / `consumeSpellRunes` /
+  `spellRequiredLevel` / `hasSpellLevel` over `ScriptedMagic`, keyed by
+  client spell button ids (for example `WIND_STRIKE = 1152`).
+- **`sdk/prayer`**: `activatePrayer` / `deactivatePrayer` /
+  `deactivateAllPrayers` / `isPrayerActive` over `ScriptedPrayer`.
 - **`sdk/dialogue`**: bounded `sayNpc`/`sayPlayer`/`sayStatement`/
   `sayOptions` helpers over the `ScriptedDialogue` chain, and the
   cutscene session engine: `runCutscene(player, plan)` executes steps in

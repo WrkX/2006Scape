@@ -111,7 +111,7 @@ test("gathering builder rejects empty or duplicate tools", () => {
   assert.throws(() => createGatheringResource({
     ...resourceOptions(),
     tools: [{ itemId: 0 }],
-  }), /must be an integer 1\.\.14999 or an item name/);
+  }), /must be an integer 1\.\.65535 or an item name/);
 });
 
 test("gathering builder rejects invalid rewards and success chance", () => {

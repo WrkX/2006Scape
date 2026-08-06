@@ -13,6 +13,7 @@
 
 import type { ShopDefinition, ShopStockEntry } from "../core/shop.js";
 import type { ScriptedPlayer } from "../core/runtime.js";
+import { MAX_ITEM_ID } from "../core/limits.js";
 
 const ID_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/;
 
@@ -45,8 +46,8 @@ function validateItems(items: readonly ShopStockEntry[]): void {
     assert(isNumeric || isName,
       "items entry must carry a numeric item id or a non-empty item name");
     if (isNumeric) {
-      assert(integral(entry.itemId, 1, 14999),
-        "items entry item id must be an integer 1..14999 or an item name");
+      assert(integral(entry.itemId, 1, MAX_ITEM_ID),
+        `items entry item id must be an integer 1..${MAX_ITEM_ID} or an item name`);
     }
     assert(integral(entry.amount, 1, MAX_AMOUNT),
       `items entry amount must be an integer 1..${MAX_AMOUNT}, ` +

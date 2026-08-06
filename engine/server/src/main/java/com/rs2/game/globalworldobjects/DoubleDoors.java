@@ -56,11 +56,6 @@ public class DoubleDoors {
             //GameEngine.objectHandler.placeObject(new Objects(-1, x, y, z, 0, 0, 0));
             return true;
         }
-        if (doorClicked.doorId > 15000) {
-            //	System.out.println("Door: " + id + " clicking debug x: " + x + " y: " + y + ".");
-            return true; //nearly all of these are not opened
-        }
-
         //Region.removeClipping(x, y, z);
 
         if (doorClicked.open == 0) {

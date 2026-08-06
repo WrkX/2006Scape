@@ -10,6 +10,7 @@ import org.apollo.cache.def.ItemDefinition;
 import org.apollo.cache.def.ObjectDefinition;
 import org.graalvm.polyglot.Value;
 
+import com.rs2.script.ScriptEntityLimits;
 import com.rs2.script.drop.ItemNameResolver;
 import com.rs2.script.quest.QuestSkill;
 
@@ -30,10 +31,10 @@ import com.rs2.script.quest.QuestSkill;
  */
 public final class GatheringResourceDefinitionParser {
 
-	private static final int MAX_OBJECT_ID = 65535;
+	private static final int MAX_OBJECT_ID = ScriptEntityLimits.MAX_OBJECT_ID;
 	private static final int MAX_TOOLS = 16;
 	private static final int MAX_REWARDS = 16;
-	private static final int MAX_ITEM_ID = com.rs2.game.items.ItemConstants.ITEM_LIMIT - 1;
+	private static final int MAX_ITEM_ID = ScriptEntityLimits.MAX_ITEM_ID;
 	private static final int MAX_ITEM_AMOUNT = 2147483647;
 	private static final int MAX_ANIMATION = 65535;
 	private static final int MAX_INTERVAL_TICKS = 100000;

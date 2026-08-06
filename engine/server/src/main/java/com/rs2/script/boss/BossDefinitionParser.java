@@ -11,6 +11,7 @@ import org.apollo.cache.def.ObjectDefinition;
 import org.graalvm.polyglot.Value;
 
 import com.rs2.game.npcs.NpcHandler;
+import com.rs2.script.ScriptEntityLimits;
 import com.rs2.script.definition.DefinitionRecord;
 import com.rs2.script.registries.RegistryStore;
 
@@ -43,7 +44,7 @@ public final class BossDefinitionParser {
 	private static final int MAX_SPECIALS = 16;
 	private static final int MAX_COOLDOWN_TICKS = 100000;
 	private static final int MAX_PRIVATE_TICKS = 1000;
-	private static final int MAX_OBJECT_ID = 65535;
+	private static final int MAX_OBJECT_ID = ScriptEntityLimits.MAX_OBJECT_ID;
 
 	private static final String[] ENTRY_ACTIONS = {
 			"first", "second", "third", "fourth"
@@ -67,7 +68,8 @@ public final class BossDefinitionParser {
 				"entryTeleport", "onSpawn", "onTick", "onDeath", "phases",
 				"specials", "dropTable", "privateTicks", "cleanupPolicy");
 		String id = requireId(value, "id");
-		int npcId = integral(required(value, "npcId"), 0, 14999, "npcId");
+		int npcId = integral(required(value, "npcId"), 0,
+				ScriptEntityLimits.MAX_NPC_ID, "npcId");
 		requireLoadedNpc(npcId);
 		String name = optionalBoundedString(value.getMember("name"), "name",
 				64);

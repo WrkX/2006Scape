@@ -13,7 +13,12 @@ public class ItemConstants {
 	
 	public final static int HAT = 0, CAPE = 1, AMULET = 2, WEAPON = 3,
 			CHEST = 4, SHIELD = 5, LEGS = 7, HANDS = 9, FEET = 10, RING = 12,
-			ARROWS = 13, ITEM_LIMIT = 15000, MAX_ITEM_AMOUNT = Integer.MAX_VALUE;
+			/**
+			 * Exclusive upper bound for item ids (max id = ITEM_LIMIT - 1).
+			 * Sized for OSRS-era cache packs; must stay in sync with
+			 * {@link com.rs2.Constants#ITEM_LIMIT}.
+			 */
+			ARROWS = 13, ITEM_LIMIT = 65536, MAX_ITEM_AMOUNT = Integer.MAX_VALUE;
 
 	public final static int[] COMBAT_RELATED_ITEMS = { 35, 39, 40, 41, 42, 43,
 			44, 50, 53, 54, 60, 64, 75, 76, 78, 88, 546, 548, 577, 581, 598,

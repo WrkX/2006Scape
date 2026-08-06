@@ -105,6 +105,16 @@ public final class ExecutableRouteKey {
 				spellId + ":" + objectId);
 	}
 
+	public static ExecutableRouteKey magicOnNpc(int spellId, int npcId) {
+		return new ExecutableRouteKey(RouteKind.MAGIC_ON_NPC,
+				spellId + ":" + npcId);
+	}
+
+	public static ExecutableRouteKey magicOnPlayer(int spellId) {
+		return new ExecutableRouteKey(RouteKind.MAGIC_ON_PLAYER,
+				String.valueOf(spellId));
+	}
+
 	public RouteKind kind() {
 		return kind;
 	}

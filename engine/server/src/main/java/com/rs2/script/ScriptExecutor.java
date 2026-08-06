@@ -3,6 +3,8 @@ package com.rs2.script;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.graalvm.polyglot.PolyglotException;
+import org.graalvm.polyglot.SourceSection;
 import org.graalvm.polyglot.Value;
 
 import com.rs2.script.route.ExecutableRouteRecord;
@@ -31,6 +33,8 @@ public final class ScriptExecutor {
 				return true;
 			}
 			handler.execute(arguments);
+		} catch (PolyglotException e) {
+			logGuest(category, identity, action, e);
 		} catch (RuntimeException e) {
 			log(category, identity, action, "handler threw", e);
 		}
@@ -55,6 +59,9 @@ public final class ScriptExecutor {
 			}
 			handler.execute(arguments);
 			return true;
+		} catch (PolyglotException e) {
+			logGuest(category, identity, action, e);
+			return false;
 		} catch (RuntimeException e) {
 			log(category, identity, action, "handler threw", e);
 			return false;
@@ -92,6 +99,19 @@ public final class ScriptExecutor {
 			log(category, identity, action, "host route threw", e);
 		}
 		return true;
+	}
+
+	private static void logGuest(String category, String identity, String action,
+			PolyglotException error) {
+		String detail = "Script " + category + " [" + identity + "] action ["
+				+ action + "]: guest handler threw";
+		if (error.isGuestException()) {
+			SourceSection location = error.getSourceLocation();
+			if (location != null) {
+				detail += " at " + location;
+			}
+		}
+		logger.log(Level.WARNING, detail, error);
 	}
 
 	private static void log(String category, String identity, String action,

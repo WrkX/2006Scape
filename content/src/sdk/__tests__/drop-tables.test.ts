@@ -75,7 +75,7 @@ test("rejects invalid entry counts and bounds", () => {
     entries: [{ itemId: 0, minAmount: 1, maxAmount: 1, weight: 1, always: false }],
   })), /item id/);
   assert.throws(() => createDropTable(table({
-    entries: [{ itemId: 15000, minAmount: 1, maxAmount: 1, weight: 1, always: false }],
+    entries: [{ itemId: 65536, minAmount: 1, maxAmount: 1, weight: 1, always: false }],
   })), /item id/);
   assert.throws(() => createDropTable(table({
     entries: [{ itemId: "bones", minAmount: 0, maxAmount: 1, weight: 1, always: false }],

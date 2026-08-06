@@ -44,6 +44,12 @@ public enum RouteKind {
 	MAGIC_ON_ITEM,
 
 	/** Exact magic-on-object pair. */
-	MAGIC_ON_OBJECT
+	MAGIC_ON_OBJECT,
+
+	/** Exact magic-on-NPC type pair. */
+	MAGIC_ON_NPC,
+
+	/** Exact magic-on-player spell route (spell id only; target is runtime). */
+	MAGIC_ON_PLAYER
 
 }

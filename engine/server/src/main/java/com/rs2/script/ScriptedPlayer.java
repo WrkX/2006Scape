@@ -12,8 +12,10 @@ import com.rs2.script.scheduler.ScriptTaskHandle;
 import com.rs2.script.capability.ScriptedActions;
 import com.rs2.script.capability.ScriptedCombat;
 import com.rs2.script.capability.ScriptedEquipment;
+import com.rs2.script.capability.ScriptedMagic;
 import com.rs2.script.capability.ScriptedMovement;
 import com.rs2.script.capability.ScriptedPresentation;
+import com.rs2.script.capability.ScriptedPrayer;
 import com.rs2.script.quest.ScriptedQuest;
 import com.rs2.script.registries.QuestRegistry;
 import com.rs2.script.state.PlayerStateNamespace;
@@ -75,7 +77,7 @@ public class ScriptedPlayer {
 
     @HostAccess.Export
     public void message(String text) {
-        if (!canMutate()) {
+        if (!BridgeValidation.hasText(text) || !canMutate()) {
             return;
         }
         player.getPacketSender().sendMessage(text);
@@ -228,8 +230,31 @@ public class ScriptedPlayer {
     }
 
     @HostAccess.Export
+    public ScriptedPrayer getPrayer() {
+        return new ScriptedPrayer(player, generation, facadeEpoch);
+    }
+
+    @HostAccess.Export
+    public ScriptedMagic getMagic() {
+        return new ScriptedMagic(player, generation, facadeEpoch);
+    }
+
+    @HostAccess.Export
     public ScriptedPresentation getPresentation() {
         return new ScriptedPresentation(player, generation, facadeEpoch);
+    }
+
+    /**
+     * Opens the bank interface through the host packet sender (bank-area and
+     * pin rules apply).
+     */
+    @HostAccess.Export
+    public boolean openBank() {
+        if (!canMutate() || player.getOutStream() == null) {
+            return false;
+        }
+        player.getPacketSender().openUpBank();
+        return player.isBanking;
     }
 
     @HostAccess.Export

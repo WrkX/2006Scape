@@ -119,6 +119,45 @@ public final class InteractionHandlerRegistry {
 				state -> getMagicOnObject(state, spellId, objectId));
 	}
 
+	public static void putMagicOnNpc(int spellId, int npcId, Value handler) {
+		RouteRegistry.put(ExecutableRouteKey.magicOnNpc(spellId, npcId),
+				handler);
+	}
+
+	public static Value getMagicOnNpc(RegistryStore.State state, int spellId,
+			int npcId) {
+		return guestValue(state, ExecutableRouteKey.magicOnNpc(spellId, npcId));
+	}
+
+	public static ExecutableRouteRecord getMagicOnNpcRecord(
+			RegistryStore.State state, int spellId, int npcId) {
+		return RouteRegistry.get(state,
+				ExecutableRouteKey.magicOnNpc(spellId, npcId));
+	}
+
+	public static Value getMagicOnNpc(int spellId, int npcId) {
+		return ScriptHost.getInstance().readActiveRegistry(
+				state -> getMagicOnNpc(state, spellId, npcId));
+	}
+
+	public static void putMagicOnPlayer(int spellId, Value handler) {
+		RouteRegistry.put(ExecutableRouteKey.magicOnPlayer(spellId), handler);
+	}
+
+	public static Value getMagicOnPlayer(RegistryStore.State state, int spellId) {
+		return guestValue(state, ExecutableRouteKey.magicOnPlayer(spellId));
+	}
+
+	public static ExecutableRouteRecord getMagicOnPlayerRecord(
+			RegistryStore.State state, int spellId) {
+		return RouteRegistry.get(state, ExecutableRouteKey.magicOnPlayer(spellId));
+	}
+
+	public static Value getMagicOnPlayer(int spellId) {
+		return ScriptHost.getInstance().readActiveRegistry(
+				state -> getMagicOnPlayer(state, spellId));
+	}
+
 	private static Value guestValue(RegistryStore.State state,
 			ExecutableRouteKey key) {
 		ExecutableRouteRecord record = RouteRegistry.get(state, key);

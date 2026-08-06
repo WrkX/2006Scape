@@ -252,9 +252,10 @@ public final class ScriptFunctions {
 	public TriIntStrFunction getOnObject() {
 		return (id, action, fn) -> {
 			String registration = "onObject(" + id + ", " + action + ")";
-			if (id < 0 || id > 65535) {
+			if (id < 0 || id > ScriptEntityLimits.MAX_OBJECT_ID) {
 				throw registrationError(registration,
-						"object id must be between 0 and 65535");
+						"object id must be between 0 and "
+								+ ScriptEntityLimits.MAX_OBJECT_ID);
 			}
 			if (!isObjectAction(action)) {
 				throw registrationError(registration, "unsupported action");
@@ -267,9 +268,10 @@ public final class ScriptFunctions {
 	public TriIntStrFunction getOnNpc() {
 		return (id, action, fn) -> {
 			String registration = "onNpc(" + id + ", " + action + ")";
-			if (id < 0 || id > 14999) {
+			if (id < 0 || id > ScriptEntityLimits.MAX_NPC_ID) {
 				throw registrationError(registration,
-						"npc id must be between 0 and 14999");
+						"npc id must be between 0 and "
+								+ ScriptEntityLimits.MAX_NPC_ID);
 			}
 			if (!isNpcAction(action)) {
 				throw registrationError(registration, "unsupported action");
@@ -394,9 +396,11 @@ public final class ScriptFunctions {
 
 	public ValuePairHandlerFunction getOnItemOnGroundItem() {
 		return (itemValue, groundItemValue, fn) -> {
-			int itemId = requireIntegralId("onItemOnGroundItem", itemValue, 0, 14999);
+			int itemId = requireIntegralId("onItemOnGroundItem", itemValue, 0,
+					ScriptEntityLimits.MAX_ITEM_ID);
 			int groundItemId = requireIntegralId(
-					"onItemOnGroundItem", groundItemValue, 0, 14999);
+					"onItemOnGroundItem", groundItemValue, 0,
+					ScriptEntityLimits.MAX_ITEM_ID);
 			requireLoadedItem("onItemOnGroundItem", itemId);
 			requireLoadedItem("onItemOnGroundItem", groundItemId);
 			requireExecutable("onItemOnGroundItem(" + itemId + ", "
@@ -408,7 +412,8 @@ public final class ScriptFunctions {
 
 	public ValueHandlerFunction getOnItemOnPlayer() {
 		return (itemValue, fn) -> {
-			int itemId = requireIntegralId("onItemOnPlayer", itemValue, 0, 14999);
+			int itemId = requireIntegralId("onItemOnPlayer", itemValue, 0,
+					ScriptEntityLimits.MAX_ITEM_ID);
 			requireLoadedItem("onItemOnPlayer", itemId);
 			requireExecutable("onItemOnPlayer(" + itemId + ")", fn);
 			RouteRegistry.put(ExecutableRouteKey.itemOnPlayer(itemId), fn);
@@ -418,7 +423,8 @@ public final class ScriptFunctions {
 	public ValuePairHandlerFunction getOnMagicOnItem() {
 		return (spellValue, itemValue, fn) -> {
 			int spellId = requireIntegralId("onMagicOnItem", spellValue, 0, 65535);
-			int itemId = requireIntegralId("onMagicOnItem", itemValue, 0, 14999);
+			int itemId = requireIntegralId("onMagicOnItem", itemValue, 0,
+					ScriptEntityLimits.MAX_ITEM_ID);
 			requireLoadedItem("onMagicOnItem", itemId);
 			requireExecutable("onMagicOnItem(" + spellId + ", " + itemId + ")", fn);
 			RouteRegistry.put(ExecutableRouteKey.magicOnItem(spellId, itemId), fn);
@@ -428,10 +434,29 @@ public final class ScriptFunctions {
 	public ValuePairHandlerFunction getOnMagicOnObject() {
 		return (spellValue, objectValue, fn) -> {
 			int spellId = requireIntegralId("onMagicOnObject", spellValue, 0, 65535);
-			int objectId = requireIntegralId("onMagicOnObject", objectValue, 0, 65535);
+			int objectId = requireIntegralId("onMagicOnObject", objectValue, 0,
+					ScriptEntityLimits.MAX_OBJECT_ID);
 			requireLoadedObject("onMagicOnObject", objectId);
 			requireExecutable("onMagicOnObject(" + spellId + ", " + objectId + ")", fn);
 			RouteRegistry.put(ExecutableRouteKey.magicOnObject(spellId, objectId), fn);
+		};
+	}
+
+	public ValuePairHandlerFunction getOnMagicOnNpc() {
+		return (spellValue, npcValue, fn) -> {
+			int spellId = requireIntegralId("onMagicOnNpc", spellValue, 0, 65535);
+			int npcId = requireIntegralId("onMagicOnNpc", npcValue, 0,
+					ScriptEntityLimits.MAX_NPC_ID);
+			requireExecutable("onMagicOnNpc(" + spellId + ", " + npcId + ")", fn);
+			RouteRegistry.put(ExecutableRouteKey.magicOnNpc(spellId, npcId), fn);
+		};
+	}
+
+	public ValueHandlerFunction getOnMagicOnPlayer() {
+		return (spellValue, fn) -> {
+			int spellId = requireIntegralId("onMagicOnPlayer", spellValue, 0, 65535);
+			requireExecutable("onMagicOnPlayer(" + spellId + ")", fn);
+			RouteRegistry.put(ExecutableRouteKey.magicOnPlayer(spellId), fn);
 		};
 	}
 

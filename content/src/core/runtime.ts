@@ -2,9 +2,11 @@
  * Runtime bridge types.
  *
  * These interfaces describe the Java wrapper objects that GraalJS passes to
- * executable NPC, object, and command handlers. They are intentionally kept
- * separate from the richer {@link import("./player.js").Player} domain model,
- * which is used by declarative content definitions.
+ * executable NPC, object, and command handlers. This is the **only** player
+ * surface available inside `onNpc` / `onObject` / `onItem` / lifecycle
+ * callbacks. Do not type those handlers with the aspirational domain
+ * {@link import("./player.js").Player} model — it is not what the host
+ * injects.
  *
  * @module core/runtime
  */
@@ -144,14 +146,59 @@ export interface ScriptCameraSession {
 export interface ScriptedEquipment {
   get(slot: RuntimeEquipmentSlot): number | null;
   amount(slot: RuntimeEquipmentSlot): number;
+  /** Equip an inventory item by id through the host wear pipeline. */
+  equip(itemId: number): boolean;
+  /** Unequip the item in one canonical slot into the inventory. */
+  unequip(slot: RuntimeEquipmentSlot): boolean;
+  /**
+   * Recalculated equipment bonus for one index (`0..11`: stab through prayer).
+   */
+  bonus(index: EquipmentBonusIndex): number;
+  /** Display name for one equipment bonus index. */
+  bonusName(index: EquipmentBonusIndex): string | null;
 }
+
+/** Equipment bonus indexes matching the legacy combat bonus array. */
+export type EquipmentBonusIndex =
+  | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11;
 
 export interface ScriptedCombat {
   hp(): number;
   maxHp(): number;
   inCombat(): boolean;
+  /** True when another entity has recently attacked this player. */
+  underAttack(): boolean;
+  /** True when poison damage or mask is active. */
+  poisoned(): boolean;
   damage(amount: number): number;
   heal(amount: number): number;
+}
+
+/**
+ * Spell rune and level checks keyed by client spell button ids
+ * (`MagicData.MAGIC_SPELLS[i][0]`).
+ */
+export interface ScriptedMagic {
+  /** Spell table index for a button id, or `-1` when unknown. */
+  findIndex(spellButtonId: number): number;
+  /** Silent inventory/staff rune check for the spell. */
+  hasRunes(spellButtonId: number): boolean;
+  /** Deletes runes for the spell when mutation is allowed. */
+  consumeRunes(spellButtonId: number): boolean;
+  /** Required magic level, or `-1` when the spell is unknown. */
+  requiredLevel(spellButtonId: number): number;
+  /** True when current magic meets the spell requirement. */
+  hasLevel(spellButtonId: number): boolean;
+}
+
+/** Prayer book indexes 0..25 matching the legacy client prayer order. */
+export interface ScriptedPrayer {
+  isActive(prayer: number): boolean;
+  activate(prayer: number): boolean;
+  deactivate(prayer: number): boolean;
+  deactivateAll(): boolean;
+  name(prayer: number): string | null;
+  requiredLevel(prayer: number): number;
 }
 
 /** WP3 action-lock capability. */
@@ -294,9 +341,13 @@ export interface ScriptedPlayer {
   questPoints(): number;
   getEquipment(): ScriptedEquipment;
   getCombat(): ScriptedCombat;
+  getMagic(): ScriptedMagic;
+  getPrayer(): ScriptedPrayer;
   getActions(): ScriptedActions;
   getMovement(): ScriptedMovement;
   getPresentation(): ScriptedPresentation;
+  /** Opens the bank UI (bank-area and pin rules apply). */
+  openBank(): boolean;
   beginEncounter(
     id: string,
     minX: number,
@@ -704,6 +755,20 @@ export interface MagicOnObjectScriptContext {
   readonly spellId: number;
 }
 
+export interface MagicOnNpcScriptContext {
+  readonly player: ScriptedPlayer;
+  readonly target: ScriptedNpc;
+  readonly action: "magic-on-npc";
+  readonly spellId: number;
+}
+
+export interface MagicOnPlayerScriptContext {
+  readonly player: ScriptedPlayer;
+  readonly target: ScriptedPlayer;
+  readonly action: "magic-on-player";
+  readonly spellId: number;
+}
+
 export interface PlayerDeathScriptContext {
   readonly player: ScriptPlayerSnapshot;
   readonly killer: ScriptPlayerSnapshot | null;
@@ -797,6 +862,17 @@ export type OnMagicOnObject = (
   handler: (context: MagicOnObjectScriptContext) => void,
 ) => void;
 
+export type OnMagicOnNpc = (
+  spellId: number,
+  npcId: number,
+  handler: (context: MagicOnNpcScriptContext) => void,
+) => void;
+
+export type OnMagicOnPlayer = (
+  spellId: number,
+  handler: (context: MagicOnPlayerScriptContext) => void,
+) => void;
+
 export type OnPlayerDeath = (
   handler: (context: PlayerDeathScriptContext) => void,
 ) => void;
@@ -839,6 +915,8 @@ declare global {
   const onItemOnPlayer: OnItemOnPlayer;
   const onMagicOnItem: OnMagicOnItem;
   const onMagicOnObject: OnMagicOnObject;
+  const onMagicOnNpc: OnMagicOnNpc;
+  const onMagicOnPlayer: OnMagicOnPlayer;
   const onPlayerDeath: OnPlayerDeath;
   const registerContentModule: RegisterContentModule;
   const defineBoss: DefineBoss;

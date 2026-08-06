@@ -8,6 +8,7 @@ import java.util.TreeSet;
 
 import org.graalvm.polyglot.Value;
 
+import com.rs2.script.ScriptEntityLimits;
 import com.rs2.script.drop.ItemNameResolver;
 import com.rs2.script.quest.QuestSkill;
 
@@ -28,7 +29,7 @@ public final class RewardDefinitionParser {
 	private static final int MAX_ITEMS = 28;
 	private static final int MAX_EXPERIENCE = 21;
 	private static final int MAX_STATE_MUTATIONS = 32;
-	private static final int MAX_ITEM_ID = com.rs2.game.items.ItemConstants.ITEM_LIMIT - 1;
+	private static final int MAX_ITEM_ID = ScriptEntityLimits.MAX_ITEM_ID;
 	private static final int MAX_XP = 200000000;
 	private static final int MAX_QUEST_POINTS = 10000;
 

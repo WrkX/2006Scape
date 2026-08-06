@@ -9,6 +9,7 @@ import org.apollo.cache.def.ItemDefinition;
 import org.graalvm.polyglot.Value;
 
 import com.rs2.script.drop.ItemNameResolver;
+import com.rs2.script.ScriptEntityLimits;
 
 /**
  * Strict one-way parser for {@code defineShop} schema-v1 definitions.
@@ -100,7 +101,7 @@ public final class ShopDefinitionParser {
 			return ItemNameResolver.resolve(describe(), label, name);
 		}
 		if (value.isNumber()) {
-			int itemId = integral(value, 1, 14999, label);
+			int itemId = integral(value, 1, ScriptEntityLimits.MAX_ITEM_ID, label);
 			try {
 				if (!ItemDefinition.exists(itemId)) {
 					throw failure(label + ": item id " + itemId

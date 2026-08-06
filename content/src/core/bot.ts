@@ -1,10 +1,12 @@
 /**
- * Bot system type definitions.
+ * Bot system type definitions — **design-only / not wired to Java**.
  *
- * Simulated players (bots) share the same {@link Player} interface as human
- * players — only their action source differs.  A {@link BotBrain} drives a
- * {@link SimulatedPlayer} through goal selection, pathfinding, and activity
- * execution.
+ * Simulated players (bots) are planned to share a {@link Player} interface,
+ * but there is no Graal/Java host that constructs {@link SimulatedPlayer} or
+ * ticks a {@link BotBrain} today. Treat this module and
+ * `bots/bot-profile.ts` as future-phase sketches until a host runtime lands.
+ *
+ * Live content authors should use {@link import("./runtime.js").ScriptedPlayer}.
  *
  * @module core/bot
  */

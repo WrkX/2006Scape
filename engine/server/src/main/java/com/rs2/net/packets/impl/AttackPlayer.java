@@ -10,6 +10,11 @@ import com.rs2.game.players.Player;
 import com.rs2.game.players.PlayerHandler;
 import com.rs2.net.Packet;
 import com.rs2.net.packets.PacketType;
+import com.rs2.script.ScriptExecutor;
+import com.rs2.script.ScriptHost;
+import com.rs2.script.ScriptedPlayer;
+import com.rs2.script.context.MagicOnPlayerScriptContext;
+import com.rs2.script.registries.InteractionHandlerRegistry;
 
 public class AttackPlayer implements PacketType {
 
@@ -220,6 +225,12 @@ public class AttackPlayer implements PacketType {
 				player.autocasting = false;
 			}
 
+			if (player.usingMagic && executeScriptMagicOnPlayer(player,
+					castingSpellId,
+					PlayerHandler.players[player.playerIndex])) {
+				break;
+			}
+
 			if (!teleother) {
 				if (!player.getCombatAssistant().checkReqs()) {
 					break;
@@ -279,6 +290,24 @@ public class AttackPlayer implements PacketType {
 			break;
 		}
 
+	}
+
+	static boolean executeScriptMagicOnPlayer(Player player, int spellId,
+			Player target) {
+		if (target == null || ScriptInteractionGate.isActionLocked(player)) {
+			return false;
+		}
+		return ScriptHost.getInstance().dispatchActive(
+				state -> InteractionHandlerRegistry.getMagicOnPlayerRecord(
+						state, spellId),
+				(generation, route) -> ScriptExecutor.executeRoute(
+						route,
+						"magic-on-player", String.valueOf(spellId),
+						"magic-on-player", new MagicOnPlayerScriptContext(
+								new ScriptedPlayer(player, generation),
+								new ScriptedPlayer(target, generation),
+								spellId)))
+				== ScriptHost.DispatchResult.CONSUMED;
 	}
 
 }

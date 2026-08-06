@@ -42,4 +42,34 @@ public class ScriptedPlayerCapabilityTest {
             Wp5PlayerSupport.cleanup(player);
         }
     }
+
+    @Test public void magicEquipmentBonusesAndCombatStateAreTruthful() throws Exception {
+        com.rs2.game.players.Player player = Wp5PlayerSupport.player(93);
+        try {
+            ScriptedPlayer scripted = Wp5PlayerSupport.scripted(player);
+            assertEquals(0, scripted.getMagic().findIndex(1152));
+            assertEquals(1, scripted.getMagic().requiredLevel(1152));
+            assertTrue(scripted.getMagic().hasLevel(1152));
+            assertFalse(scripted.getMagic().hasRunes(1152));
+            player.playerItems[0] = 557;
+            player.playerItemsN[0] = 1;
+            player.playerItems[1] = 559;
+            player.playerItemsN[1] = 1;
+            assertTrue(scripted.getMagic().hasRunes(1152));
+            assertTrue(scripted.getMagic().consumeRunes(1152));
+            assertFalse(scripted.getMagic().hasRunes(1152));
+
+            player.playerEquipment[player.playerWeapon] = 4151;
+            player.playerBonus[10] = 999;
+            assertEquals(0, scripted.getEquipment().bonus(10));
+            assertEquals("Strength", scripted.getEquipment().bonusName(10));
+
+            player.underAttackBy = 1;
+            assertTrue(scripted.getCombat().underAttack());
+            player.poisonDamage = 4;
+            assertTrue(scripted.getCombat().poisoned());
+        } finally {
+            Wp5PlayerSupport.cleanup(player);
+        }
+    }
 }

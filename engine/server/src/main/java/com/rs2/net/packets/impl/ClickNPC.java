@@ -12,10 +12,17 @@ import com.rs2.game.content.combat.CombatConstants;
 import com.rs2.game.content.combat.magic.MagicData;
 import com.rs2.game.content.combat.range.RangeData;
 import com.rs2.game.items.DeprecatedItems;
+import com.rs2.game.npcs.Npc;
 import com.rs2.game.npcs.NpcHandler;
 import com.rs2.game.players.Player;
 import com.rs2.net.Packet;
 import com.rs2.net.packets.PacketType;
+import com.rs2.script.ScriptExecutor;
+import com.rs2.script.ScriptHost;
+import com.rs2.script.ScriptedNpc;
+import com.rs2.script.ScriptedPlayer;
+import com.rs2.script.context.MagicOnNpcScriptContext;
+import com.rs2.script.registries.InteractionHandlerRegistry;
 import com.rs2.script.registries.NpcHandlerRegistry;
 import com.rs2.script.world.ScriptNpcService;
 
@@ -227,6 +234,11 @@ public class ClickNPC implements PacketType {
 			}
 
 			if (player.usingMagic) {
+				int npcType = NpcHandler.npcs[player.npcIndex].npcType;
+				if (executeScriptMagicOnNpc(player, castingSpellId, npcType,
+						NpcHandler.npcs[player.npcIndex])) {
+					break;
+				}
 				if (player.goodDistance(player.getX(), player.getY(),
 						NpcHandler.npcs[player.npcIndex].getX(),
 						NpcHandler.npcs[player.npcIndex].getY(), 6)) {
@@ -446,5 +458,22 @@ public class ClickNPC implements PacketType {
 		player.getCombatAssistant().resetPlayerAttack();
 		player.getPlayerAssistant().requestUpdates();
 		player.endCurrentTask();
+	}
+
+	static boolean executeScriptMagicOnNpc(Player player, int spellId,
+			int npcType, Npc target) {
+		if (ScriptInteractionGate.isActionLocked(player) || target == null) {
+			return false;
+		}
+		return ScriptHost.getInstance().dispatchActive(
+				state -> InteractionHandlerRegistry.getMagicOnNpcRecord(
+						state, spellId, npcType),
+				(generation, route) -> ScriptExecutor.executeRoute(
+						route,
+						"magic-on-npc", spellId + ":" + npcType,
+						"magic-on-npc", new MagicOnNpcScriptContext(
+								new ScriptedPlayer(player, generation),
+								new ScriptedNpc(target), spellId)))
+				== ScriptHost.DispatchResult.CONSUMED;
 	}
 }

@@ -10,6 +10,7 @@ import org.apollo.cache.def.ObjectDefinition;
 import org.graalvm.polyglot.Value;
 
 import com.rs2.game.npcs.NpcHandler;
+import com.rs2.script.ScriptEntityLimits;
 import com.rs2.script.boss.BossDefinition;
 import com.rs2.script.boss.BossDefinitionRegistry;
 import com.rs2.script.definition.DefinitionKind;
@@ -45,7 +46,7 @@ public final class AreaDefinitionParser {
 	private static final int DEFAULT_RESPAWN_TICKS = 100;
 	private static final int MAX_PRIVATE_TICKS = 1000;
 	private static final int MAX_STATS = 32767;
-	private static final int MAX_OBJECT_ID = 65535;
+	private static final int MAX_OBJECT_ID = ScriptEntityLimits.MAX_OBJECT_ID;
 
 	private static final String[] ACTIONS = {
 			"first", "second", "third", "fourth"
@@ -132,7 +133,8 @@ public final class AreaDefinitionParser {
 				throw failure("npcs[" + index + "]: duplicate spawn key '"
 						+ key + "'");
 			}
-			int npcId = integral(required(spawn, "npcId"), 0, 14999,
+			int npcId = integral(required(spawn, "npcId"), 0,
+					ScriptEntityLimits.MAX_NPC_ID,
 					"npcs[" + index + "].npcId");
 			requireLoadedNpc(npcId);
 			int x = integral(required(spawn, "x"), 0, MAX_COORDINATE,

@@ -128,9 +128,9 @@ public class QuestParserBoundaryTest {
 		assertRejected(quest("rewards:{items:items(65)}"));
 		assertRejected(quest("requirements:{items:[{itemId:0,amount:1}]}"));
 		assertAccepted(quest("requirements:{items:[{itemId:1,amount:1}]}"));
-		assertAccepted(quest("requirements:{items:[{itemId:14998,amount:1}]}"));
-		assertAccepted(quest("requirements:{items:[{itemId:14999,amount:1}]}"));
-		assertRejected(quest("requirements:{items:[{itemId:15000,amount:1}]}"));
+		assertAccepted(quest("requirements:{items:[{itemId:65534,amount:1}]}"));
+		assertAccepted(quest("requirements:{items:[{itemId:65535,amount:1}]}"));
+		assertRejected(quest("requirements:{items:[{itemId:65536,amount:1}]}"));
 		assertRejected(quest("requirements:{items:[{itemId:995,amount:0}]}"));
 		assertAccepted(quest("requirements:{items:[{itemId:995,amount:1}]}"));
 		assertAccepted(quest("requirements:{items:[{itemId:995,amount:2147483647}]}"));

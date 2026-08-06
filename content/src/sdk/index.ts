@@ -28,6 +28,8 @@ export * from "./requirements.js";
 export * from "./rewards.js";
 export * from "./shops.js";
 export * from "./equipment.js";
+export * from "./magic.js";
+export * from "./prayer.js";
 export * from "./dialogue.js";
 export * from "./drop-tables.js";
 export * from "./gathering.js";
@@ -55,6 +57,7 @@ export type {
   CardinalDirection,
   Result,
 } from "../core/types.js";
+export { MAX_ITEM_ID, MAX_NPC_ID, MAX_OBJECT_ID } from "../core/limits.js";
 export type * from "../core/runtime.js";
 export type {
   BossArena,

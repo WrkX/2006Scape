@@ -7,6 +7,8 @@ import java.util.TreeSet;
 
 import org.graalvm.polyglot.Value;
 
+import com.rs2.script.ScriptEntityLimits;
+
 /**
  * Validating parser for guest drop tables.
  *
@@ -21,7 +23,7 @@ final class ScriptDropEntryParser {
 	private static final int MAX_ENTRIES = 64;
 	private static final int MAX_AMOUNT = 1_000_000;
 	private static final int MAX_WEIGHT = 1_000_000;
-	private static final int MAX_ITEM_ID = 14999;
+	private static final int MAX_ITEM_ID = ScriptEntityLimits.MAX_ITEM_ID;
 	private static final Set<String> EXPECTED_MEMBERS = expectedMembers();
 
 	private ScriptDropEntryParser() {

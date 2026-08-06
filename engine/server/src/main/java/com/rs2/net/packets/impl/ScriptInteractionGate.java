@@ -10,6 +10,7 @@ import org.apollo.cache.def.ObjectDefinition;
 import com.rs2.game.players.Player;
 import com.rs2.game.players.PlayerHandler;
 import com.rs2.net.Packet;
+import com.rs2.script.ScriptEntityLimits;
 import com.rs2.script.world.ScriptEncounterService;
 
 /**
@@ -75,7 +76,7 @@ final class ScriptInteractionGate {
 	}
 
 	static boolean isDefinitionBackedItem(int itemId) {
-		if (itemId < 0 || itemId > 14999) {
+		if (itemId < 0 || itemId > ScriptEntityLimits.MAX_ITEM_ID) {
 			return false;
 		}
 		try {
@@ -86,7 +87,7 @@ final class ScriptInteractionGate {
 	}
 
 	static boolean isDefinitionBackedObject(int objectId) {
-		if (objectId < 0 || objectId > 65535) {
+		if (objectId < 0 || objectId > ScriptEntityLimits.MAX_OBJECT_ID) {
 			return false;
 		}
 		try {

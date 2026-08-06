@@ -14,6 +14,7 @@
  */
 
 import type { AreaDefinition, AreaNpcSpawn, AreaObject } from "./types.js";
+import { MAX_NPC_ID } from "../core/limits.js";
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
 
@@ -69,7 +70,7 @@ export function createArea(
     assert(!npcKeys.has(npc.key),
       `Area "${options.id}": duplicate NPC spawn key "${npc.key}"`);
     npcKeys.add(npc.key);
-    assert(isIntegral(npc.npcId, 0, 14999),
+    assert(isIntegral(npc.npcId, 0, MAX_NPC_ID),
       `Area "${options.id}": npcs[${index}] must carry an integral 'npcId'`);
     assert(isIntegral(npc.x, 0, 16383) && isIntegral(npc.y, 0, 16383),
       `Area "${options.id}": npcs[${index}] (key=${npc.key}) position must be in range`);

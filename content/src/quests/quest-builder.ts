@@ -12,6 +12,7 @@ import type {
   QuestSkillRequirement,
   QuestStage,
 } from "./types.js";
+import { MAX_ITEM_ID } from "../core/limits.js";
 
 const ID = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 const SKILLS = new Set([
@@ -66,7 +67,7 @@ function validateItems(items: readonly QuestItemAmount[] | undefined, label: str
   assert(items.length <= 64, `${label} must contain at most 64 entries`);
   unique(items, (item) => item.itemId, `${label} item`);
   for (const item of items) {
-    safeInteger(item.itemId, `${label}.itemId`, 1, 14999);
+    safeInteger(item.itemId, `${label}.itemId`, 1, MAX_ITEM_ID);
     safeInteger(item.amount, `${label}.amount`, 1, 2147483647);
   }
 }

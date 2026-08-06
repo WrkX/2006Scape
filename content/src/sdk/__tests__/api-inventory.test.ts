@@ -25,7 +25,8 @@ test("inventory documents every declared runtime global", () => {
     "onItem", "onItemOnItem", "onItemOnObject", "onItemOnNpc", "onLogin",
     "onLogout", "onNpcDeath", "onItemPickup", "onEnterArea", "onLeaveArea",
     "onButton", "onItemOnGroundItem", "onItemOnPlayer", "onMagicOnItem",
-    "onMagicOnObject", "onPlayerDeath", "registerContentModule", "dev",
+    "onMagicOnObject", "onMagicOnNpc", "onMagicOnPlayer", "onPlayerDeath",
+    "registerContentModule", "dev",
     "log",
   ];
   for (const global of expectedGlobals) {
@@ -38,7 +39,8 @@ test("inventory documents every SDK barrel module", () => {
   const inventory = generateApiInventory();
   for (const module of [
     "sdk/skills.ts", "sdk/requirements.ts", "sdk/rewards.ts",
-    "sdk/shops.ts", "sdk/equipment.ts", "sdk/dialogue.ts",
+    "sdk/shops.ts", "sdk/equipment.ts", "sdk/magic.ts", "sdk/prayer.ts",
+    "sdk/dialogue.ts",
     "sdk/drop-tables.ts", "manifest.ts", "bosses/boss-builder.ts",
     "quests/quest-builder.ts", "areas/area-builder.ts",
     "raids/raid-builder.ts",

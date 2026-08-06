@@ -209,7 +209,7 @@ public class ScriptDropTransactionTest {
 					+ "always:true}]"},
 			{"negative-item", "[{itemId:-1,minAmount:1,maxAmount:1,"
 					+ "weight:0,always:true}]"},
-			{"item-above-range", "[{itemId:15000,minAmount:1,maxAmount:1,"
+			{"item-above-range", "[{itemId:65536,minAmount:1,maxAmount:1,"
 					+ "weight:0,always:true}]"},
 			{"negative-weight", "[{itemId:536,minAmount:1,maxAmount:1,"
 					+ "weight:-1,always:false}]"},

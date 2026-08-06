@@ -5,6 +5,7 @@ import org.graalvm.polyglot.HostAccess;
 import com.rs2.Constants;
 import com.rs2.game.players.Player;
 import com.rs2.game.players.PlayerAssistant;
+import com.rs2.script.BridgeValidation;
 import com.rs2.script.world.ScriptEncounterService;
 
 /** Truthful combat/health facade. */
@@ -39,8 +40,18 @@ public final class ScriptedCombat {
     }
 
     @HostAccess.Export
+    public boolean underAttack() {
+        return live() && (player.underAttackBy > 0 || player.underAttackBy2 > 0);
+    }
+
+    @HostAccess.Export
+    public boolean poisoned() {
+        return live() && (player.poisonDamage > 0 || player.poisonMask > 0);
+    }
+
+    @HostAccess.Export
     public int damage(double amountValue) {
-        Integer amount = integral(amountValue, 1, 32767);
+        Integer amount = BridgeValidation.integral(amountValue, 1, 32767);
         if (amount == null || !canMutate() || player.isDead) return 0;
         int before = hp();
         int applied = Math.min(before, amount.intValue());
@@ -55,7 +66,7 @@ public final class ScriptedCombat {
 
     @HostAccess.Export
     public int heal(double amountValue) {
-        Integer amount = integral(amountValue, 1, 32767);
+        Integer amount = BridgeValidation.integral(amountValue, 1, 32767);
         if (amount == null || !canMutate() || player.isDead) return 0;
         int before = hp();
         int maximum = maxHp();
@@ -74,10 +85,5 @@ public final class ScriptedCombat {
     private boolean canMutate() {
         return ScriptEncounterService.getInstance().canMutate(player,
                 generation, facadeEpoch);
-    }
-
-    private static Integer integral(double value, int min, int max) {
-        return !Double.isFinite(value) || value != Math.rint(value)
-                || value < min || value > max ? null : Integer.valueOf((int) value);
     }
 }

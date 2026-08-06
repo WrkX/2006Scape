@@ -131,9 +131,10 @@ public class ScriptedNpc {
 
     @HostAccess.Export
     public void forceChat(String text) {
-        if (npc != null) {
-            npc.forceChat(text);
+        if (!BridgeValidation.hasText(text) || npc == null) {
+            return;
         }
+        npc.forceChat(text);
     }
 
     @HostAccess.Export

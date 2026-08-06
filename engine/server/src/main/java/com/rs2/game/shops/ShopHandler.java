@@ -5,6 +5,7 @@ import com.google.gson.reflect.TypeToken;
 import com.rs2.game.players.Client;
 import com.rs2.game.players.Player;
 import com.rs2.game.players.PlayerHandler;
+import com.rs2.script.ScriptEntityLimits;
 import com.rs2.util.ShopData;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -178,7 +179,8 @@ public class ShopHandler {
                 boolean validItems = true;
                 int nonEmptyRows = 0;
                 for (ShopData.ShopItems item : shop.getItems()) {
-                    if (item == null || item.getItemId() < 0 || item.getItemId() >= 15000
+                    if (item == null || item.getItemId() < 0
+                            || item.getItemId() > ScriptEntityLimits.MAX_ITEM_ID
                             || item.getItemAmount() < 0 || item.getItemAmount() > Integer.MAX_VALUE) {
                         validItems = false;
                         break;

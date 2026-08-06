@@ -4,6 +4,7 @@ import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.Value;
 
 import com.rs2.script.ScriptArray;
+import com.rs2.script.ScriptEntityLimits;
 import com.rs2.script.ScriptedPlayer;
 import com.rs2.script.ScriptedPosition;
 import com.rs2.script.scheduler.ScriptTaskHandle;
@@ -64,7 +65,7 @@ public final class ScriptEncounterHandle {
 	public ScriptNpcHandle spawnNpc(double npcIdValue, double xValue,
 			double yValue, double planeValue, double hpValue,
 			double maxHitValue, double attackValue, double defenceValue) {
-		Integer npcId = integral(npcIdValue, 0, 14999);
+		Integer npcId = integral(npcIdValue, 0, ScriptEntityLimits.MAX_NPC_ID);
 		Integer x = integral(xValue, 0, 16383);
 		Integer y = integral(yValue, 0, 16383);
 		Integer plane = integral(planeValue, 0, 3);
@@ -113,10 +114,10 @@ public final class ScriptEncounterHandle {
 		Integer x = integral(xValue, 0, 16383);
 		Integer y = integral(yValue, 0, 16383);
 		Integer plane = integral(planeValue, 0, 3);
-		Integer expectedId = integral(expectedIdValue, -1, 65535);
+		Integer expectedId = integral(expectedIdValue, -1, ScriptEntityLimits.MAX_OBJECT_ID);
 		Integer expectedType = integral(expectedTypeValue, -1, 22);
 		Integer expectedRotation = integral(expectedRotationValue, -1, 3);
-		Integer replacementId = integral(replacementIdValue, -1, 65535);
+		Integer replacementId = integral(replacementIdValue, -1, ScriptEntityLimits.MAX_OBJECT_ID);
 		Integer replacementType = integral(replacementTypeValue, -1, 22);
 		Integer replacementRotation = integral(replacementRotationValue, -1, 3);
 		if (x == null || y == null || plane == null || expectedId == null
@@ -151,7 +152,7 @@ public final class ScriptEncounterHandle {
 	@HostAccess.Export
 	public ScriptGroundItemHandle dropFor(ScriptedPlayer player, double itemIdValue,
 			double amountValue, double xValue, double yValue, double planeValue) {
-		Integer itemId = integral(itemIdValue, 1, 14999);
+		Integer itemId = integral(itemIdValue, 1, ScriptEntityLimits.MAX_ITEM_ID);
 		Integer amount = integral(amountValue, 1, 1_000_000);
 		Integer x = integral(xValue, 0, 16383);
 		Integer y = integral(yValue, 0, 16383);

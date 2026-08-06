@@ -57,6 +57,7 @@ import type {
   BossPhase,
   BossSpecials,
 } from "../core/boss.js";
+import { MAX_NPC_ID } from "../core/limits.js";
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
 
@@ -201,8 +202,8 @@ export function createBoss(options: BossOptions): BossDefinition {
     `${name}: id must be at most 64 characters of letters, digits, '.', ` +
       "'_', or '-'");
   assert(Number.isInteger(options.npcId) && options.npcId >= 0 &&
-    options.npcId <= 14999,
-  `${name}: npcId must be an integer 0..14999, got ${options.npcId}`);
+    options.npcId <= MAX_NPC_ID,
+  `${name}: npcId must be an integer 0..${MAX_NPC_ID}, got ${options.npcId}`);
   for (const member of ["combatLevel", "maxHitpoints"] as const) {
     assert(Number.isInteger(options[member]) && options[member] >= 1 &&
       options[member] <= 32767,

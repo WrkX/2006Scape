@@ -11,10 +11,17 @@
  */
 
 import type {
+  EquipmentBonusIndex,
   RuntimeEquipmentSlot,
   ScriptedEquipment,
   ScriptedPlayer,
 } from "../core/runtime.js";
+
+/** Equipment bonus indexes in legacy combat order (stab through prayer). */
+export const EQUIPMENT_BONUS_NAMES = [
+  "Stab", "Slash", "Crush", "Magic", "Range",
+  "Stab", "Slash", "Crush", "Magic", "Range", "Strength", "Prayer",
+] as const;
 
 /** The 11 canonical equipment slots exposed by the runtime facade. */
 export const EQUIPMENT_SLOTS: readonly RuntimeEquipmentSlot[] = [
@@ -99,10 +106,57 @@ export function hasEquipped(
 }
 
 /**
+ * Equip an inventory item by id.
+ *
+ * @param player  The live runtime player wrapper.
+ * @param itemId  Inventory item id to wear.
+ */
+export function equipItem(player: ScriptedPlayer, itemId: number): boolean {
+  assert(Number.isSafeInteger(itemId) && itemId > 0,
+    "itemId must be a positive safe integer");
+  return player.getEquipment().equip(itemId);
+}
+
+/**
+ * Unequip one canonical equipment slot into the inventory.
+ *
+ * @param player  The live runtime player wrapper.
+ * @param slot    A canonical runtime slot name.
+ */
+export function unequipSlot(
+  player: ScriptedPlayer,
+  slot: RuntimeEquipmentSlot,
+): boolean {
+  return player.getEquipment().unequip(normalizeSlot(slot));
+}
+
+/**
  * Read-only slot summary of one player's equipment.
  *
  * @param equipment  The runtime equipment facade.
  */
+/**
+ * Recalculated equipment bonus for one index (`0..11`).
+ */
+export function equipmentBonus(
+  player: ScriptedPlayer,
+  index: EquipmentBonusIndex,
+): number {
+  assert(Number.isInteger(index) && index >= 0 && index <= 11,
+    "bonus index must be an integer 0..11");
+  return player.getEquipment().bonus(index);
+}
+
+/** Display name for one equipment bonus index. */
+export function equipmentBonusName(
+  player: ScriptedPlayer,
+  index: EquipmentBonusIndex,
+): string | null {
+  assert(Number.isInteger(index) && index >= 0 && index <= 11,
+    "bonus index must be an integer 0..11");
+  return player.getEquipment().bonusName(index);
+}
+
 export function equipmentSummary(
   equipment: ScriptedEquipment,
 ): ReadonlyMap<RuntimeEquipmentSlot, number> {
@@ -116,4 +170,4 @@ export function equipmentSummary(
   return summary;
 }
 
-export type { RuntimeEquipmentSlot };
+export type { EquipmentBonusIndex, RuntimeEquipmentSlot };

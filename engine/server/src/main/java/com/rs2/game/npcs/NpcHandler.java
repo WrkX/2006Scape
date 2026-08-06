@@ -25,6 +25,7 @@ import com.rs2.game.npcs.impl.Pets;
 import com.rs2.game.players.Client;
 import com.rs2.game.players.Player;
 import com.rs2.game.players.PlayerHandler;
+import com.rs2.script.ScriptEntityLimits;
 import com.rs2.script.ScriptLifecycleService;
 import com.rs2.script.world.ScriptNpcService;
 import com.rs2.script.snapshot.ScriptNpcSnapshot;
@@ -60,7 +61,7 @@ public class NpcHandler {
 
     /** Returns true only for NPC ids present in the loaded legacy list. */
     public static boolean hasNpcDefinition(int npcType) {
-        if (npcType < 0 || npcType > 14999) {
+        if (npcType < 0 || npcType > ScriptEntityLimits.MAX_NPC_ID) {
             return false;
         }
         for (int i = 0; i < maxListedNPCs; i++) {

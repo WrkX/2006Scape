@@ -3,10 +3,9 @@
  * configuring simulated players with goals, activities, equipment, and
  * behavioural presets.
  *
- * Bot profiles are the primary way to author {@link SimulatedPlayer}
- * configurations.  Each profile defines a set of goals (evaluated in
- * priority order), activities the bot can perform, and default state
- * (location, equipment, inventory).
+ * **Not wired to the Java bridge.** Profiles build aspirational
+ * SimulatedPlayer configs only; they do not spawn or tick bots on the live
+ * server. Prefer real ScriptedPlayer content APIs for shipped gameplay.
  *
  * @module bots/bot-profile
  *

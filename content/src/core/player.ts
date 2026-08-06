@@ -1,8 +1,10 @@
 /**
- * Aspirational player domain model for declarative content.
+ * Aspirational player domain model for future declarative / bot designs.
  *
- * Executable GraalJS handlers receive the narrower
- * {@link import("./runtime.js").ScriptedPlayer} wrapper instead.
+ * **Not a live bridge API.** Executable GraalJS handlers receive
+ * {@link import("./runtime.js").ScriptedPlayer} only. Methods and properties
+ * on this interface may not exist on the Java wrapper — do not use this type
+ * in `onNpc` / `onObject` / `onItem` / lifecycle callbacks.
  *
  * @module core/player
  */

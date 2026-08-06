@@ -34,7 +34,7 @@ Existing pattern to copy everywhere: schema-v1 `defineX` → Java parser → Jav
 | Phase | Status | Notes |
 | --- | --- | --- |
 | **0** — Entity capacity and author truth | **Done** | 65535 ceilings, `player.ts` / `bot.ts` quarantined, docs exist |
-| **0.5** — Bridge hardening | **Next** | Prerequisite before new write APIs; see [Priority 1 review items](#phase-05--bridge-hardening-prerequisite-for-new-write-apis) |
+| **0.5** — Bridge hardening | **In progress** | `BridgeValidation`, null-safe strings, `PolyglotException` logging done; `ReadWriteLock` deferred |
 | **1** — Player capability parity | **~90%** | equip/unequip, openBank, prayer, magic routes done; attack styles / venom TBD |
 | **2** — Skilling kits | **Next feature work** (after 0.5) | woodcutting exists; mining/fishing + one cooking port pending |
 | **3–8** | Pending | See phases below |
@@ -126,20 +126,25 @@ Address all **Priority 1** findings in [TYPESCRIPT_BRIDGE_REVIEW.md](../../TYPES
 
 | Review item | Deliverable |
 | --- | --- |
-| 1.1 ProxyExecutable lacks input validation | Shared `BridgeValidation` (or equivalent) used by all new facades; audit existing wrappers |
+| 1.4 Null/undefined coercion in string methods | ✅ Null-safe string handling in `ScriptedPlayer.message()`, `ScriptedNpc.forceChat()` |
+| 1.5 `getRuntimeStatus()` race | ✅ Single synchronized snapshot returns generation + registry together |
+| 1.7 `forceChat()` null validation | ✅ Same null-safe pattern as player message APIs |
+| — `grantReward()` mutation guard | ✅ `canMutate()` check before reward application |
+| — Guest exception logging | ✅ `ScriptExecutor` catches `PolyglotException` and logs guest source location |
+| 1.1 ProxyExecutable lacks input validation | ✅ Shared `BridgeValidation` for integral coercion; facades delegate to it |
 | 1.2 `SkillView.setLevel()` arbitrary modification | Route mutations through game logic; strengthen `canMutate()` guards |
-| 1.3 / 1.9 `ScriptHost` synchronized bottleneck | `ReadWriteLock` for registry reads vs writes; minimize lock hold during JS interop |
-| 1.4 Null/undefined coercion in string methods | Null-safe string handling in `ScriptedPlayer`, `ScriptedNpc`, and new exports |
-| 1.5 `getRuntimeStatus()` race | Single synchronized snapshot returns generation + registry together |
+| 1.3 / 1.9 `ScriptHost` synchronized bottleneck | `ReadWriteLock` for registry reads vs writes (deferred — larger refactor) |
 | 1.6 `beginEncounter()` coordinate coercion | Integral coordinate validation with range checks |
-| 1.7 `forceChat()` null validation | Same null-safe pattern as player message APIs |
 | 1.8 Hot-path allocations | Cache `ScriptedPosition`; consider wrapper reuse on event dispatch paths |
-| — `grantReward()` mutation guard | `canMutate()` check before reward application |
 
 **Acceptance:**
-- [ ] All Priority 1 review items have tests or are explicitly deferred with issue links.
-- [ ] New facades added in Phases 1+ use `BridgeValidation`.
-- [ ] `getRuntimeStatus()` returns generation + registry from one synchronized snapshot.
+- [x] `BridgeValidation` utility with unit tests; facades delegate integral coercion to it.
+- [x] `ScriptExecutor` logs `PolyglotException` guest source location.
+- [x] Null message/chat inputs are ignored without throwing.
+- [x] `getRuntimeStatus()` returns generation + registry from one synchronized snapshot.
+- [x] `grantReward()` checks `canMutate()` before applying rewards.
+- [ ] `ReadWriteLock` on `ScriptHost` dispatch paths (deferred — larger refactor).
+- [ ] `beginEncounter()` integral coordinate validation.
 - [ ] Per-phase gate: no new write API merges without passing the validation checklist above.
 
 ---
@@ -313,7 +318,7 @@ Keep iteration cheap while porting:
 
 | Order | Deliverable | Closes | Status |
 | --- | --- | --- | --- |
-| **1** | Bridge hardening (Phase 0.5) | Stability | **Next** |
+| **1** | Bridge hardening (Phase 0.5) | Stability | **In progress** |
 | **2** | Mining/fishing gathering packs | Gap 3 | Pending |
 | **3** | One cooking port (raw handlers) → `defineProcessingSkill` | Gap 3 | Pending |
 | **4** | `defineMob` world AI | Gap 4 | Pending |

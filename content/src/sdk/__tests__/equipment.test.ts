@@ -9,10 +9,13 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   EQUIPMENT_SLOTS,
+  EQUIPMENT_BONUS_NAMES,
   normalizeSlot,
   isEquipmentSlot,
   equipped,
   hasEquipped,
+  equipmentBonus,
+  equipmentBonusName,
   equipmentSummary,
 } from "../equipment.js";
 import type { RuntimeEquipmentSlot } from "../../core/runtime.js";
@@ -61,7 +64,34 @@ test("equipmentSummary omits empty and missing slots", () => {
       return slot === "weapon" ? 1305 : null;
     },
     amount: () => 1,
+    equip: () => false,
+    unequip: () => false,
+    bonus: () => 0,
+    bonusName: () => null,
   });
   assert.equal(summary.size, 1);
   assert.equal(summary.get("weapon"), 1305);
+});
+
+test("equipment bonus helpers read through the facade", () => {
+  const player = {
+    getEquipment() {
+      return {
+        bonus(index: number) {
+          return index === 10 ? 42 : 0;
+        },
+        bonusName(index: number) {
+          return EQUIPMENT_BONUS_NAMES[index] ?? null;
+        },
+      };
+    },
+  };
+  assert.equal(equipmentBonus(player as never, 10), 42);
+  assert.equal(equipmentBonusName(player as never, 10), "Strength");
+  assert.throws(() => equipmentBonus(player as never, 12 as never), /0\.\.11/);
+});
+
+test("EQUIPMENT_BONUS_NAMES lists twelve combat bonuses", () => {
+  assert.equal(EQUIPMENT_BONUS_NAMES.length, 12);
+  assert.equal(EQUIPMENT_BONUS_NAMES[10], "Strength");
 });

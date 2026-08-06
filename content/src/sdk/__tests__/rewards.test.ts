@@ -60,7 +60,7 @@ test("rejects invalid ids and member bounds", () => {
     items: [{ id: -1, amount: 1 }],
   })), /item id/);
   assert.throws(() => createReward(reward({
-    items: [{ id: 15000, amount: 1 }],
+    items: [{ id: 65536, amount: 1 }],
   })), /item id/);
 });
 

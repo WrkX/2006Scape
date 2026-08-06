@@ -5,6 +5,7 @@ import org.graalvm.polyglot.HostAccess;
 import com.rs2.game.players.Player;
 import com.rs2.game.players.PlayerHandler;
 import com.rs2.net.PacketSender;
+import com.rs2.script.ScriptEntityLimits;
 import com.rs2.script.world.ScriptEncounterService;
 import com.rs2.game.shops.ShopHandler;
 import com.rs2.world.clip.PathFinder;
@@ -86,7 +87,7 @@ public final class ScriptedPresentation {
     @HostAccess.Export
     public boolean setItemModel(double componentValue, double itemValue, double zoomValue) {
         Integer component = integral(componentValue, 0, 65535);
-        Integer item = integral(itemValue, 0, 14999);
+        Integer item = integral(itemValue, 0, ScriptEntityLimits.MAX_ITEM_ID);
         Integer zoom = integral(zoomValue, 1, 2000);
         if (component == null || item == null || zoom == null || !definition(item.intValue()) || !mutate()
                 || player.getOutStream() == null) return false;

@@ -67,6 +67,10 @@ public final class ScriptBindings {
 				"onMagicOnItem", functions.getOnMagicOnItem()));
 		globals.putMember("onMagicOnObject", valuePairHandler(
 				"onMagicOnObject", functions.getOnMagicOnObject()));
+		globals.putMember("onMagicOnNpc", valuePairHandler(
+				"onMagicOnNpc", functions.getOnMagicOnNpc()));
+		globals.putMember("onMagicOnPlayer", valueHandler(
+				"onMagicOnPlayer", functions.getOnMagicOnPlayer()));
 		globals.putMember("onPlayerDeath", requireHandler(
 				"onPlayerDeath", functions.getOnPlayerDeath()));
 

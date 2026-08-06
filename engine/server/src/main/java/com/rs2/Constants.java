@@ -50,7 +50,8 @@ public class Constants {
     /**
      * The Variables Below Should Only Be Changed If You Understand What You Are Doing
      */
-    public final static int ITEM_LIMIT = 15000, MAXITEM_AMOUNT = Integer.MAX_VALUE,
+    /** Exclusive upper bound for item ids; keep equal to ItemConstants.ITEM_LIMIT. */
+    public final static int ITEM_LIMIT = 65536, MAXITEM_AMOUNT = Integer.MAX_VALUE,
             IPS_ALLOWED = 250, CONNECTION_DELAY = 100;
 
     public final static boolean sendServerPackets = false, SOUND = true, GUILDS = true;

@@ -2,11 +2,14 @@ package com.rs2.script.capability;
 
 import org.graalvm.polyglot.HostAccess;
 
+import com.rs2.game.items.ItemAssistant;
 import com.rs2.game.items.ItemConstants;
 import com.rs2.game.players.Player;
+import com.rs2.script.BridgeValidation;
+import com.rs2.script.ScriptEntityLimits;
 import com.rs2.script.world.ScriptEncounterService;
 
-/** Read-only, identity-safe equipment view exposed to scripts. */
+/** Equipment view with equip/unequip mutation through ItemAssistant. */
 public final class ScriptedEquipment {
 
     private final Player player;
@@ -43,9 +46,77 @@ public final class ScriptedEquipment {
         return amount <= 0 ? 1 : amount;
     }
 
+    /**
+     * Equips one inventory item id through the host wear pipeline.
+     *
+     * @return {@code true} when the item ends up equipped in its target slot
+     */
+    @HostAccess.Export
+    public boolean equip(double itemIdValue) {
+        Integer itemId = BridgeValidation.integral(itemIdValue, 1,
+                ScriptEntityLimits.MAX_ITEM_ID);
+        if (itemId == null || !canMutate()) {
+            return false;
+        }
+        ItemAssistant items = player.getItemAssistant();
+        int inventorySlot = items.getItemSlot(itemId.intValue());
+        if (inventorySlot < 0) {
+            return false;
+        }
+        if (!items.wearItem(itemId.intValue(), inventorySlot)) {
+            return false;
+        }
+        int targetSlot = com.rs2.game.items.ItemData.targetSlots[itemId.intValue()];
+        return player.playerEquipment[targetSlot] == itemId.intValue();
+    }
+
+    /**
+     * Unequips the item in one canonical slot name into the inventory.
+     *
+     * @return {@code true} when the slot is empty afterwards
+     */
+    @HostAccess.Export
+    public int bonus(double indexValue) {
+        Integer index = BridgeValidation.integral(indexValue, 0, 11);
+        if (index == null || !live()) {
+            return 0;
+        }
+        ItemAssistant items = player.getItemAssistant();
+        items.resetBonus();
+        items.getBonus();
+        return player.playerBonus[index.intValue()];
+    }
+
+    @HostAccess.Export
+    public String bonusName(double indexValue) {
+        Integer index = BridgeValidation.integral(indexValue, 0, 11);
+        if (index == null) {
+            return null;
+        }
+        return player.getItemAssistant().BONUS_NAMES[index.intValue()];
+    }
+
+    @HostAccess.Export
+    public boolean unequip(String slot) {
+        int index = index(slot);
+        if (index < 0 || !canMutate()) {
+            return false;
+        }
+        if (player.playerEquipment[index] <= 0) {
+            return true;
+        }
+        player.getItemAssistant().removeItem(index);
+        return player.playerEquipment[index] <= 0;
+    }
+
     private boolean live() {
         return ScriptEncounterService.getInstance().canUseFacade(player,
                 generation, facadeEpoch, false);
+    }
+
+    private boolean canMutate() {
+        return ScriptEncounterService.getInstance().canMutate(player,
+                generation, facadeEpoch);
     }
 
     private static int index(String raw) {

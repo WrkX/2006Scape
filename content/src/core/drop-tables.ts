@@ -37,13 +37,13 @@
 
 import type { ItemId } from "./types.js";
 import type { DropTableDefinition, DropTableEntry } from "./runtime.js";
+import { MAX_ITEM_ID } from "./limits.js";
 
 const ID_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/;
 
 const MAX_ENTRIES = 64;
 const MAX_AMOUNT = 1000000;
 const MAX_WEIGHT = 1000000;
-const MAX_ITEM_ID = 14999;
 
 function assert(condition: boolean, message: string): asserts condition {
   if (!condition) {
