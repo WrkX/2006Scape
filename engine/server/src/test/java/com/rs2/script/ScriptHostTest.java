@@ -118,9 +118,8 @@ public class ScriptHostTest {
 							com.rs2.script.definition.DefinitionKind.DROP_TABLE,
 							"dragon_king_loot");
 			assertNotNull(dropTable);
-			assertEquals(0, dropTable.schemaVersion());
-			assertEquals(com.rs2.script.definition.ModuleScope.LEGACY_SOURCE,
-					dropTable.source());
+			assertEquals(1, dropTable.schemaVersion());
+			assertEquals("dragon-island-drops", dropTable.source());
 			assertNotNull(com.rs2.script.drop.DropTableRegistry
 					.get("dragon_guardian_loot"));
 			assertNotNull(com.rs2.script.drop.DropTableRegistry
@@ -219,9 +218,8 @@ public class ScriptHostTest {
 					+ "boss callback shape", boss.isGuestPayload());
 			assertNotNull(boss.bossPayload());
 			assertEquals("dragon-king", boss.bossPayload().id());
-			assertEquals(0, boss.schemaVersion());
-			assertEquals(com.rs2.script.definition.ModuleScope.LEGACY_SOURCE,
-					boss.source());
+			assertEquals(1, boss.schemaVersion());
+			assertEquals("dragon-king", boss.source());
 			com.rs2.script.definition.DefinitionRecord warden =
 					com.rs2.script.definition.DefinitionRegistry.get(
 							com.rs2.script.definition.DefinitionKind.BOSS,
@@ -273,9 +271,8 @@ public class ScriptHostTest {
 			assertEquals(1, areaDefinition.shops().size());
 			assertEquals("dragon_island_general",
 					areaDefinition.shops().get(0));
-			assertEquals(0, areaDefinition.schemaVersion());
-			assertEquals(com.rs2.script.definition.ModuleScope.LEGACY_SOURCE,
-					areaDefinition.source());
+			assertEquals(1, areaDefinition.schemaVersion());
+			assertEquals("dragon-island", areaDefinition.source());
 			// Every canonical area NPC id is definition-backed.
 			for (com.rs2.script.area.AreaNpcSpawn spawn
 					: areaDefinition.npcs()) {
@@ -357,8 +354,27 @@ public class ScriptHostTest {
 			assertEquals(6, com.rs2.script.reward.RewardRegistry
 					.get("zaros_raid_reward").items().size());
 
-			assertEquals(0, ScriptHost.getInstance().getRuntimeReport()
+			assertEquals(8, ScriptHost.getInstance().getRuntimeReport()
 					.moduleCount());
+			java.util.List<String> moduleIds = ScriptHost.getInstance()
+					.readActiveRegistry(state -> {
+						java.util.List<String> ids = new java.util.ArrayList<>();
+						for (com.rs2.script.definition.ModuleRecord record
+								: state.manifest) {
+							ids.add(record.id());
+						}
+						java.util.Collections.sort(ids);
+						return ids;
+					});
+			assertEquals(java.util.Arrays.asList(
+					"dragon-awakens",
+					"dragon-island",
+					"dragon-island-drops",
+					"dragon-island-shops",
+					"dragon-king",
+					"encounter-warden",
+					"temple-of-zaros",
+					"woodcutting-resources"), moduleIds);
 			assertTrue(ScriptHost.getInstance().getRuntimeReport()
 					.routeCount() > 0);
 		} finally {

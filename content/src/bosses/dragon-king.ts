@@ -7,62 +7,69 @@
  * Black dragon (54) with the canonical schema-v1 descriptor and the
  * definition-backed host command route.
  *
+ * Phase 5 WP10: the definition registers under the `dragon-king` content
+ * module. Its named table lives in the `dragon-island-drops` module and is
+ * resolved at candidate validation.
+ *
  * @module bosses/dragon-king
  */
 
-import type { BossRuntimeContext } from "../core/boss.js";
+import { registerModule } from "../sdk/index.js";
+import type { BossRuntimeContext } from "../sdk/index.js";
 
-defineBoss({
-  id: "dragon-king",
-  npcId: 54,
-  name: "Dragon King",
-  combatLevel: 450,
-  maxHitpoints: 600,
-  maxHit: 40,
-  attack: 350,
-  defence: 350,
-  arena: { minX: 2264, minY: 4688, maxX: 2287, maxY: 4711, plane: 1 },
-  spawn: { x: 2271, y: 4698 },
-  command: "dragon-king",
-  closeCommand: "dragon-king-close",
-  dropTable: "dragon_king_loot",
-  privateTicks: 200,
+registerModule({ id: "dragon-king", schemaVersion: 1 }, () => {
+  defineBoss({
+    id: "dragon-king",
+    npcId: 54,
+    name: "Dragon King",
+    combatLevel: 450,
+    maxHitpoints: 600,
+    maxHit: 40,
+    attack: 350,
+    defence: 350,
+    arena: { minX: 2264, minY: 4688, maxX: 2287, maxY: 4711, plane: 1 },
+    spawn: { x: 2271, y: 4698 },
+    command: "dragon-king",
+    closeCommand: "dragon-king-close",
+    dropTable: "dragon_king_loot",
+    privateTicks: 200,
 
-  onSpawn(ctx: BossRuntimeContext): void {
-    ctx.say("You dare enter my domain? You will burn!");
-  },
-
-  phases: [
-    {
-      name: "Melee Phase",
-      hpPercentThreshold: 100,
-      onEnter(ctx: BossRuntimeContext): void {
-        ctx.say("Come, face me with steel!");
-      },
+    onSpawn(ctx: BossRuntimeContext): void {
+      ctx.say("You dare enter my domain? You will burn!");
     },
-    {
-      name: "Fire Phase",
-      hpPercentThreshold: 50,
-      onEnter(ctx: BossRuntimeContext): void {
-        ctx.say("Now you will feel true dragon fire!");
-        ctx.useSpecial("fire_wave");
-      },
-    },
-  ],
 
-  specials: {
-    fire_wave: {
-      cooldownTicks: 12,
-      handler(ctx: BossRuntimeContext): void {
-        ctx.say("Burn!");
-        const players = ctx.participants();
-        for (let index = 0; index < players.length(); index++) {
-          const player = players.get(index);
-          if (player !== null) {
-            player.message("The Dragon King's fire wave engulfs you!");
+    phases: [
+      {
+        name: "Melee Phase",
+        hpPercentThreshold: 100,
+        onEnter(ctx: BossRuntimeContext): void {
+          ctx.say("Come, face me with steel!");
+        },
+      },
+      {
+        name: "Fire Phase",
+        hpPercentThreshold: 50,
+        onEnter(ctx: BossRuntimeContext): void {
+          ctx.say("Now you will feel true dragon fire!");
+          ctx.useSpecial("fire_wave");
+        },
+      },
+    ],
+
+    specials: {
+      fire_wave: {
+        cooldownTicks: 12,
+        handler(ctx: BossRuntimeContext): void {
+          ctx.say("Burn!");
+          const players = ctx.participants();
+          for (let index = 0; index < players.length(); index++) {
+            const player = players.get(index);
+            if (player !== null) {
+              player.message("The Dragon King's fire wave engulfs you!");
+            }
           }
-        }
+        },
       },
     },
-  },
+  });
 });

@@ -14,11 +14,15 @@
  * boat (outside the area bounds) is legacy travel content and is no longer
  * declared by the area.
  *
+ * Phase 5 WP10: the area registers under the `dragon-island` content module;
+ * the shop, quest, boss, and raid it references are registered by their own
+ * modules earlier in the candidate.
+ *
  * @module areas/dragon_island
  */
 
-import { createArea } from "../area-builder.js";
-import type { AreaObject } from "../types.js";
+import { createArea, registerModule } from "../../sdk/index.js";
+import type { AreaObject } from "../../sdk/index.js";
 import { allNpcs } from "./npcs.js";
 import "./shops.js";
 
@@ -65,7 +69,7 @@ const islandObjects: readonly AreaObject[] = [
  * Home to dragon guardians, an elder wizard, fishing spots, shops,
  * the Dragon King boss, and the Temple of Zaros raid entrance.
  */
-export const dragonIsland = createArea({
+const dragonIsland = createArea({
   id: "dragon_island",
   name: "Dragon Island",
   bounds: {
@@ -83,5 +87,7 @@ export const dragonIsland = createArea({
   raids: ["temple_of_zaros"],
 });
 
-// Register with the engine.
-defineArea(dragonIsland);
+// Register with the engine under the dragon-island module.
+registerModule({ id: "dragon-island", schemaVersion: 1 }, () => {
+  defineArea(dragonIsland);
+});

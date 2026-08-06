@@ -16,7 +16,7 @@
  * @module areas/dragon_island/npcs
  */
 
-import type { AreaNpcSpawn } from "../types.js";
+import type { AreaNpcSpawn } from "../../sdk/index.js";
 
 /**
  * Elder Wizard at the town entrance.  Starts the "Dragon Awakens" quest
