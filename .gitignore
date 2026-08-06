@@ -31,6 +31,3 @@ tools/
 .claude/
 
 # Local planning and documentation (kept on disk, not versioned)
-docs/
-plans/
-.cursor/plans/
