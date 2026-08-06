@@ -141,6 +141,9 @@ public class ScriptedPlayerTest {
 		ScriptedPlayer scripted = new ScriptedPlayer(player);
 		scripted.message(null);
 	}
+
+	@Test
+	public void experienceAdditionAppliesRateWithoutCrossingCapOrMutatingOnFalse() {
 		Constants.VARIABLE_XP_RATE = true;
 		Player player = authoritativePlayer();
 		player.tutorialProgress = 36;
