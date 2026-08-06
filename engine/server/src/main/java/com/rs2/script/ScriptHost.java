@@ -240,23 +240,24 @@ public final class ScriptHost {
 	/**
 	 * Returns an immutable logical status snapshot of the active runtime.
 	 *
-	 * <p>All counts are derived from the immutable active registry and the
-	 * Java-owned runtime singletons; no raw guest value, engine object, or
-	 * host path is exposed. The {@code ScriptHost} monitor is held only for
-	 * the short registry/generation read and released before any runtime
-	 * singleton is queried, so inspection never inverts the lock order used
-	 * by runtime singletons that read the active generation under their own
-	 * monitors.
+	 * <p>Generation and registry are read under one {@code ScriptHost} monitor
+	 * acquisition so a concurrent reload cannot mix snapshots. Counts are then
+	 * derived from the immutable registry and Java-owned runtime singletons
+	 * after the monitor is released; no raw guest value, engine object, or
+	 * host path is exposed.
 	 */
 	public ScriptRuntimeStatus getRuntimeStatus() {
-		final RegistryStore.State state = readActiveRegistry(
-				new ActiveRegistryRead<RegistryStore.State>() {
-					@Override
-					public RegistryStore.State read(RegistryStore.State s) {
-						return s;
-					}
-				});
-		final long generation = getActiveGeneration();
+		final long generation;
+		final RegistryStore.State state;
+		synchronized (this) {
+			if (activeState == null) {
+				generation = 0L;
+				state = RegistryStore.emptyState();
+			} else {
+				generation = activeState.generation;
+				state = activeState.registry;
+			}
+		}
 		int scheduled = ScriptScheduler.getInstance().taskCount();
 		int encounters = ScriptEncounterService.getInstance()
 				.activeEncounterCount();

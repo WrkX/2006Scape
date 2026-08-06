@@ -70,7 +70,3 @@ export interface ShopDefinition {
  * @param definition The canonical schema-v1 shop definition.
  */
 export type DefineShop = (definition: ShopDefinition) => void;
-
-declare global {
-  const defineShop: DefineShop;
-}

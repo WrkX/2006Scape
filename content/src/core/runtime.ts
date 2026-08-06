@@ -9,6 +9,11 @@
  * @module core/runtime
  */
 
+import type { DefineArea } from "../areas/types.js";
+import type { DefineQuest } from "../quests/types.js";
+import type { DefineBoss } from "./boss.js";
+import type { DefineRaid } from "./raid.js";
+import type { DefineShop } from "./shop.js";
 import type { ItemId } from "./types.js";
 
 /** Immutable copied Java collection exposed to guest code. */
@@ -836,6 +841,11 @@ declare global {
   const onMagicOnObject: OnMagicOnObject;
   const onPlayerDeath: OnPlayerDeath;
   const registerContentModule: RegisterContentModule;
+  const defineBoss: DefineBoss;
+  const defineQuest: DefineQuest;
+  const defineRaid: DefineRaid;
+  const defineArea: DefineArea;
+  const defineShop: DefineShop;
   const defineDropTable: DefineDropTable;
   const defineReward: DefineReward;
   const defineGatheringResource: DefineGatheringResource;

@@ -154,7 +154,3 @@ export interface AreaDefinition {
  * @param area The canonical schema-v1 area definition.
  */
 export type DefineArea = (area: AreaDefinition) => void;
-
-declare global {
-  const defineArea: DefineArea;
-}

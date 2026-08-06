@@ -47,7 +47,3 @@ export interface QuestDefinition {
 }
 
 export type DefineQuest = (definition: QuestDefinition) => void;
-
-declare global {
-  const defineQuest: DefineQuest;
-}

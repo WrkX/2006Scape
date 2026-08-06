@@ -265,8 +265,3 @@ export interface BossContext {
    */
   switchTarget(player?: Player): void;
 }
-
-/** Global boss registry function exposed by the bridge. */
-declare global {
-  const defineBoss: DefineBoss;
-}

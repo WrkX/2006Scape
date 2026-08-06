@@ -203,7 +203,3 @@ export interface RaidDefinition {
  * @param definition The canonical schema-v1 raid definition.
  */
 export type DefineRaid = (definition: RaidDefinition) => void;
-
-declare global {
-  const defineRaid: DefineRaid;
-}

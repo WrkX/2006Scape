@@ -247,6 +247,10 @@ public class ScriptedPlayer {
      */
     @HostAccess.Export
     public com.rs2.script.reward.RewardGrantResult grantReward(String rewardId) {
+        if (!canMutate()) {
+            return new com.rs2.script.reward.RewardGrantResult(rewardId,
+                    com.rs2.script.reward.RewardGrantResult.Code.REWARD_FAILED);
+        }
         com.rs2.script.reward.RewardDefinition reward =
                 com.rs2.script.reward.RewardRegistry.get(rewardId);
         if (reward == null) {
