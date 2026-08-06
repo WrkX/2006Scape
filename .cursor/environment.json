@@ -1,0 +1,10 @@
+{
+  "name": "2006Scape",
+  "install": "bash .cursor/install.sh",
+  "terminals": [
+    {
+      "name": "game-server",
+      "command": "source /etc/profile.d/singlescape-toolchain.sh && bash scripts/run-server.sh"
+    }
+  ]
+}
