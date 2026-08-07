@@ -150,6 +150,9 @@ engine/server/src/main/java/com/rs2/script/
 | `defineGatheringResource(def)` | `(GatheringResourceDefinition) => void` | parse and register a canonical gathering resource consumed by the WP8 resource runtime |
 | `defineProcessingSkill(def)` | `(ProcessingSkillDefinition) => void` | parse and register a canonical processing skill (item-on-object cook/smith loop) |
 | `defineMob(def)` | `(MobDefinition) => void` | parse and register a canonical world mob; registered `npcId` suppresses `NpcCombat` |
+| `defineItemOverlay(def)` | `(ItemOverlayDefinition) => void` | merge item metadata/equipment stats over a loaded cache item id at activation |
+| `defineNpcOverlay(def)` | `(NpcOverlayDefinition) => void` | merge NPC name/combat stats over a loaded cache NPC id at activation |
+| `defineObjectOverlay(def)` | `(ObjectOverlayDefinition) => void` | merge object name/examine/actions over a loaded cache object id at activation |
 | `onObject(id, action, handler)` | `(number, "first" \| "second" \| "third" \| "fourth", fn) => void` | object click by interaction slot |
 | `onNpc(id, action, handler)` | `(number, "first" \| "second" \| "third", fn) => void` | NPC click by interaction slot |
 | `onCommand(name, fn)` | `(string, fn) => void` | register a player command |
@@ -1055,6 +1058,26 @@ NPC despawn. Arena bosses remain on `defineBoss`. The shipped
 `content/src/mobs/goblin.ts` module registers goblin (npc 100) as the
 production proof.
 
+### Definition overlays (cache metadata merge)
+
+`defineItemOverlay`, `defineNpcOverlay`, and `defineObjectOverlay` merge
+optional metadata over **existing** cache definitions at `::scripts`
+activation. The target id must already exist in the loaded cache pack;
+unknown ids reject the candidate at load.
+
+Item overlays may set `name`, `examine`, `stackable`, `equipSlot`, skill
+`requirements`, and combat `bonuses`. NPC overlays may set `name`,
+`combatLevel`, and `hitpoints`. Object overlays may set `name`, `examine`,
+and up to five `actions`.
+
+`ScriptOverlayRuntime` applies overlays in ascending cache-id order and logs
+each merge at activation. On generation close the previous overlays revert
+to their captured baselines before the next generation publishes. Use
+asset-pipeline custom-namespace ids (`35000+` for items/objects/NPCs;
+`50000+` for models) rather than remapping OSRS ports onto 2006 ids. The
+shipped `content/src/overlays/custom-port.ts` module is the production
+proof.
+
 ### Scripted quest journal
 
 Every scripted quest definition is projected into the legacy client quest
@@ -1477,6 +1500,7 @@ definition to its logical source:
 | `woodcutting-resources` | The tree and oak gathering resources |
 | `cooking-skills` | Shrimp on cooking range 114 via `defineProcessingSkill` |
 | `world-mobs` | Goblin (npc 100) via `defineMob` |
+| `custom-namespace-overlays` | Item/NPC/object overlays at asset-pipeline ids 35000+ |
 
 The area, boss, quest, and raid fixtures are the compiled production proofs:
 `content/src/areas/dragon_island/` activates on the real Crandor map region

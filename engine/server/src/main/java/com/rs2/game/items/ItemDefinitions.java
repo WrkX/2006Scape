@@ -44,6 +44,37 @@ public class ItemDefinitions {
 		return def != null ? def.weight : 0.0;
 	}
 
+	/** Returns whether a bonus entry exists for the item id. */
+	public static boolean hasBonus(int id) {
+		return defintions.containsKey(id);
+	}
+
+	/** Returns a defensive copy of the current bonus array, or zeros. */
+	public static int[] copyBonus(int id) {
+		int[] bonuses = getBonus(id);
+		int[] copy = new int[bonuses.length];
+		System.arraycopy(bonuses, 0, copy, 0, bonuses.length);
+		return copy;
+	}
+
+	/** Applies or replaces overlay bonuses for one item id. */
+	public static void applyOverlay(int id, int[] bonuses) {
+		if (bonuses == null) {
+			return;
+		}
+		Definition existing = defintions.get(id);
+		if (existing == null) {
+			defintions.put(id, new Definition(bonuses));
+		} else {
+			existing.bonuses = bonuses.clone();
+		}
+	}
+
+	/** Clears overlay bonuses for one item id. */
+	public static void clearOverlay(int id) {
+		defintions.remove(id);
+	}
+
 	public static void load() {
 		Gson gson = new Gson();
 
@@ -67,6 +98,11 @@ public class ItemDefinitions {
 		private Definition(ItemData item) {
 			this.weight = item.weight;
 			this.bonuses = item.bonuses != null ? item.bonuses.getBonuses() : null;
+		}
+
+		private Definition(int[] bonuses) {
+			this.weight = 0.0;
+			this.bonuses = bonuses.clone();
 		}
 	}
 

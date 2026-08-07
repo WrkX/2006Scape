@@ -35,6 +35,7 @@ export * from "./drop-tables.js";
 export * from "./gathering.js";
 export * from "./processing.js";
 export * from "./mob.js";
+export * from "./overlay.js";
 
 export * from "../manifest.js";
 
@@ -59,7 +60,9 @@ export type {
   CardinalDirection,
   Result,
 } from "../core/types.js";
-export { MAX_ITEM_ID, MAX_NPC_ID, MAX_OBJECT_ID } from "../core/limits.js";
+export { MAX_ITEM_ID, MAX_NPC_ID, MAX_OBJECT_ID,
+  CUSTOM_MODEL_START, CUSTOM_OBJECT_START, CUSTOM_NPC_START,
+  CUSTOM_ITEM_START, MAX_CUSTOM_ID } from "../core/limits.js";
 export type * from "../core/runtime.js";
 export type {
   BossArena,

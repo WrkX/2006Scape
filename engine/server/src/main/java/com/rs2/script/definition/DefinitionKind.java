@@ -38,6 +38,15 @@ public enum DefinitionKind {
 	PROCESSING,
 
 	/** Java-owned world mob definitions keyed by numeric NPC id. */
-	MOB
+	MOB,
+
+	/** Cache item overlays keyed by numeric item id. */
+	ITEM_OVERLAY,
+
+	/** Cache NPC overlays keyed by numeric NPC id. */
+	NPC_OVERLAY,
+
+	/** Cache object overlays keyed by numeric object id. */
+	OBJECT_OVERLAY
 
 }

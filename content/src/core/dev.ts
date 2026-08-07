@@ -70,6 +70,20 @@ export interface InspectableNpc {
 export interface DevConsole {
   /** Write a message through the server's script logger. */
   log(message: string): void;
+
+  /**
+   * Returns whether the shipped cache has a real definition for an item id.
+   * Content should gate cache-dependent registrations behind these probes so
+   * a reload candidate cannot be rejected for ids the deployed cache does not
+   * contain.
+   */
+  hasItemId(id: number): boolean;
+
+  /** Returns whether the loaded NPC list has a definition for an NPC id. */
+  hasNpcId(id: number): boolean;
+
+  /** Returns whether the shipped cache has a real definition for an object id. */
+  hasObjectId(id: number): boolean;
 }
 
 declare global {

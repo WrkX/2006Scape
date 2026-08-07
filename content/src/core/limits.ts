@@ -16,3 +16,14 @@ export const MAX_NPC_ID = 65535;
 
 /** Inclusive maximum object type id. */
 export const MAX_OBJECT_ID = 65535;
+
+/**
+ * Custom asset namespace starts (aligned with `@singlescape/tools` /
+ * asset-pipeline phase 7). Cache pack entries must exist before overlays
+ * reference these ids.
+ */
+export const CUSTOM_MODEL_START = 50000;
+export const CUSTOM_OBJECT_START = 35000;
+export const CUSTOM_NPC_START = 35000;
+export const CUSTOM_ITEM_START = 35000;
+export const MAX_CUSTOM_ID = 65535;

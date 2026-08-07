@@ -527,6 +527,77 @@ export interface MobRuntimeContext {
 
 export type DefineMob = (definition: MobDefinition) => void;
 
+/** Skill requirements for {@link ItemOverlayDefinition}. */
+export interface ItemOverlayRequirements {
+  readonly attack?: number;
+  readonly strength?: number;
+  readonly defence?: number;
+  readonly hitpoints?: number;
+  readonly ranged?: number;
+  readonly prayer?: number;
+  readonly magic?: number;
+}
+
+/** Combat bonuses for {@link ItemOverlayDefinition}. */
+export interface ItemOverlayBonuses {
+  readonly attackStab?: number;
+  readonly attackSlash?: number;
+  readonly attackCrush?: number;
+  readonly attackMagic?: number;
+  readonly attackRange?: number;
+  readonly defenceStab?: number;
+  readonly defenceSlash?: number;
+  readonly defenceCrush?: number;
+  readonly defenceMagic?: number;
+  readonly defenceRange?: number;
+  readonly strength?: number;
+  readonly prayer?: number;
+}
+
+/**
+ * Canonical schema-v1 item overlay passed to `defineItemOverlay`.
+ *
+ * Merges optional metadata and equipment stats over a loaded cache item id
+ * at script activation. Requires the cache pack to include the target id.
+ */
+export interface ItemOverlayDefinition {
+  readonly id: string;
+  readonly itemId: number;
+  readonly name?: string;
+  readonly examine?: string;
+  readonly stackable?: boolean;
+  readonly equipSlot?: RuntimeEquipmentSlot;
+  readonly requirements?: ItemOverlayRequirements;
+  readonly bonuses?: ItemOverlayBonuses;
+}
+
+/**
+ * Canonical schema-v1 NPC overlay passed to `defineNpcOverlay`.
+ */
+export interface NpcOverlayDefinition {
+  readonly id: string;
+  readonly npcId: number;
+  readonly name?: string;
+  readonly combatLevel?: number;
+  readonly hitpoints?: number;
+}
+
+/**
+ * Canonical schema-v1 object overlay passed to `defineObjectOverlay`.
+ */
+export interface ObjectOverlayDefinition {
+  readonly id: string;
+  readonly objectId: number;
+  readonly name?: string;
+  readonly examine?: string;
+  /** Up to five menu actions; sparse indices are allowed. */
+  readonly actions?: readonly string[];
+}
+
+export type DefineItemOverlay = (definition: ItemOverlayDefinition) => void;
+export type DefineNpcOverlay = (definition: NpcOverlayDefinition) => void;
+export type DefineObjectOverlay = (definition: ObjectOverlayDefinition) => void;
+
 export interface PlayerStateNamespace {
   has(key: string): boolean;
   getBoolean(key: string): boolean | null;
@@ -1008,4 +1079,7 @@ declare global {
   const defineGatheringResource: DefineGatheringResource;
   const defineProcessingSkill: DefineProcessingSkill;
   const defineMob: DefineMob;
+  const defineItemOverlay: DefineItemOverlay;
+  const defineNpcOverlay: DefineNpcOverlay;
+  const defineObjectOverlay: DefineObjectOverlay;
 }

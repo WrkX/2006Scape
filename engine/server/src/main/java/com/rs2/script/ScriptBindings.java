@@ -3,10 +3,14 @@ package com.rs2.script;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apollo.cache.def.ItemDefinition;
+import org.apollo.cache.def.ObjectDefinition;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Value;
 import org.graalvm.polyglot.proxy.ProxyExecutable;
 import org.graalvm.polyglot.proxy.ProxyObject;
+
+import com.rs2.game.npcs.NpcHandler;
 
 /**
  * Installs the Java-backed global bindings that the TypeScript content layer
@@ -47,6 +51,12 @@ public final class ScriptBindings {
 				consumeValue(functions.getDefineProcessingSkill()));
 		globals.putMember("defineMob",
 				consumeValue(functions.getDefineMob()));
+		globals.putMember("defineItemOverlay",
+				consumeValue(functions.getDefineItemOverlay()));
+		globals.putMember("defineNpcOverlay",
+				consumeValue(functions.getDefineNpcOverlay()));
+		globals.putMember("defineObjectOverlay",
+				consumeValue(functions.getDefineObjectOverlay()));
 		globals.putMember("registerContentModule",
 				biValue(functions.getRegisterContentModule()));
 		globals.putMember("onObject", triIntStr(functions.getOnObject()));
@@ -84,6 +94,28 @@ public final class ScriptBindings {
 				functions.getDev().log(asLoggable(arguments[0]));
 			}
 			return null;
+		});
+		devMembers.put("hasItemId", (ProxyExecutable) arguments -> {
+			Integer id = readIntegerArgument(arguments, "hasItemId");
+			return Boolean.valueOf(id != null
+					&& ItemDefinition.exists(id.intValue()));
+		});
+		devMembers.put("hasNpcId", (ProxyExecutable) arguments -> {
+			Integer id = readIntegerArgument(arguments, "hasNpcId");
+			return Boolean.valueOf(id != null
+					&& NpcHandler.hasNpcDefinition(id.intValue()));
+		});
+		devMembers.put("hasObjectId", (ProxyExecutable) arguments -> {
+			Integer id = readIntegerArgument(arguments, "hasObjectId");
+			if (id == null) {
+				return Boolean.FALSE;
+			}
+			ObjectDefinition[] definitions = ObjectDefinition.getDefinitions();
+			int value = id.intValue();
+			return Boolean.valueOf(definitions != null && value >= 0
+					&& value < definitions.length
+					&& definitions[value] != null
+					&& definitions[value].getId() == value);
 		});
 		globals.putMember("dev", ProxyObject.fromMap(devMembers));
 
@@ -240,6 +272,27 @@ public final class ScriptBindings {
 			throw new IllegalArgumentException(label + " must be a finite integer");
 		}
 		return (int) number;
+	}
+
+	/**
+	 * Reads one optional integer argument from a {@code dev} capability probe.
+	 * Returns {@code null} on a missing or non-integral argument so the probe
+	 * can report {@code false} instead of aborting the candidate evaluation.
+	 */
+	private static Integer readIntegerArgument(Value[] arguments, String name) {
+		if (arguments == null || arguments.length < 1) {
+			return null;
+		}
+		Value value = arguments[0];
+		if (value == null || !value.isNumber()) {
+			return null;
+		}
+		double number = value.asDouble();
+		if (!Double.isFinite(number) || number != Math.rint(number)
+				|| number < Integer.MIN_VALUE || number > Integer.MAX_VALUE) {
+			return null;
+		}
+		return Integer.valueOf((int) number);
 	}
 
 	private static ProxyExecutable areaHandler(final String name,

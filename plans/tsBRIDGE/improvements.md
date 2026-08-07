@@ -37,7 +37,7 @@ Existing pattern to copy everywhere: schema-v1 `defineX` → Java parser → Jav
 | **0.5** — Bridge hardening | **Done** | `BridgeValidation`, null-safe strings, `PolyglotException` logging, `beginEncounter` coordinate validation via `BridgeValidation`, `ScriptedPosition` cache; `ReadWriteLock` deferred |
 | **1** — Player capability parity | **~90%** | equip/unequip, openBank, prayer, magic routes done; attack styles / venom TBD |
 | **2** — Skilling kits | **In progress** | gathering packs + cooking via `defineProcessingSkill`; thieving/FM/agility kits pending |
-| **3–8** | Phase 3 done; 4–8 pending | See phases below |
+| **3–8** | Phase 3–4 done; 5–8 pending | See phases below |
 
 ---
 
@@ -215,7 +215,7 @@ Bosses work via `defineBoss`. Add the missing world-NPC authoring path:
 
 ---
 
-## Phase 4 — Definition overlays (close gap 1, OSRS port critical)
+## Phase 4 — Definition overlays (close gap 1, OSRS port critical) ✅ Done
 
 You cannot invent new client graphics without cache work, but you **can** author server behavior and light metadata from TS:
 
@@ -229,9 +229,9 @@ You cannot invent new client graphics without cache work, but you **can** author
 4. Keep `onItem` / `onNpc` / `onObject` for one-off interactions; overlays + kits for data-heavy OSRS tables.
 
 **Acceptance:**
-- [ ] Overlay merge is deterministic and logged at `::scripts` load.
-- [ ] Unknown id in overlay fails content load with a clear error.
-- [ ] One OSRS item/NPC/object ported with overlay + asset-pipeline custom-namespace id (not remapped to 2006 id).
+- [x] Overlay merge is deterministic and logged at `::scripts` load.
+- [x] Unknown id in overlay fails content load with a clear error.
+- [x] One OSRS item/NPC/object ported with overlay + asset-pipeline custom-namespace id (not remapped to 2006 id).
 
 ---
 
@@ -323,7 +323,7 @@ Keep iteration cheap while porting:
 | **2** | Mining/fishing gathering packs | Gap 3 | **Done** |
 | **3** | One cooking port (raw handlers) → `defineProcessingSkill` | Gap 3 | **Done** |
 | **4** | `defineMob` world AI | Gap 4 | **Done** |
-| **5** | Overlays + asset-pipeline handoff (phases 7–8 ids) | Gap 1 | Pending |
+| **5** | Overlays + asset-pipeline handoff (phases 7–8 ids) | Gap 1 | **Done** |
 | **6** | Interface hook packs + presentation helpers | Gap 2 | Pending |
 | **7** | Trade gate + PvP queries (MVP scope) | Gap 5 (social) | Pending |
 | **8** | Minigame kit; bot wiring decision | Gap 7 | Pending |

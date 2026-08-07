@@ -119,6 +119,41 @@ public class ScriptMobPortE2ETest {
 	}
 
 	@Test
+	public void rangedMobArmsProjectileAndHoldsProjectileRange()
+			throws Exception {
+		Path root = Files.createTempDirectory("script-mob-ranged");
+		Files.write(root.resolve("loader.js"), (
+				"defineMob({"
+				+ "id:'ranger',npcId:100,name:'Ranger',aggression:0,"
+				+ "combatStyle:'ranged',attackSpeed:4,maxHit:6"
+				+ "});")
+				.getBytes(StandardCharsets.UTF_8));
+		System.setProperty("singlescape.contentDir",
+				root.toFile().getAbsolutePath());
+		ScriptHost.getInstance().reload();
+		assertNotNull(MobDefinitionRegistry.get(GOBLIN));
+
+		Npc npc = spawnNpc(GOBLIN, 3200, 3201);
+		player.absX = 3200;
+		player.absY = 3206; // 5 tiles away: beyond melee, inside ranged range
+		npc.killerId = player.playerId;
+		npc.underAttack = true;
+		npc.attackTimer = 0;
+		npc.attackType = 0; // stale melee default
+
+		NpcCombat.attackPlayer(player, npcSlot);
+
+		assertEquals("ranged style must resolve to the RANGE attack type",
+				com.rs2.game.content.combat.AttackType.RANGE.getValue(),
+				npc.attackType);
+		assertTrue("ranged mob must arm a visible projectile",
+				npc.projectileId > 0);
+		assertTrue("ranged mob must arm an impact graphic", npc.endGfx > 0);
+		assertEquals("ranged mob must keep its projectile hit delay",
+				3, npc.hitDelayTimer);
+	}
+
+	@Test
 	public void onTickAndOnDeathInvalidateOnReload() throws Exception {
 		Path root = Files.createTempDirectory("script-mob-callbacks");
 		Files.write(root.resolve("loader.js"), (
@@ -162,6 +197,141 @@ public class ScriptMobPortE2ETest {
 		assertNull(MobDefinitionRegistry.get(GOBLIN).onTick());
 		assertNull(MobDefinitionRegistry.get(GOBLIN).onDeath());
 		assertEquals(0, ScriptMobRuntime.getInstance().trackedCount());
+	}
+
+	@Test
+	public void aggressionSkipsDeadAndRespawningPlayers() throws Exception {
+		Path root = Files.createTempDirectory("script-mob-aggro");
+		Files.write(root.resolve("loader.js"), (
+				"defineMob({"
+				+ "id:'goblin',npcId:100,name:'Goblin',aggression:5,"
+				+ "combatStyle:'melee',attackSpeed:4,maxHit:1"
+				+ "});")
+				.getBytes(StandardCharsets.UTF_8));
+		System.setProperty("singlescape.contentDir",
+				root.toFile().getAbsolutePath());
+		ScriptHost.getInstance().reload();
+		assertNotNull(MobDefinitionRegistry.get(GOBLIN));
+
+		Npc npc = spawnNpc(GOBLIN, 3200, 3201); // (3200,3201) radius 5
+		ScriptMobRuntime runtime = ScriptMobRuntime.getInstance();
+
+		player.absX = 3200;
+		player.absY = 3203; // inside radius 5
+		player.respawnTimer = 0;
+		player.isDead = false;
+		assertEquals("a live player inside the radius must be targeted",
+				player.playerId, runtime.findAggressionTarget(npcSlot));
+
+		player.respawnTimer = 1;
+		assertEquals("a player in the respawn window must be skipped",
+				0, runtime.findAggressionTarget(npcSlot));
+		player.respawnTimer = 0;
+
+		player.isDead = true;
+		assertEquals("a dead player must be skipped",
+				0, runtime.findAggressionTarget(npcSlot));
+	}
+
+	@Test
+	public void closeGenerationClearsTrackedCallbacks() throws Exception {
+		Path root = Files.createTempDirectory("script-mob-close");
+		Files.write(root.resolve("loader.js"), (
+				"defineMob({"
+				+ "id:'goblin',npcId:100,name:'Goblin',aggression:0,"
+				+ "combatStyle:'melee',attackSpeed:4,maxHit:1,"
+				+ "onSpawn:function(ctx){},onTick:function(ctx){}"
+				+ "});")
+				.getBytes(StandardCharsets.UTF_8));
+		System.setProperty("singlescape.contentDir",
+				root.toFile().getAbsolutePath());
+		ScriptHost.getInstance().reload();
+		assertNotNull(MobDefinitionRegistry.get(GOBLIN));
+
+		Npc npc = spawnNpc(GOBLIN, 3200, 3201);
+		long generation = ScriptHost.getInstance().getActiveGeneration();
+		ScriptMobRuntime runtime = ScriptMobRuntime.getInstance();
+		runtime.processGameTick(generation);
+		assertTrue(runtime.trackedCount() >= 1);
+		assertTrue(runtime.hasSpawnedTokenForTesting(npc.allocationToken()));
+
+		runtime.closeGeneration(generation);
+		assertEquals("closing the active generation must drop tracked state",
+				0, runtime.trackedCount());
+		assertFalse("closing the active generation must revoke onSpawn",
+				runtime.hasSpawnedTokenForTesting(npc.allocationToken()));
+	}
+
+	@Test
+	public void singleCombatMobGivesUpWhenPlayerTargetedElsewhere()
+			throws Exception {
+		Path root = Files.createTempDirectory("script-mob-single");
+		Files.write(root.resolve("loader.js"), (
+				"defineMob({"
+				+ "id:'goblin',npcId:100,name:'Goblin',aggression:0,"
+				+ "combatStyle:'melee',attackSpeed:4,maxHit:1"
+				+ "});")
+				.getBytes(StandardCharsets.UTF_8));
+		System.setProperty("singlescape.contentDir",
+				root.toFile().getAbsolutePath());
+		ScriptHost.getInstance().reload();
+		assertNotNull(MobDefinitionRegistry.get(GOBLIN));
+
+		Npc npc = spawnNpc(GOBLIN, 3200, 3201); // (3200,3201) is not inMulti
+		npc.killerId = player.playerId;
+		npc.underAttack = true;
+		npc.attackTimer = 0;
+		player.underAttackBy = 999; // another mob already owns the player
+
+		NpcCombat.attackPlayer(player, npcSlot);
+
+		assertEquals("a single-combat mob must give up when the player is "
+				+ "already targeted elsewhere",
+				0, npc.killerId);
+		assertEquals("no attack may be armed for a given-up attack",
+				0, npc.attackTimer);
+	}
+
+	@Test
+	public void corpseDoesNotRefireOnSpawnDuringRespawnWindow()
+			throws Exception {
+		Path root = Files.createTempDirectory("script-mob-corpse");
+		Files.write(root.resolve("loader.js"), (
+				"defineMob({"
+				+ "id:'goblin',npcId:100,name:'Goblin',aggression:0,"
+				+ "combatStyle:'melee',attackSpeed:4,maxHit:1,"
+				+ "onSpawn:function(ctx){}"
+				+ "});")
+				.getBytes(StandardCharsets.UTF_8));
+		System.setProperty("singlescape.contentDir",
+				root.toFile().getAbsolutePath());
+		ScriptHost.getInstance().reload();
+		assertNotNull(MobDefinitionRegistry.get(GOBLIN));
+
+		Npc npc = spawnNpc(GOBLIN, 3200, 3201);
+		long token = npc.allocationToken();
+		long generation = ScriptHost.getInstance().getActiveGeneration();
+		ScriptMobRuntime runtime = ScriptMobRuntime.getInstance();
+		runtime.processGameTick(generation);
+		assertTrue("live spawn must receive onSpawn",
+				runtime.hasSpawnedTokenForTesting(token));
+
+		ScriptedPosition position = new ScriptedPosition(npc.absX, npc.absY,
+				npc.heightLevel);
+		runtime.onNpcDeath(npc, player, generation, position);
+		assertFalse("death must revoke onSpawn",
+				runtime.hasSpawnedTokenForTesting(token));
+
+		// NpcHandler keeps the corpse in npcs[] with HP restored to MaxHP
+		// through the respawn countdown; the allocation is unchanged until a
+		// fresh Npc takes the slot. The next tick must not treat the corpse as
+		// first sight.
+		npc.HP = npc.MaxHP;
+		npc.isDead = true;
+		npc.applyDead = true;
+		runtime.processGameTick(generation);
+		assertFalse("corpse in the respawn window must not re-fire onSpawn",
+				runtime.hasSpawnedTokenForTesting(token));
 	}
 
 	@Test

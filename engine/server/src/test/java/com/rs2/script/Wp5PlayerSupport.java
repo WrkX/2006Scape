@@ -4,6 +4,7 @@ import java.lang.reflect.Field;
 
 import com.rs2.Constants;
 import com.rs2.game.npcs.NpcHandler;
+import com.rs2.game.npcs.NpcList;
 import com.rs2.game.players.Player;
 import com.rs2.game.players.Client;
 import com.rs2.game.players.PlayerHandler;
@@ -18,6 +19,9 @@ import org.apollo.cache.def.ItemDefinition;
 /** Lightweight WP5 fixture that does not start Graal/Truffle. */
 final class Wp5PlayerSupport {
     static final int X = 3200, Y = 3200;
+    private static final int CUSTOM_ITEM_ID = 35000;
+    private static final int CUSTOM_OBJECT_ID = 35000;
+    private static final int CUSTOM_NPC_ID = 35000;
     static Player player(int slot) throws Exception {
         ensureObjectDefinitions();
 		ensureItemDefinitions();
@@ -106,6 +110,7 @@ final class Wp5PlayerSupport {
 		ObjectDefinition.lookup(2214).setLength(1);
 		ObjectDefinition.lookup(2214).setSolid(true);
 		ObjectDefinition.lookup(2214).setImpenetrable(false);
+		ensureCustomNamespaceObject();
     }
 
 	public static synchronized void ensureItemDefinitions() throws Exception {
@@ -116,7 +121,10 @@ final class Wp5PlayerSupport {
 				&& existing[1387] != null && existing[3144] != null
 				&& existing[317] != null && existing[1265] != null
 				&& existing[315] != null && existing[7954] != null
-				&& existing[994] == null) return;
+				&& existing[994] == null) {
+			ensureCustomNamespaceItem();
+			return;
+		}
 		ItemDefinition[] definitions = new ItemDefinition[required];
 		for (int id : CONTENT_ITEM_IDS) {
 			ItemDefinition definition = new ItemDefinition(id);
@@ -127,6 +135,7 @@ final class Wp5PlayerSupport {
 		Field field = ItemDefinition.class.getDeclaredField("definitions");
 		field.setAccessible(true);
 		field.set(null, definitions);
+		ensureCustomNamespaceItem();
 	}
 
 	private static int requiredItemDefinitionLength() {
@@ -163,10 +172,107 @@ final class Wp5PlayerSupport {
 	 * loader path.
 	 */
 	public static synchronized void ensureNpcDefinitions() {
-		if (NpcHandler.hasNpcDefinitions()) {
+		if (!NpcHandler.hasNpcDefinitions()) {
+			// The NpcHandler() constructor already loads npc.json into the
+			// static table; calling loadNPCList() a second time would double-load
+			// and fill the table to capacity, leaving no free slot for the custom
+			// namespace id below.
+			new NpcHandler();
+		}
+		ensureCustomNamespaceNpc();
+	}
+
+	/**
+	 * Ensures custom-namespace ids used by overlay ports exist in the loaded
+	 * cache definitions for hermetic tests.
+	 */
+	public static synchronized void ensureCustomNamespaceDefinitions()
+			throws Exception {
+		ensureItemDefinitions();
+		ensureObjectDefinitions();
+		ensureNpcDefinitions();
+	}
+
+	private static void ensureCustomNamespaceItem() throws Exception {
+		ItemDefinition[] items = ItemDefinition.getDefinitions();
+		if (items != null && items.length > CUSTOM_ITEM_ID
+				&& items[CUSTOM_ITEM_ID] != null) {
 			return;
 		}
-		new NpcHandler().loadNPCList();
+		int length = Math.max(items == null ? 0 : items.length,
+				CUSTOM_ITEM_ID + 1);
+		ItemDefinition[] expanded = new ItemDefinition[length];
+		if (items != null) {
+			System.arraycopy(items, 0, expanded, 0, items.length);
+		}
+		if (expanded[CUSTOM_ITEM_ID] == null) {
+			expanded[CUSTOM_ITEM_ID] = new ItemDefinition(CUSTOM_ITEM_ID);
+			expanded[CUSTOM_ITEM_ID].setName("Cache bronze sword");
+		}
+		setItemDefinitions(expanded);
+	}
+
+	private static void ensureCustomNamespaceObject() {
+		ObjectDefinition[] objects = ObjectDefinition.getDefinitions();
+		if (objects != null && objects.length > CUSTOM_OBJECT_ID
+				&& objects[CUSTOM_OBJECT_ID] != null) {
+			return;
+		}
+		int length = Math.max(objects == null ? 0 : objects.length,
+				CUSTOM_OBJECT_ID + 1);
+		ObjectDefinition[] expanded = new ObjectDefinition[length];
+		if (objects != null) {
+			System.arraycopy(objects, 0, expanded, 0, objects.length);
+		}
+		if (expanded[CUSTOM_OBJECT_ID] == null) {
+			expanded[CUSTOM_OBJECT_ID] =
+					new ObjectDefinition(CUSTOM_OBJECT_ID);
+			expanded[CUSTOM_OBJECT_ID].setName("Cache signpost");
+		}
+		try {
+			setObjectDefinitions(expanded);
+		} catch (Exception e) {
+			throw new IllegalStateException(
+					"failed to install custom object definition", e);
+		}
+	}
+
+	private static void ensureCustomNamespaceNpc() {
+		if (NpcHandler.hasNpcDefinition(CUSTOM_NPC_ID)) {
+			return;
+		}
+		// Insert directly into the static NpcList table at the first free slot.
+		// Constructing a full NpcHandler() here would clear the shared static
+		// NpcList[]/npcs[] and reload production spawn/drop data from disk,
+		// breaking test hermeticity.
+		for (int index = 0; index < NpcHandler.maxListedNPCs; index++) {
+			if (NpcHandler.NpcList[index] == null) {
+				NpcList entry = new NpcList(CUSTOM_NPC_ID);
+				entry.npcName = "Cache guard";
+				entry.npcCombat = 1;
+				entry.npcHealth = 10;
+				NpcHandler.NpcList[index] = entry;
+				return;
+			}
+		}
+		throw new IllegalStateException("no free npc list slot for custom id "
+				+ CUSTOM_NPC_ID);
+	}
+
+	private static void setItemDefinitions(ItemDefinition[] definitions)
+			throws Exception {
+		java.lang.reflect.Field field =
+				ItemDefinition.class.getDeclaredField("definitions");
+		field.setAccessible(true);
+		field.set(null, definitions);
+	}
+
+	private static void setObjectDefinitions(ObjectDefinition[] definitions)
+			throws Exception {
+		java.lang.reflect.Field field =
+				ObjectDefinition.class.getDeclaredField("definitions");
+		field.setAccessible(true);
+		field.set(null, definitions);
 	}
 
 	/**

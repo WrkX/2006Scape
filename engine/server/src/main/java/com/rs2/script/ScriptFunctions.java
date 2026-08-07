@@ -203,6 +203,66 @@ public final class ScriptFunctions {
 	}
 
 	/**
+	 * Registers one canonical item overlay merged over a loaded cache item id
+	 * at activation time.
+	 */
+	public Consumer<Value> getDefineItemOverlay() {
+		return def -> {
+			requireObject("defineItemOverlay", def);
+			com.rs2.script.overlay.ItemOverlayDefinition overlay =
+					new com.rs2.script.overlay.ItemOverlayDefinitionParser(
+							ModuleScope.currentSource(),
+							ModuleScope.currentSchemaVersion()).parse(def);
+			rejectDuplicateRecord("defineItemOverlay(itemId "
+					+ overlay.itemId() + ")",
+					com.rs2.script.overlay.ItemOverlayDefinitionRegistry
+							.put(overlay));
+			com.rs2.script.overlay.ScriptOverlayRuntime.getInstance()
+					.register(overlay);
+		};
+	}
+
+	/**
+	 * Registers one canonical NPC overlay merged over a loaded cache NPC id
+	 * at activation time.
+	 */
+	public Consumer<Value> getDefineNpcOverlay() {
+		return def -> {
+			requireObject("defineNpcOverlay", def);
+			com.rs2.script.overlay.NpcOverlayDefinition overlay =
+					new com.rs2.script.overlay.NpcOverlayDefinitionParser(
+							ModuleScope.currentSource(),
+							ModuleScope.currentSchemaVersion()).parse(def);
+			rejectDuplicateRecord("defineNpcOverlay(npcId "
+					+ overlay.npcId() + ")",
+					com.rs2.script.overlay.NpcOverlayDefinitionRegistry
+							.put(overlay));
+			com.rs2.script.overlay.ScriptOverlayRuntime.getInstance()
+					.register(overlay);
+		};
+	}
+
+	/**
+	 * Registers one canonical object overlay merged over a loaded cache object
+	 * id at activation time.
+	 */
+	public Consumer<Value> getDefineObjectOverlay() {
+		return def -> {
+			requireObject("defineObjectOverlay", def);
+			com.rs2.script.overlay.ObjectOverlayDefinition overlay =
+					new com.rs2.script.overlay.ObjectOverlayDefinitionParser(
+							ModuleScope.currentSource(),
+							ModuleScope.currentSchemaVersion()).parse(def);
+			rejectDuplicateRecord("defineObjectOverlay(objectId "
+					+ overlay.objectId() + ")",
+					com.rs2.script.overlay.ObjectOverlayDefinitionRegistry
+							.put(overlay));
+			com.rs2.script.overlay.ScriptOverlayRuntime.getInstance()
+					.register(overlay);
+		};
+	}
+
+	/**
 	 * Registers one canonical scripted shop: the guest payload is parsed
 	 * into a Java-owned typed descriptor with definition-backed items,
 	 * declared stock, prices, and restock policy. Opening routes are bound

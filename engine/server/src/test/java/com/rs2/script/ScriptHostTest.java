@@ -78,6 +78,7 @@ public class ScriptHostTest {
 			Wp5PlayerSupport.ensureItemDefinitions();
 			Wp5PlayerSupport.ensureObjectDefinitions();
 			Wp5PlayerSupport.ensureNpcDefinitions();
+			Wp5PlayerSupport.ensureCustomNamespaceDefinitions();
 			Wp5PlayerSupport.ensureAreaRegions();
 
 			ScriptHost.getInstance().reload();
@@ -114,6 +115,12 @@ public class ScriptHostTest {
 			assertNotNull(com.rs2.script.mob.MobDefinitionRegistry.get(100));
 			assertEquals("goblin",
 					com.rs2.script.mob.MobDefinitionRegistry.get(100).id());
+			assertNotNull(com.rs2.script.overlay.ItemOverlayDefinitionRegistry
+					.get(35000));
+			assertNotNull(com.rs2.script.overlay.NpcOverlayDefinitionRegistry
+					.get(35000));
+			assertNotNull(com.rs2.script.overlay.ObjectOverlayDefinitionRegistry
+					.get(35000));
 			assertNotNull(LifecycleRegistry.getNpcDeath(14994));
 			assertNotNull(LifecycleRegistry.getItemPickup(14995));
 			assertNotNull(LifecycleRegistry.getAreaHandler(
@@ -182,6 +189,7 @@ public class ScriptHostTest {
 			Wp5PlayerSupport.ensureItemDefinitions();
 			Wp5PlayerSupport.ensureObjectDefinitions();
 			Wp5PlayerSupport.ensureNpcDefinitions();
+			Wp5PlayerSupport.ensureCustomNamespaceDefinitions();
 			Wp5PlayerSupport.ensureAreaRegions();
 
 			ScriptHost.getInstance().reload();
@@ -218,6 +226,12 @@ public class ScriptHostTest {
 			assertNotNull(com.rs2.script.mob.MobDefinitionRegistry.get(100));
 			assertEquals("goblin",
 					com.rs2.script.mob.MobDefinitionRegistry.get(100).id());
+			assertNotNull(com.rs2.script.overlay.ItemOverlayDefinitionRegistry
+					.get(35000));
+			assertNotNull(com.rs2.script.overlay.NpcOverlayDefinitionRegistry
+					.get(35000));
+			assertNotNull(com.rs2.script.overlay.ObjectOverlayDefinitionRegistry
+					.get(35000));
 			assertNotNull(LifecycleRegistry.getNpcDeath(14994));
 			assertNotNull(LifecycleRegistry.getItemPickup(14995));
 			assertNotNull(LifecycleRegistry.getAreaHandler(
@@ -370,7 +384,7 @@ public class ScriptHostTest {
 			assertEquals(6, com.rs2.script.reward.RewardRegistry
 					.get("zaros_raid_reward").items().size());
 
-			assertEquals(11, ScriptHost.getInstance().getRuntimeReport()
+			assertEquals(13, ScriptHost.getInstance().getRuntimeReport()
 					.moduleCount());
 			java.util.List<String> moduleIds = ScriptHost.getInstance()
 					.readActiveRegistry(state -> {
@@ -384,6 +398,7 @@ public class ScriptHostTest {
 					});
 			assertEquals(java.util.Arrays.asList(
 					"cooking-skills",
+					"custom-namespace-overlays",
 					"dragon-awakens",
 					"dragon-island",
 					"dragon-island-drops",
@@ -393,7 +408,8 @@ public class ScriptHostTest {
 					"fishing-resources",
 					"mining-resources",
 					"temple-of-zaros",
-					"woodcutting-resources"), moduleIds);
+					"woodcutting-resources",
+					"world-mobs"), moduleIds);
 			assertTrue(ScriptHost.getInstance().getRuntimeReport()
 					.routeCount() > 0);
 		} finally {
@@ -699,6 +715,65 @@ public class ScriptHostTest {
 		stable.assertStillActive(host);
 		assertNull(CommandHandlerRegistry.get("duplicate-candidate-command"));
 		assertNull(ItemHandlerRegistry.getItemOnItem(9200, 9201));
+	}
+
+	@Test
+	public void customNamespaceOverlaysAreSkippedWhenCacheLacksTheIds()
+			throws Exception {
+		// Production caches (asset-pipeline phase 7 not yet shipped) have no
+		// definitions at custom ids 35000+. The candidate must still commit so
+		// a reload cannot be aborted by the overlay parser's definition check.
+		ItemDefinition[] previousItems = ItemDefinition.getDefinitions();
+		ObjectDefinition[] previousObjects = ObjectDefinition.getDefinitions();
+		try {
+			// Install a minimal cache without any 35000 definition; a prior
+			// test method may have fabricated the custom namespace ids.
+			setDefinitions(ItemDefinition.class, new ItemDefinition[] {
+					new ItemDefinition(0), new ItemDefinition(1)
+			});
+			setDefinitions(ObjectDefinition.class, new ObjectDefinition[] {
+					new ObjectDefinition(0), new ObjectDefinition(1)
+			});
+
+			Path root = Files.createTempDirectory("script-host-custom-namespace");
+			Path loader = root.resolve("loader.js");
+			setContentDir(root.toFile());
+			// Replicates the compiled custom-port.ts: each overlay is registered
+			// only when its cache definition is present (the dev capability probe).
+			Files.write(loader, (
+					"registerContentModule({id:'custom',schemaVersion:1}, function () {"
+					+ "if (dev.hasItemId(35000)) {"
+					+ "  defineItemOverlay({id:'sword',itemId:35000,name:'Sword',"
+					+ "    equipSlot:'weapon',bonuses:{strength:5}});"
+					+ "}"
+					+ "if (dev.hasNpcId(35000)) {"
+					+ "  defineNpcOverlay({id:'guard',npcId:35000,name:'Guard',"
+					+ "    combatLevel:21,hitpoints:22});"
+					+ "}"
+					+ "if (dev.hasObjectId(35000)) {"
+					+ "  defineObjectOverlay({id:'sign',objectId:35000,name:'Sign',"
+					+ "    actions:['Read']});"
+					+ "}"
+					+ "});")
+					.getBytes(StandardCharsets.UTF_8));
+			// No ensure*CustomNamespace calls: the cache has no 35000 definitions.
+			ScriptHost host = ScriptHost.getInstance();
+			host.reload();
+			assertNotNull("reload must not abort when custom ids are absent",
+					host.getContext());
+			assertNull("item overlay must be skipped when its id is absent",
+					com.rs2.script.overlay.ItemOverlayDefinitionRegistry
+							.get(35000));
+			assertNull("npc overlay must be skipped when its id is absent",
+					com.rs2.script.overlay.NpcOverlayDefinitionRegistry.get(35000));
+			assertNull("object overlay must be skipped when its id is absent",
+					com.rs2.script.overlay.ObjectOverlayDefinitionRegistry
+							.get(35000));
+			assertNotNull(host.getRuntimeReport());
+		} finally {
+			setDefinitions(ItemDefinition.class, previousItems);
+			setDefinitions(ObjectDefinition.class, previousObjects);
+		}
 	}
 
 	@Test

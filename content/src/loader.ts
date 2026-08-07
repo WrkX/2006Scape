@@ -10,3 +10,4 @@ import "./resources/mining.js";
 import "./resources/fishing.js";
 import "./skills/cooking.js";
 import "./mobs/goblin.js";
+import "./overlays/custom-port.js";

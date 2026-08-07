@@ -22,7 +22,8 @@ test("inventory documents every declared runtime global", () => {
   const expectedGlobals = [
     "defineBoss", "defineQuest", "defineRaid", "defineArea", "defineShop",
     "defineDropTable", "defineReward", "defineGatheringResource",
-    "defineProcessingSkill", "defineMob", "onObject", "onNpc", "onCommand",
+    "defineProcessingSkill", "defineMob", "defineItemOverlay",
+    "defineNpcOverlay", "defineObjectOverlay", "onObject", "onNpc", "onCommand",
     "onItem", "onItemOnItem", "onItemOnObject", "onItemOnNpc", "onLogin",
     "onLogout", "onNpcDeath", "onItemPickup", "onEnterArea", "onLeaveArea",
     "onButton", "onItemOnGroundItem", "onItemOnPlayer", "onMagicOnItem",
@@ -43,7 +44,7 @@ test("inventory documents every SDK barrel module", () => {
     "sdk/shops.ts", "sdk/equipment.ts", "sdk/magic.ts", "sdk/prayer.ts",
     "sdk/dialogue.ts",
     "sdk/drop-tables.ts", "sdk/gathering.ts", "sdk/processing.ts",
-    "sdk/mob.ts",
+    "sdk/mob.ts", "sdk/overlay.ts",
     "manifest.ts", "bosses/boss-builder.ts",
     "quests/quest-builder.ts", "areas/area-builder.ts",
     "raids/raid-builder.ts",

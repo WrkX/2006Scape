@@ -251,15 +251,20 @@ public class VerticalContentE2ETest {
 					return ids;
 				});
 		assertEquals(Arrays.asList(
+				"cooking-skills",
+				"custom-namespace-overlays",
 				"dragon-awakens",
 				"dragon-island",
 				"dragon-island-drops",
 				"dragon-island-shops",
 				"dragon-king",
 				"encounter-warden",
+				"fishing-resources",
+				"mining-resources",
 				"temple-of-zaros",
-				"woodcutting-resources"), moduleIds);
-		assertEquals(8, ScriptHost.getInstance().getRuntimeReport()
+				"woodcutting-resources",
+				"world-mobs"), moduleIds);
+		assertEquals(13, ScriptHost.getInstance().getRuntimeReport()
 				.moduleCount());
 
 		// A module-scoped definition carries its source and schema version.

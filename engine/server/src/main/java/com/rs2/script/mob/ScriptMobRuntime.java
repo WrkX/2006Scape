@@ -1,6 +1,6 @@
 package com.rs2.script.mob;
 
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
@@ -8,7 +8,9 @@ import java.util.Set;
 
 import org.graalvm.polyglot.Value;
 
+import com.rs2.game.content.combat.AttackType;
 import com.rs2.game.content.combat.npcs.NpcEmotes;
+import com.rs2.game.items.impl.Greegree.MonkeyData;
 import com.rs2.game.npcs.Npc;
 import com.rs2.game.npcs.NpcData;
 import com.rs2.game.npcs.NpcHandler;
@@ -16,9 +18,18 @@ import com.rs2.game.players.Client;
 import com.rs2.game.players.Player;
 import com.rs2.game.players.PlayerHandler;
 import com.rs2.script.ScriptExecutor;
+import com.rs2.script.ScriptHost;
 import com.rs2.script.ScriptedPlayer;
 import com.rs2.script.ScriptedPosition;
 import com.rs2.script.world.ScriptNpcService;
+import com.rs2.world.Boundary;
+
+import static com.rs2.game.content.StaticNpcList.BARRICADE;
+import static com.rs2.game.content.StaticNpcList.BARRICADE_1534;
+import static com.rs2.game.content.StaticNpcList.CHICKEN_1401;
+import static com.rs2.game.content.StaticNpcList.GUARD;
+import static com.rs2.game.content.StaticNpcList.LESSER_DEMON_752;
+import static com.rs2.game.content.StaticNpcList.OGRE_374;
 
 /**
  * Java-owned world mob runtime for {@code defineMob}.
@@ -36,7 +47,16 @@ public final class ScriptMobRuntime {
 	/** Allocation tokens that have already received {@code onSpawn}. */
 	private final Set<Long> spawnedTokens = new HashSet<Long>();
 	/** Allocation tokens currently tracked for tick/death callbacks. */
-	private final Map<Long, Integer> trackedSlots = new HashMap<Long, Integer>();
+	private final Set<Long> trackedSlots = new HashSet<Long>();
+
+	/**
+	 * Immutable npcId-to-definition lookup published once per generation. The
+	 * authoritative registry is read under the global {@link ScriptHost}
+	 * monitor only at reload; combat and tick hot paths read this volatile
+	 * snapshot lock-free so they never contend on that monitor.
+	 */
+	private volatile Map<Integer, MobDefinition> definitionSnapshot =
+			Collections.emptyMap();
 
 	private long activeGeneration;
 
@@ -65,11 +85,11 @@ public final class ScriptMobRuntime {
 	}
 
 	public boolean owns(int npcId) {
-		return MobDefinitionRegistry.get(npcId) != null;
+		return definitionSnapshot.containsKey(Integer.valueOf(npcId));
 	}
 
 	public MobDefinition definitionFor(int npcId) {
-		return MobDefinitionRegistry.get(npcId);
+		return definitionSnapshot.get(Integer.valueOf(npcId));
 	}
 
 	/**
@@ -77,13 +97,22 @@ public final class ScriptMobRuntime {
 	 * not owned by this runtime.
 	 */
 	public int maxHit(int npcId) {
-		MobDefinition definition = MobDefinitionRegistry.get(npcId);
+		MobDefinition definition = definitionFor(npcId);
 		return definition == null ? -1 : definition.maxHit();
+	}
+
+	/** Lock-free snapshot lookup for an npc type. */
+	private MobDefinition definitionForType(int npcType) {
+		return definitionSnapshot.get(Integer.valueOf(npcType));
 	}
 
 	public synchronized void onGenerationPublished(long generation) {
 		// New callbacks replace the previous generation; re-fire onSpawn for
-		// any live world NPCs that remain after reload.
+		// any live world NPCs that remain after reload. Reload already holds the
+		// ScriptHost monitor, so rebuilding the lock-free snapshot here is one
+		// authoritative read per publish, not a per-lookup hot-path lock.
+		definitionSnapshot = ScriptHost.getInstance().readActiveRegistry(
+				state -> MobDefinitionRegistry.all(state));
 		spawnedTokens.clear();
 		trackedSlots.clear();
 		activeGeneration = generation;
@@ -124,7 +153,7 @@ public final class ScriptMobRuntime {
 			return 0;
 		}
 		Npc npc = NpcHandler.npcs[npcIndex];
-		MobDefinition definition = MobDefinitionRegistry.get(npc.npcType);
+		MobDefinition definition = definitionForType(npc.npcType);
 		if (definition == null || definition.aggression() <= 0) {
 			return 0;
 		}
@@ -135,6 +164,11 @@ public final class ScriptMobRuntime {
 				continue;
 			}
 			if (!ScriptNpcService.getInstance().canAct(npc, player)) {
+				continue;
+			}
+			// A dead player or one in the respawn window is not a valid target;
+			// the legacy gate also refuses players on the respawn timer.
+			if (player.isDead || player.respawnTimer > 0) {
 				continue;
 			}
 			if (player.heightLevel != npc.heightLevel) {
@@ -157,6 +191,13 @@ public final class ScriptMobRuntime {
 	 * for registered mob ids: sets style, attack timer, hit delay, animation,
 	 * and arms the legacy hit-application path with declarative max hit.
 	 *
+	 * <p>The attack type is set before the distance gate so ranged/magic mobs
+	 * hold their projectile range instead of closing to melee distance. For
+	 * non-melee styles a default projectile and impact graphic are armed so the
+	 * player sees the attack; the legacy projectile broadcast is created here
+	 * because {@code NpcCombat} skips its own once this method consumes the
+	 * attack.
+	 *
 	 * @return {@code true} when this runtime consumed the attack (caller must
 	 *         not run legacy {@code NpcCombat} / {@code loadSpell})
 	 */
@@ -166,7 +207,7 @@ public final class ScriptMobRuntime {
 			return false;
 		}
 		Npc npc = NpcHandler.npcs[npcIndex];
-		MobDefinition definition = MobDefinitionRegistry.get(npc.npcType);
+		MobDefinition definition = definitionForType(npc.npcType);
 		if (definition == null) {
 			return false;
 		}
@@ -176,9 +217,38 @@ public final class ScriptMobRuntime {
 		if (npc.isDead || player.respawnTimer > 0) {
 			return true;
 		}
-		if (!NpcData.goodDistanceNpc(npc.npcId, player.getX(), player.getY(),
-				NpcData.distanceRequired(npc.npcId))
-				|| NpcData.inNpc(npc.npcId, player.getX(), player.getY())) {
+		// Legacy give-up guards from NpcCombat.attackPlayer: a scripted mob must
+		// not attack through a case the legacy switch would have refused, or it
+		// would pierce single-combat, plane, and static-npc protections.
+		if (!player.npcCanAttack) {
+			return true;
+		}
+		if (npc.heightLevel != player.heightLevel) {
+			npc.killerId = 0;
+			return true;
+		}
+		if (!npc.inMulti() && npc.underAttackBy > 0
+				&& npc.underAttackBy != player.playerId) {
+			npc.killerId = 0;
+			return true;
+		}
+		if (!npc.inMulti() && (player.underAttackBy > 0
+				|| player.underAttackBy2 > 0
+						&& player.underAttackBy2 != npcIndex)) {
+			npc.killerId = 0;
+			return true;
+		}
+		if (isStaticNpcRefusal(npc, player)) {
+			return true;
+		}
+		// Resolve the attack type before the distance gate: ranged/magic mobs
+		// must keep their projectile range rather than read the previous melee
+		// default that the gate evaluates against.
+		AttackType attackType = definition.combatStyle().attackType();
+		npc.attackType = attackType.getValue();
+		if (!NpcData.goodDistanceNpc(npcIndex, player.getX(), player.getY(),
+				NpcData.distanceRequired(npcIndex))
+				|| NpcData.inNpc(npcIndex, player.getX(), player.getY())) {
 			return true;
 		}
 		if (!NpcData.checkClip(npc)) {
@@ -186,10 +256,15 @@ public final class ScriptMobRuntime {
 		}
 		npc.facePlayer(player);
 		npc.attackTimer = definition.attackSpeed();
-		npc.hitDelayTimer = 2;
-		npc.attackType = definition.combatStyle().attackType().getValue();
-		npc.projectileId = -1;
-		npc.endGfx = -1;
+		npc.hitDelayTimer = attackType == AttackType.RANGE
+				|| attackType == AttackType.MAGIC ? 3 : 2;
+		// Default projectile/impact for non-melee styles; melee keeps -1 so no
+		// stray graphic is sent. The declarative maxHit path in registerNpcHit
+		// applies the actual damage.
+		boolean projectile = attackType == AttackType.RANGE
+				|| attackType == AttackType.MAGIC;
+		npc.projectileId = projectile ? 90 : -1;
+		npc.endGfx = projectile ? 91 : -1;
 		int animation = definition.animation() >= 0
 				? definition.animation()
 				: NpcEmotes.getAttackEmote(npcIndex);
@@ -198,10 +273,62 @@ public final class ScriptMobRuntime {
 		player.singleCombatDelay2 = System.currentTimeMillis();
 		npc.oldIndex = player.playerId;
 		npc.oldAllocationToken = npc.allocationToken();
+		if (projectile) {
+			int nX = npc.getX() + NpcHandler.offset(npcIndex);
+			int nY = npc.getY() + NpcHandler.offset(npcIndex);
+			int pX = player.getX();
+			int pY = player.getY();
+			int offX = (nY - pY) * -1;
+			int offY = (nX - pX) * -1;
+			player.getPlayerAssistant().createPlayersProjectile(nX, nY,
+					offX, offY, 50, NpcHandler.getProjectileSpeed(npcIndex),
+					npc.projectileId, 43, 31, -player.getId() - 1, 65);
+		}
 		if (player instanceof Client) {
 			((Client) player).getPacketSender().closeAllWindows();
 		}
 		return true;
+	}
+
+	/**
+	 * Mirrors the static-npc and region refusals in
+	 * {@code NpcCombat.attackPlayer}: barricades, position-locked guards, and
+	 * protected zones never attack even when a script registers a mob over
+	 * their type.
+	 */
+	private boolean isStaticNpcRefusal(Npc npc, Player player) {
+		if (npc.absY == 3228 && player.absY == 3227
+				|| npc.absY == 3224 && player.absY == 3225
+				|| npc.absY == 3226 && player.absY == 3227
+				|| Boundary.isIn(player, Boundary.DRAYNOR_BUILDING)
+						&& (npc.npcType == 172 || npc.npcType == 174)
+				|| npc.inLesserNpc()) {
+			return true;
+		}
+		if (npc.npcType == BARRICADE || npc.npcType == BARRICADE_1534
+				|| npc.npcType == 6145 || npc.npcType == 6144
+				|| npc.npcType == 6143 || npc.npcType == 6142
+				|| npc.npcType == LESSER_DEMON_752) {
+			return true;
+		}
+		if (Boundary.isIn(player, Boundary.APE_ATOLL)
+				&& MonkeyData.isWearingGreegree(player)) {
+			return true;
+		}
+		if (npc.npcType == CHICKEN_1401
+				&& (Boundary.isIn(player, Boundary.TUTORIAL)
+						|| player.tutorialProgress < 36)) {
+			return true;
+		}
+		if (npc.npcType == GUARD && player.absX == 3180
+				&& player.absY > 3433 && player.absY < 3447) {
+			return true;
+		}
+		if (npc.npcType == OGRE_374 && player.absY == 3372
+				&& player.absX > 2522 && player.absX < 2532) {
+			return true;
+		}
+		return false;
 	}
 
 	/**
@@ -224,7 +351,7 @@ public final class ScriptMobRuntime {
 			if (npc == null) {
 				continue;
 			}
-			MobDefinition definition = MobDefinitionRegistry.get(npc.npcType);
+			MobDefinition definition = definitionForType(npc.npcType);
 			if (definition == null) {
 				continue;
 			}
@@ -233,22 +360,28 @@ public final class ScriptMobRuntime {
 				continue;
 			}
 			liveTokens.add(Long.valueOf(token));
+			// A corpse keeps its allocation through the respawn window: the death
+			// path removed the token from spawnedTokens so the next tick would see
+			// it as first sight and re-fire onSpawn. Only treat a live NPC as
+			// first sight so onSpawn fires exactly once per life (the real respawn
+			// allocates a fresh token and fires it again).
+			boolean alive = !npc.isDead && !npc.applyDead && npc.HP > 0;
 			boolean firstSight;
 			synchronized (this) {
-				trackedSlots.put(Long.valueOf(token), Integer.valueOf(i));
-				firstSight = spawnedTokens.add(Long.valueOf(token));
+				trackedSlots.add(Long.valueOf(token));
+				firstSight = alive && spawnedTokens.add(Long.valueOf(token));
 			}
 			if (firstSight) {
 				fireCallback(definition, definition.onSpawn(), "onSpawn", npc,
 						generation, null, null);
 			}
-			if (!npc.isDead && !npc.applyDead && npc.HP > 0) {
+			if (alive) {
 				fireCallback(definition, definition.onTick(), "onTick", npc,
 						generation, null, null);
 			}
 		}
 		synchronized (this) {
-			Iterator<Long> tokens = trackedSlots.keySet().iterator();
+			Iterator<Long> tokens = trackedSlots.iterator();
 			while (tokens.hasNext()) {
 				Long token = tokens.next();
 				if (!liveTokens.contains(token)) {
@@ -268,7 +401,7 @@ public final class ScriptMobRuntime {
 		if (npc == null) {
 			return;
 		}
-		MobDefinition definition = MobDefinitionRegistry.get(npc.npcType);
+		MobDefinition definition = definitionForType(npc.npcType);
 		long token = npc.allocationToken();
 		synchronized (this) {
 			if (token != 0L) {

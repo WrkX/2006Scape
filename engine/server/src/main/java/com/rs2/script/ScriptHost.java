@@ -453,12 +453,20 @@ public final class ScriptHost {
 					() -> com.rs2.script.processing.ScriptProcessingRuntime
 							.getInstance()
 							.closeGeneration(previousGeneration));
-			runPostCommit("publish mob generation",
-					() -> com.rs2.script.mob.ScriptMobRuntime.getInstance()
-							.onGenerationPublished(published.generation()));
 			runPostCommit("close old-generation mob callbacks",
 					() -> com.rs2.script.mob.ScriptMobRuntime.getInstance()
 							.closeGeneration(previousGeneration));
+			runPostCommit("publish mob generation",
+					() -> com.rs2.script.mob.ScriptMobRuntime.getInstance()
+							.onGenerationPublished(published.generation()));
+			runPostCommit("close old-generation overlays",
+					() -> com.rs2.script.overlay.ScriptOverlayRuntime
+							.getInstance()
+							.closeGeneration(previousGeneration));
+			runPostCommit("publish overlay generation",
+					() -> com.rs2.script.overlay.ScriptOverlayRuntime
+							.getInstance()
+							.onGenerationPublished(published.generation()));
 			runPostCommit("publish scripted quest journal mapping",
 					() -> com.rs2.script.quest.ScriptQuestJournalService
 							.getInstance()
@@ -546,9 +554,13 @@ public final class ScriptHost {
 		com.rs2.script.processing.ScriptProcessingRuntime.getInstance()
 				.closeGeneration(previousGeneration);
 		com.rs2.script.mob.ScriptMobRuntime.getInstance()
-				.onGenerationPublished(generation);
-		com.rs2.script.mob.ScriptMobRuntime.getInstance()
 				.closeGeneration(previousGeneration);
+		com.rs2.script.mob.ScriptMobRuntime.getInstance()
+				.onGenerationPublished(generation);
+		com.rs2.script.overlay.ScriptOverlayRuntime.getInstance()
+				.closeGeneration(previousGeneration);
+		com.rs2.script.overlay.ScriptOverlayRuntime.getInstance()
+				.onGenerationPublished(generation);
 		com.rs2.script.quest.ScriptQuestJournalService.getInstance()
 				.onGenerationPublished(generation);
 		com.rs2.script.quest.ScriptQuestJournalService.getInstance()
@@ -573,6 +585,8 @@ public final class ScriptHost {
 		com.rs2.script.processing.ScriptProcessingRuntime.getInstance()
 				.resetForTesting();
 		com.rs2.script.mob.ScriptMobRuntime.getInstance()
+				.resetForTesting();
+		com.rs2.script.overlay.ScriptOverlayRuntime.getInstance()
 				.resetForTesting();
 		com.rs2.script.quest.ScriptQuestJournalService.getInstance()
 				.resetForTesting();

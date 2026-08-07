@@ -92,6 +92,27 @@ public final class EquipmentDefinition {
 	}
 
 	/**
+	 * Returns an existing equipment definition or creates one for overlay
+	 * merges.
+	 */
+	public static EquipmentDefinition ensure(int id) {
+		Preconditions.checkElementIndex(id, ItemDefinition.count(),
+				"Id out of bounds.");
+		EquipmentDefinition existing = definitions.get(id);
+		if (existing != null) {
+			return existing;
+		}
+		EquipmentDefinition created = new EquipmentDefinition(id);
+		definitions.put(id, created);
+		return created;
+	}
+
+	/** Removes a runtime-created equipment definition during overlay revert. */
+	public static void remove(int id) {
+		definitions.remove(id);
+	}
+
+	/**
 	 * The item id.
 	 */
 	private final int id;
