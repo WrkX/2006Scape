@@ -466,7 +466,7 @@ public final class ScriptHost {
 			runPostCommit("publish overlay generation",
 					() -> com.rs2.script.overlay.ScriptOverlayRuntime
 							.getInstance()
-							.onGenerationPublished(published.generation()));
+							.publishGeneration(published.generation()));
 			runPostCommit("publish scripted quest journal mapping",
 					() -> com.rs2.script.quest.ScriptQuestJournalService
 							.getInstance()
@@ -560,7 +560,7 @@ public final class ScriptHost {
 		com.rs2.script.overlay.ScriptOverlayRuntime.getInstance()
 				.closeGeneration(previousGeneration);
 		com.rs2.script.overlay.ScriptOverlayRuntime.getInstance()
-				.onGenerationPublished(generation);
+				.publishGeneration(generation);
 		com.rs2.script.quest.ScriptQuestJournalService.getInstance()
 				.onGenerationPublished(generation);
 		com.rs2.script.quest.ScriptQuestJournalService.getInstance()
@@ -614,12 +614,14 @@ public final class ScriptHost {
 				: trimmed.substring(0, MAX_DIAGNOSTIC_LENGTH) + "...";
 	}
 
-	private static void runPostCommit(String operation, Runnable callback) {
+	private void runPostCommit(String operation, Runnable callback) {
 		try {
 			callback.run();
 		} catch (RuntimeException e) {
 			logger.log(Level.SEVERE,
 					"Script reload post-commit operation failed: " + operation, e);
+			appendDiagnostic("script reload post-commit operation failed: "
+					+ operation + ": " + boundMessage(e.getMessage()));
 		}
 	}
 

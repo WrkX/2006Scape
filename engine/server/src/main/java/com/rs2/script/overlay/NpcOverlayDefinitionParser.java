@@ -53,8 +53,7 @@ public final class NpcOverlayDefinitionParser {
 	}
 
 	private void requireLoadedNpc(int npcId) {
-		if (NpcHandler.hasNpcDefinitions()
-				&& !NpcHandler.hasNpcDefinition(npcId)) {
+		if (!NpcHandler.hasNpcDefinition(npcId)) {
 			throw describe("npc id " + npcId + " has no loaded definition");
 		}
 	}

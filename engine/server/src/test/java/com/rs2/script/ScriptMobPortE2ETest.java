@@ -258,8 +258,40 @@ public class ScriptMobPortE2ETest {
 		runtime.closeGeneration(generation);
 		assertEquals("closing the active generation must drop tracked state",
 				0, runtime.trackedCount());
-		assertFalse("closing the active generation must revoke onSpawn",
+		assertTrue("closing the active generation must preserve onSpawn dedup",
 				runtime.hasSpawnedTokenForTesting(npc.allocationToken()));
+	}
+
+	@Test
+	public void reloadDoesNotRefireOnSpawnForLiveNpcs() throws Exception {
+		Path root = Files.createTempDirectory("script-mob-reload-spawn");
+		Files.write(root.resolve("loader.js"), (
+				"globalThis.spawnCount = 0;"
+				+ "defineMob({"
+				+ "id:'goblin',npcId:100,name:'Goblin',aggression:0,"
+				+ "combatStyle:'melee',attackSpeed:4,maxHit:1,"
+				+ "onSpawn:function(ctx){globalThis.spawnCount++;}"
+				+ "});")
+				.getBytes(StandardCharsets.UTF_8));
+		System.setProperty("singlescape.contentDir",
+				root.toFile().getAbsolutePath());
+		ScriptHost host = ScriptHost.getInstance();
+		host.reload();
+		assertNotNull(MobDefinitionRegistry.get(GOBLIN));
+
+		Npc npc = spawnNpc(GOBLIN, 3200, 3201);
+		long generation = host.getActiveGeneration();
+		ScriptMobRuntime runtime = ScriptMobRuntime.getInstance();
+		runtime.processGameTick(generation);
+		assertEquals(1, host.getContext().eval("js", "globalThis.spawnCount")
+				.asInt());
+
+		host.reload();
+		generation = host.getActiveGeneration();
+		runtime.processGameTick(generation);
+		assertEquals("reload must not re-fire onSpawn for a live allocation",
+				0, host.getContext().eval("js", "globalThis.spawnCount")
+						.asInt());
 	}
 
 	@Test

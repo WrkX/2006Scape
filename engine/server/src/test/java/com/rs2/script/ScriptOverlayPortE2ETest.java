@@ -138,17 +138,12 @@ public class ScriptOverlayPortE2ETest {
 			// out-of-bounds object id.
 		}
 
-		// The failed generation must not have reverted the item overlay yet; the
-		// next publish's close-before-publish step reverts it.
-		assertEquals("the item overlay must have been applied before the throw",
-				"Mid-publish sword", ItemDefinition.lookup(CUSTOM_ITEM).getName());
+		assertEquals("partial overlays must be reverted when publish throws",
+				baseline, ItemDefinition.lookup(CUSTOM_ITEM).getName());
 
-		// Re-publish with no overlays: the previous generation's close reverts
-		// the item to its pre-overlay baseline.
+		// A follow-up publish must leave the baseline untouched.
 		ScriptRuntimeTestFixture.publishEmpty(context);
-		assertEquals("the failed publish must revert overlays applied before "
-				+ "the mid-publish throw", baseline,
-				ItemDefinition.lookup(CUSTOM_ITEM).getName());
+		assertEquals(baseline, ItemDefinition.lookup(CUSTOM_ITEM).getName());
 	}
 
 	@Test

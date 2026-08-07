@@ -119,6 +119,13 @@ public class OverlayDefinitionParserTest {
 	}
 
 	@Test
+	public void unknownNpcIdRejectsTheCandidate() {
+		expectNpcFailure(canonicalNpc()
+				.replace("npcId:" + CUSTOM_NPC, "npcId:34999"),
+				"no loaded definition");
+	}
+
+	@Test
 	public void canonicalObjectOverlayParsesIntoJavaOwnedDescriptor() {
 		registerObject(canonicalObject());
 
@@ -142,6 +149,21 @@ public class OverlayDefinitionParserTest {
 				ScriptFunctions.getInstance().getDefineItemOverlay()
 						.accept(overlay(overlayJs));
 				fail("expected defineItemOverlay rejection for: " + overlayJs);
+			} catch (IllegalArgumentException expected) {
+				assertTrue(expected.getMessage().contains(messagePart));
+			}
+		} finally {
+			RegistryStore.rollback(candidate);
+		}
+	}
+
+	private void expectNpcFailure(String overlayJs, String messagePart) {
+		RegistryStore.State candidate = RegistryStore.beginStaging();
+		try {
+			try {
+				ScriptFunctions.getInstance().getDefineNpcOverlay()
+						.accept(overlay(overlayJs));
+				fail("expected defineNpcOverlay rejection for: " + overlayJs);
 			} catch (IllegalArgumentException expected) {
 				assertTrue(expected.getMessage().contains(messagePart));
 			}

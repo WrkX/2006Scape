@@ -83,6 +83,19 @@ public final class ScriptOverlayRuntime {
 		}
 	}
 
+	/**
+	 * Applies overlays for one generation. Reverts any overlays recorded for
+	 * {@code generation} before rethrowing when apply throws mid-publish.
+	 */
+	public void publishGeneration(long generation) {
+		try {
+			onGenerationPublished(generation);
+		} catch (RuntimeException failure) {
+			closeGeneration(generation);
+			throw failure;
+		}
+	}
+
 	public void onGenerationPublished(long generation) {
 		List<String> mergeLog = new ArrayList<String>();
 		Set<Integer> appliedItems = new HashSet<Integer>();

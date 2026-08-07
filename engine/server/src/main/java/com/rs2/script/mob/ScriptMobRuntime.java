@@ -107,13 +107,11 @@ public final class ScriptMobRuntime {
 	}
 
 	public synchronized void onGenerationPublished(long generation) {
-		// New callbacks replace the previous generation; re-fire onSpawn for
-		// any live world NPCs that remain after reload. Reload already holds the
-		// ScriptHost monitor, so rebuilding the lock-free snapshot here is one
-		// authoritative read per publish, not a per-lookup hot-path lock.
+		// New callbacks replace the previous generation. spawnedTokens is kept
+		// across reload so onSpawn does not re-fire for live allocations; only
+		// a fresh respawn (new allocation token) receives onSpawn again.
 		definitionSnapshot = ScriptHost.getInstance().readActiveRegistry(
 				state -> MobDefinitionRegistry.all(state));
-		spawnedTokens.clear();
 		trackedSlots.clear();
 		activeGeneration = generation;
 	}
@@ -127,7 +125,6 @@ public final class ScriptMobRuntime {
 			return;
 		}
 		if (activeGeneration == generation) {
-			spawnedTokens.clear();
 			trackedSlots.clear();
 			activeGeneration = 0L;
 		}
