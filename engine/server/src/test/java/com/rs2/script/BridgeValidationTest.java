@@ -28,7 +28,17 @@ public class BridgeValidationTest {
 	@Test
 	public void hasTextRejectsNullOnly() {
 		assertFalse(BridgeValidation.hasText(null));
+		assertFalse(BridgeValidation.hasText("null"));
 		assertTrue(BridgeValidation.hasText(""));
 		assertTrue(BridgeValidation.hasText("hello"));
+		assertTrue(BridgeValidation.hasText("nullish"));
+	}
+
+	@Test
+	public void nonNullStringMapsAbsentGuestValuesToNull() {
+		assertNull(BridgeValidation.nonNullString(null));
+		assertNull(BridgeValidation.nonNullString("null"));
+		assertEquals("", BridgeValidation.nonNullString(""));
+		assertEquals("hello", BridgeValidation.nonNullString("hello"));
 	}
 }

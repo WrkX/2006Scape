@@ -144,6 +144,14 @@ public class ScriptedPlayerTest {
 	}
 
 	@Test
+	public void graalNullLiteralMessageIsIgnoredWithoutSending() {
+		Player player = authoritativePlayer();
+		ScriptedPlayer scripted = new ScriptedPlayer(player);
+		scripted.message("null");
+		assertEquals(0, player.outStream.currentOffset);
+	}
+
+	@Test
 	public void getPositionReusesCachedInstanceUntilPlayerMoves() {
 		Player player = authoritativePlayer();
 		player.absX = 3200;

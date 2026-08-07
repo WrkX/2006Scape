@@ -234,14 +234,17 @@ public class ClickNPC implements PacketType {
 			}
 
 			if (player.usingMagic) {
-				int npcType = NpcHandler.npcs[player.npcIndex].npcType;
+				if (!validTarget(player, player.npcIndex)) {
+					break;
+				}
+				Npc target = NpcHandler.npcs[player.npcIndex];
+				int npcType = target.npcType;
 				if (executeScriptMagicOnNpc(player, castingSpellId, npcType,
-						NpcHandler.npcs[player.npcIndex])) {
+						target)) {
 					break;
 				}
 				if (player.goodDistance(player.getX(), player.getY(),
-						NpcHandler.npcs[player.npcIndex].getX(),
-						NpcHandler.npcs[player.npcIndex].getY(), 6)) {
+						target.getX(), target.getY(), 6)) {
 					player.stopMovement();
 				}
 				if (player.attackTimer <= 0) {

@@ -518,6 +518,11 @@ lookup and invocation. A matched handler consumes the packet even when it
 throws; a valid unmatched key alone falls through to the legacy continuation.
 Invalid traffic — registered or not — is dropped with zero side effects.
 
+`onMagicOnNpc` and `onMagicOnPlayer` consume the packet and bypass the legacy
+combat rune check when a handler matches. The host does not auto-consume runes;
+handlers must call `player.getMagic().consumeRunes(spellButtonId)` (or
+`sdk/magic.consumeSpellRunes`) or casts become free.
+
 Button keys are sparse `u8*1000+u8` values (`0..255255` with both digits
 `<=255`); unreachable keys such as `256` reject the whole reload candidate.
 `onPlayerDeath` is a singleton observer: it receives immutable
@@ -651,6 +656,7 @@ and are invalidated by close, death, logout, or reload.
   `underAttack()` and `poisoned()` mirror the legacy player flags.
 - `getMagic()` resolves spell button ids to `MagicData` rows and exposes
   silent `hasRunes` / `consumeRunes` plus `requiredLevel` / `hasLevel`.
+  Script magic-on-NPC/player routes do not invoke these automatically.
 - `getPrayer()` activates/deactivates prayer indexes `0..25` through
   `ActivatePrayers` / `PrayerDrain`.
 - `openBank()` opens the bank UI through `PacketSender.openUpBank()`.

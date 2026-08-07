@@ -23,23 +23,33 @@ public final class BridgeValidation {
 		return Integer.valueOf((int) value);
 	}
 
-	/**
-	 * Returns {@code text} when non-null; otherwise {@code null}.
-	 *
-	 * <p>Graal coerces JavaScript {@code null} to the literal string
-	 * {@code "null"} for {@link String} parameters unless the host rejects it
-	 * first.
-	 */
-	public static String nonNullString(String text) {
-		return text;
+	private static final String GRAAL_NULL_LITERAL = "null";
+
+	private static boolean isGraalNull(String text) {
+		return text == null || GRAAL_NULL_LITERAL.equals(text);
 	}
 
 	/**
-	 * Returns {@code true} when {@code text} is non-null and non-empty after
-	 * trimming is not required (game messages preserve spacing).
+	 * Returns {@code text} unchanged, or {@code null} when the guest value is
+	 * absent.
+	 *
+	 * <p>Graal coerces JavaScript {@code null} to the literal string
+	 * {@code "null"} for {@link String} parameters; this helper maps both Java
+	 * {@code null} and that literal back to {@code null}.
+	 */
+	public static String nonNullString(String text) {
+		return isGraalNull(text) ? null : text;
+	}
+
+	/**
+	 * Returns {@code true} when {@code text} may be sent as a game message.
+	 *
+	 * <p>Rejects Java {@code null} and Graal's coerced {@code "null"} literal.
+	 * Empty strings are accepted; trimming is not applied because game messages
+	 * preserve spacing.
 	 */
 	public static boolean hasText(String text) {
-		return text != null;
+		return !isGraalNull(text);
 	}
 
 	private BridgeValidation() {

@@ -225,10 +225,17 @@ public class AttackPlayer implements PacketType {
 				player.autocasting = false;
 			}
 
-			if (player.usingMagic && executeScriptMagicOnPlayer(player,
-					castingSpellId,
-					PlayerHandler.players[player.playerIndex])) {
-				break;
+			if (player.usingMagic) {
+				Player target = player.playerIndex >= 0
+						&& player.playerIndex < PlayerHandler.players.length
+						? PlayerHandler.players[player.playerIndex] : null;
+				if (target == null) {
+					break;
+				}
+				if (executeScriptMagicOnPlayer(player, castingSpellId,
+						target)) {
+					break;
+				}
 			}
 
 			if (!teleother) {
