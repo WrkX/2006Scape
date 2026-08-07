@@ -164,6 +164,26 @@ public final class ScriptFunctions {
 	}
 
 	/**
+	 * Registers one canonical processing skill: item-on-object input with a
+	 * Java-owned tick session, burn-style success curve, and product/XP
+	 * commit. The exact host item-on-object route is part of the candidate.
+	 */
+	public Consumer<Value> getDefineProcessingSkill() {
+		return def -> {
+			requireObject("defineProcessingSkill", def);
+			com.rs2.script.processing.ProcessingSkillDefinition skill =
+					new com.rs2.script.processing.ProcessingSkillDefinitionParser(
+							ModuleScope.currentSource(),
+							ModuleScope.currentSchemaVersion()).parse(def);
+			rejectDuplicateRecord("defineProcessingSkill(" + skill.id() + ")",
+					com.rs2.script.processing.ProcessingSkillRegistry
+							.put(skill));
+			com.rs2.script.processing.ScriptProcessingRuntime.getInstance()
+					.registerRoutes(skill);
+		};
+	}
+
+	/**
 	 * Registers one canonical scripted shop: the guest payload is parsed
 	 * into a Java-owned typed descriptor with definition-backed items,
 	 * declared stock, prices, and restock policy. Opening routes are bound

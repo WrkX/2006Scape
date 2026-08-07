@@ -110,11 +110,14 @@ final class Wp5PlayerSupport {
 
 	public static synchronized void ensureItemDefinitions() throws Exception {
 		ItemDefinition[] existing = ItemDefinition.getDefinitions();
-		if (existing != null && existing.length == 3200
+		int required = requiredItemDefinitionLength();
+		if (existing != null && existing.length >= required
 				&& existing[995] != null && existing[536] != null
 				&& existing[1387] != null && existing[3144] != null
+				&& existing[317] != null && existing[1265] != null
+				&& existing[315] != null && existing[7954] != null
 				&& existing[994] == null) return;
-		ItemDefinition[] definitions = new ItemDefinition[3200];
+		ItemDefinition[] definitions = new ItemDefinition[required];
 		for (int id : CONTENT_ITEM_IDS) {
 			ItemDefinition definition = new ItemDefinition(id);
 			definition.setStackable(id == 995 || id == 560 || id == 565
@@ -126,6 +129,16 @@ final class Wp5PlayerSupport {
 		field.set(null, definitions);
 	}
 
+	private static int requiredItemDefinitionLength() {
+		int maxId = 3199;
+		for (int id : CONTENT_ITEM_IDS) {
+			if (id > maxId) {
+				maxId = id;
+			}
+		}
+		return maxId + 1;
+	}
+
 	/** Every item id referenced by the compiled content modules. */
 	private static final int[] CONTENT_ITEM_IDS = {
 			526, 536, 560, 565, 577, 579, 995, 1079, 1127, 1147, 1149,
@@ -133,7 +146,13 @@ final class Wp5PlayerSupport {
 			// Dragon Island scripted shop stock.
 			372, 379, 590, 954, 1540, 2434, 3144,
 			// Woodcutting gathering resources (bronze axe, logs, oak logs).
-			1351, 1511, 1521
+			1351, 1511, 1521,
+			// Mining gathering resources (bronze pickaxe, copper ore).
+			1265, 436,
+			// Fishing gathering resources (small net, raw shrimps).
+			303, 317,
+			// Cooking shrimp port (cooked / burnt shrimp, cooking gauntlets).
+			315, 7954, 775
 	};
 
 	/**

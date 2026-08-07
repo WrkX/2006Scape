@@ -319,6 +319,32 @@ public class ScriptGatheringResourceE2ETest {
 	}
 
 	@Test
+	public void unregisteredTreeIdKeepsLegacyWoodcuttingWithoutOpeningASession()
+			throws Exception {
+		activate("always-success", 4, 4, 4);
+		giveToolAndLevel(WOODCUTTING, 1);
+		// 1278 is another normal (level-1) tree id; only 1276 is registered.
+		final int unregisteredTree = 1278;
+		Region.addObject(unregisteredTree, TREE_X, TREE_Y + 1, 0, 10, 0, false);
+
+		player.clickDelay = 0;
+		player.objectX = TREE_X;
+		player.objectY = TREE_Y + 1;
+		player.objectId = unregisteredTree;
+		player.heightLevel = 0;
+		com.rs2.net.packets.impl.ClickObject click =
+				new com.rs2.net.packets.impl.ClickObject();
+		click.completeObjectClick(player, 1,
+				com.rs2.world.WorldObjectService.getInstance()
+						.resolve(TREE_X, TREE_Y + 1, 0).getObject());
+
+		assertTrue("no gathering session opens for an unregistered object id",
+				ScriptResourceRuntime.getInstance().sessionToken(player) == 0L);
+		assertTrue("legacy woodcutting must start for the unregistered tree",
+				player.isWoodcutting);
+	}
+
+	@Test
 	public void inventoryFullRollsBackTheRewardAndClosesTheSession()
 			throws Exception {
 		activate("always-success", 4, 4, 4);

@@ -32,6 +32,9 @@ public enum DefinitionKind {
 	SHOP,
 
 	/** Java-owned gathering resource definitions keyed by stable string id. */
-	RESOURCE
+	RESOURCE,
+
+	/** Java-owned processing skill definitions keyed by stable string id. */
+	PROCESSING
 
 }

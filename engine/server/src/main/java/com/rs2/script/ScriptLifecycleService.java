@@ -81,6 +81,8 @@ public final class ScriptLifecycleService {
 				.onPlayerRemoved(player);
 		com.rs2.script.resource.ScriptResourceRuntime.getInstance()
 				.onPlayerRemoved(player);
+		com.rs2.script.processing.ScriptProcessingRuntime.getInstance()
+				.onPlayerRemoved(player);
 		if (!ScriptHost.getInstance().executeInActiveGeneration(
 				new ScriptHost.ActiveGenerationOperation() {
 			@Override
@@ -186,6 +188,8 @@ public final class ScriptLifecycleService {
 		com.rs2.script.raid.ScriptRaidRuntime.getInstance()
 				.onPlayerDeath(player);
 		com.rs2.script.resource.ScriptResourceRuntime.getInstance()
+				.onPlayerDeath(player);
+		com.rs2.script.processing.ScriptProcessingRuntime.getInstance()
 				.onPlayerDeath(player);
 		return ScriptEncounterService.getInstance().beginPlayerDeath(player);
 	}

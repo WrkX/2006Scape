@@ -421,6 +421,32 @@ export interface GatheringResourceDefinition {
   readonly respawnTicks?: number;
 }
 
+/**
+ * Canonical schema-v1 processing skill passed to `defineProcessingSkill`.
+ *
+ * Proven by the shrimp-on-range cooking port: input item on a cook object,
+ * tick interval, burn-style success curve, product/XP on success, optional
+ * fail product and cooking-gauntlet stop-burn override.
+ */
+export interface ProcessingSkillDefinition {
+  readonly id: string;
+  readonly name: string;
+  readonly skill: string;
+  readonly level: number;
+  readonly inputItemId: number | string;
+  readonly objectId: number;
+  readonly productItemId: number | string;
+  readonly failProductItemId?: number | string;
+  readonly experience: number;
+  readonly animation: number;
+  readonly sound?: number;
+  readonly intervalTicks: number;
+  readonly stopBurnLevel: number;
+  readonly stopBurnLevelWithGloves?: number;
+  readonly glovesItemId?: number | string;
+  readonly burnBonus?: number;
+}
+
 export interface GatheringResourceTool {
   readonly itemId: number | string;
   readonly consume?: boolean;
@@ -451,6 +477,10 @@ export type DefineDropTable = (definition: DropTableDefinition) => void;
 export type DefineReward = (definition: RewardDefinition) => void;
 export type DefineGatheringResource = (
   definition: GatheringResourceDefinition,
+) => void;
+
+export type DefineProcessingSkill = (
+  definition: ProcessingSkillDefinition,
 ) => void;
 
 export interface PlayerStateNamespace {
@@ -932,4 +962,5 @@ declare global {
   const defineDropTable: DefineDropTable;
   const defineReward: DefineReward;
   const defineGatheringResource: DefineGatheringResource;
+  const defineProcessingSkill: DefineProcessingSkill;
 }

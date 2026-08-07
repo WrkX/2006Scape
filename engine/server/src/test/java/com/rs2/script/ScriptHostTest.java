@@ -106,6 +106,11 @@ public class ScriptHostTest {
 			assertNotNull(ItemHandlerRegistry.getItemOnItem(14990, 14991));
 			assertNotNull(ItemHandlerRegistry.getItemOnObject(14990, 14992));
 			assertNotNull(ItemHandlerRegistry.getItemOnNpc(14990, 14993));
+			assertNotNull(com.rs2.script.processing.ProcessingSkillRegistry
+					.get("cook-shrimp-range"));
+			assertNotNull(ScriptHost.getInstance().readActiveRegistry(
+					state -> ItemHandlerRegistry.getItemOnObjectRecord(
+							state, 317, 114)));
 			assertNotNull(LifecycleRegistry.getNpcDeath(14994));
 			assertNotNull(LifecycleRegistry.getItemPickup(14995));
 			assertNotNull(LifecycleRegistry.getAreaHandler(
@@ -202,6 +207,11 @@ public class ScriptHostTest {
 			assertNotNull(ItemHandlerRegistry.getItemOnItem(14990, 14991));
 			assertNotNull(ItemHandlerRegistry.getItemOnObject(14990, 14992));
 			assertNotNull(ItemHandlerRegistry.getItemOnNpc(14990, 14993));
+			assertNotNull(com.rs2.script.processing.ProcessingSkillRegistry
+					.get("cook-shrimp-range"));
+			assertNotNull(ScriptHost.getInstance().readActiveRegistry(
+					state -> ItemHandlerRegistry.getItemOnObjectRecord(
+							state, 317, 114)));
 			assertNotNull(LifecycleRegistry.getNpcDeath(14994));
 			assertNotNull(LifecycleRegistry.getItemPickup(14995));
 			assertNotNull(LifecycleRegistry.getAreaHandler(
@@ -354,7 +364,7 @@ public class ScriptHostTest {
 			assertEquals(6, com.rs2.script.reward.RewardRegistry
 					.get("zaros_raid_reward").items().size());
 
-			assertEquals(8, ScriptHost.getInstance().getRuntimeReport()
+			assertEquals(11, ScriptHost.getInstance().getRuntimeReport()
 					.moduleCount());
 			java.util.List<String> moduleIds = ScriptHost.getInstance()
 					.readActiveRegistry(state -> {
@@ -367,12 +377,15 @@ public class ScriptHostTest {
 						return ids;
 					});
 			assertEquals(java.util.Arrays.asList(
+					"cooking-skills",
 					"dragon-awakens",
 					"dragon-island",
 					"dragon-island-drops",
 					"dragon-island-shops",
 					"dragon-king",
 					"encounter-warden",
+					"fishing-resources",
+					"mining-resources",
 					"temple-of-zaros",
 					"woodcutting-resources"), moduleIds);
 			assertTrue(ScriptHost.getInstance().getRuntimeReport()

@@ -8,3 +8,4 @@ import "./areas/dragon_island/index.js";
 import "./resources/woodcutting.js";
 import "./resources/mining.js";
 import "./resources/fishing.js";
+import "./skills/cooking.js";

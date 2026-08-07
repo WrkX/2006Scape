@@ -1,6 +1,6 @@
 # TypeScript Bridge Improvements Roadmap
 
-**Last reviewed:** 2026-08-06 (against codebase + [TYPESCRIPT_BRIDGE_REVIEW.md](../../TYPESCRIPT_BRIDGE_REVIEW.md))
+**Last reviewed:** 2026-08-07 (against codebase + [TYPESCRIPT_BRIDGE_REVIEW.md](../../TYPESCRIPT_BRIDGE_REVIEW.md))
 
 ## Goal
 
@@ -36,7 +36,7 @@ Existing pattern to copy everywhere: schema-v1 `defineX` → Java parser → Jav
 | **0** — Entity capacity and author truth | **Done** | 65535 ceilings, `player.ts` / `bot.ts` quarantined, docs exist |
 | **0.5** — Bridge hardening | **Done** | `BridgeValidation`, null-safe strings, `PolyglotException` logging, `beginEncounter` coordinate validation via `BridgeValidation`, `ScriptedPosition` cache; `ReadWriteLock` deferred |
 | **1** — Player capability parity | **~90%** | equip/unequip, openBank, prayer, magic routes done; attack styles / venom TBD |
-| **2** — Skilling kits | **In progress** | woodcutting + mining + fishing resource packs shipped; cooking port + `defineProcessingSkill` pending |
+| **2** — Skilling kits | **In progress** | gathering packs + cooking via `defineProcessingSkill`; thieving/FM/agility kits pending |
 | **3–8** | Pending | See phases below |
 
 ---
@@ -77,7 +77,7 @@ Kits must register host routes for every id they own so scripted content wins on
 | **`defineBoss`** | Instanced/arena encounters, multi-phase, arena reservation, `ScriptEncounterService` ownership | World-spawned NPCs that share the open world |
 | **`defineMob`** | World-spawned NPCs replacing `NpcCombat` switch cases; stat-driven AI with optional tick hooks | Multi-phase bosses, arena encounters, roster-wide rewards |
 | **`defineGatheringResource`** | Tool + deplete/respawn + XP loops (woodcutting, mining, fishing) | Item-on-item processing (cooking, smithing) |
-| **`defineProcessingSkill`** | Extract **after** 1–2 real ports prove the shape; cook/smith/fletch/herblore loops | First port of a skill — use raw `onItemOnObject` / `onItemOnItem` first |
+| **`defineProcessingSkill`** | Item-on-object cook/smith-style loops with tick delay, level, burn-style success, product | Gathering deplete/respawn loops (use `defineGatheringResource`); speculative shapes before a real port |
 | **`defineRaid`** | Multi-room PvM with lobby, muster, roster-wide reward barrier | Single-room wave minigames (use `defineMinigame`) |
 | **`defineMinigame`** | Wave/lobby minigames; compose `defineArea` + optional `defineRaid` primitives | Full multi-room raids with roster barriers (use `defineRaid`) |
 
@@ -180,18 +180,18 @@ Extend the gathering runtime pattern instead of hand-rolling every skill.
 
 **Build order within this phase (do not skip):**
 
-1. **Mining + fishing gathering packs** — reuse [ScriptResourceRuntime.java](engine/server/src/main/java/com/rs2/script/resource/ScriptResourceRuntime.java). Add TS modules under `content/src/resources/` mirroring [woodcutting.ts](content/src/resources/woodcutting.ts).
-2. **One processing port via raw handlers** — e.g. cooking shrimp on a range using `onItemOnObject` (prove the loop before abstracting).
-3. **Extract `defineProcessingSkill`** — only after step 2: item-on-object / item-on-item + tick delay + level + success chance + product. Processing loops differ (furnace vs anvil vs range vs herblore vial) — the kit shape must come from a real port, not upfront speculation.
+1. ✅ **Mining + fishing gathering packs** — reuse [ScriptResourceRuntime.java](engine/server/src/main/java/com/rs2/script/resource/ScriptResourceRuntime.java). Add TS modules under `content/src/resources/` mirroring [woodcutting.ts](content/src/resources/woodcutting.ts).
+2. ✅ **One processing port via raw handlers** — cooking shrimp on cooking range 114 via `onItemOnObject` (proved the loop).
+3. ✅ **Extract `defineProcessingSkill`** — item-on-object + tick delay + level + burn-style success + product, from the cooking port ([processing.ts](content/src/sdk/processing.ts), [ScriptProcessingRuntime.java](engine/server/src/main/java/com/rs2/script/processing/ScriptProcessingRuntime.java)).
 4. **`defineThievingTarget`**, **`defineFiremakingSpot`**, **`defineAgilityCourse`** — thin declarative kits once 2–3 real OSRS ports prove each shape.
 5. Kits register host routes per [route precedence](#route-precedence) so they win over legacy Java for ported ids.
 
 **Acceptance:**
 - [x] Mining and fishing resource modules with at least one resource each.
 - [x] Parser validation test: malformed gathering def fails load with clear error.
-- [ ] Route authority test: scripted gathering route consumes packet; unregistered object id keeps legacy.
-- [ ] One cooking loop works via raw handlers before `defineProcessingSkill` lands.
-- [ ] Reload test: resources survive `::scripts` without duplicate-route errors.
+- [x] Route authority test: scripted gathering route consumes packet; unregistered object id keeps legacy.
+- [x] One cooking loop works via raw handlers before `defineProcessingSkill` lands.
+- [x] Reload test: resources survive `::scripts` without duplicate-route errors (`ScriptGatheringResourceE2ETest.reloadClosesGenerationSessionsAndKeepsRejectedReloadIntact`).
 
 ---
 
@@ -321,7 +321,7 @@ Keep iteration cheap while porting:
 | --- | --- | --- | --- |
 | **1** | Bridge hardening (Phase 0.5) | Stability | **Done** (ReadWriteLock deferred) |
 | **2** | Mining/fishing gathering packs | Gap 3 | **Done** |
-| **3** | One cooking port (raw handlers) → `defineProcessingSkill` | Gap 3 | Pending |
+| **3** | One cooking port (raw handlers) → `defineProcessingSkill` | Gap 3 | **Done** |
 | **4** | `defineMob` world AI | Gap 4 | Pending |
 | **5** | Overlays + asset-pipeline handoff (phases 7–8 ids) | Gap 1 | Pending |
 | **6** | Interface hook packs + presentation helpers | Gap 2 | Pending |
@@ -337,7 +337,7 @@ Keep iteration cheap while porting:
 - Designing brand-new client UIs before a cache pack pipeline exists.
 - Treating aspirational [player.ts](content/src/core/player.ts) / bot types as runnable.
 - Full scripted trade / GE in pure TS without Java protocol support.
-- Speculating `defineProcessingSkill` shape before a real cooking (or smithing) port.
+- Speculating additional processing shapes (item-on-item herblore, etc.) before a second real port extends `defineProcessingSkill`.
 
 ## What “done enough for OSRS ports” looks like
 

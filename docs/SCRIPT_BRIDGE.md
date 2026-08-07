@@ -148,6 +148,7 @@ engine/server/src/main/java/com/rs2/script/
 | `defineDropTable(def)` | `(DropTableDefinition) => void` | parse and register a Java-owned named drop table |
 | `defineReward(def)` | `(RewardDefinition) => void` | parse and register a Java-owned named reward |
 | `defineGatheringResource(def)` | `(GatheringResourceDefinition) => void` | parse and register a canonical gathering resource consumed by the WP8 resource runtime |
+| `defineProcessingSkill(def)` | `(ProcessingSkillDefinition) => void` | parse and register a canonical processing skill (item-on-object cook/smith loop) |
 | `onObject(id, action, handler)` | `(number, "first" \| "second" \| "third" \| "fourth", fn) => void` | object click by interaction slot |
 | `onNpc(id, action, handler)` | `(number, "first" \| "second" \| "third", fn) => void` | NPC click by interaction slot |
 | `onCommand(name, fn)` | `(string, fn) => void` | register a player command |
@@ -1012,6 +1013,22 @@ loop would otherwise both grant rewards). The shipped
 `content/src/resources/woodcutting.ts` fixture registers a regular tree
 (object 1276, bronze axe, one log + 25 woodcutting XP, stump 1341, 4-tick
 respawn) and an oak tree (object 1281, level 15) as the production proof.
+
+### Declarative processing skill runtime
+
+`defineProcessingSkill` registers a canonical schema-v1 processing skill
+proven by the shrimp-on-range cooking port: stable id, name, skill/level,
+input item on a target object, success product, optional fail/burn product,
+experience, animation, optional sound, tick interval, and a burn-style
+success curve (`stopBurnLevel`, optional cooking-gauntlet override).
+
+The runtime owns the exact host item-on-object route for
+`inputItemId`/`objectId`. Using the item on the object opens a bounded
+per-player session that processes one input every `intervalTicks` until the
+inventory runs out, the player walks away, logs out, dies, or a generation
+reload closes the session. Unregistered item/object pairs keep legacy Java
+behavior. The shipped `content/src/skills/cooking.ts` module registers raw
+shrimps (317) on cooking range 114 as the production proof.
 
 ### Scripted quest journal
 

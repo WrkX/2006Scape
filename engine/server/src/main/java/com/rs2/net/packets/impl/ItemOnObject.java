@@ -251,7 +251,7 @@ public class ItemOnObject implements PacketType {
 
 	}
 
-	static boolean executeScriptItemOnObject(Player player, int itemId, int itemSlot,
+	public static boolean executeScriptItemOnObject(Player player, int itemId, int itemSlot,
 			Objects object) {
 		int objectId = object.getObjectId();
 		return ScriptHost.getInstance().dispatchActive(
@@ -267,7 +267,7 @@ public class ItemOnObject implements PacketType {
 				== ScriptHost.DispatchResult.CONSUMED;
 	}
 
-	static boolean executeScriptItemOnObject(Player player, int itemId, int itemSlot,
+	public static boolean executeScriptItemOnObject(Player player, int itemId, int itemSlot,
 			int objectId, int objectX, int objectY) {
 		return executeScriptItemOnObject(player, itemId, itemSlot,
 				new Objects(objectId, objectX, objectY, player.heightLevel,
