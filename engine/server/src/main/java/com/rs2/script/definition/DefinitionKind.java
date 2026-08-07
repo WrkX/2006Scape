@@ -35,6 +35,9 @@ public enum DefinitionKind {
 	RESOURCE,
 
 	/** Java-owned processing skill definitions keyed by stable string id. */
-	PROCESSING
+	PROCESSING,
+
+	/** Java-owned world mob definitions keyed by numeric NPC id. */
+	MOB
 
 }

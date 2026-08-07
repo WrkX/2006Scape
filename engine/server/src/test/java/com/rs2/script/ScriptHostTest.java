@@ -111,6 +111,9 @@ public class ScriptHostTest {
 			assertNotNull(ScriptHost.getInstance().readActiveRegistry(
 					state -> ItemHandlerRegistry.getItemOnObjectRecord(
 							state, 317, 114)));
+			assertNotNull(com.rs2.script.mob.MobDefinitionRegistry.get(100));
+			assertEquals("goblin",
+					com.rs2.script.mob.MobDefinitionRegistry.get(100).id());
 			assertNotNull(LifecycleRegistry.getNpcDeath(14994));
 			assertNotNull(LifecycleRegistry.getItemPickup(14995));
 			assertNotNull(LifecycleRegistry.getAreaHandler(
@@ -212,6 +215,9 @@ public class ScriptHostTest {
 			assertNotNull(ScriptHost.getInstance().readActiveRegistry(
 					state -> ItemHandlerRegistry.getItemOnObjectRecord(
 							state, 317, 114)));
+			assertNotNull(com.rs2.script.mob.MobDefinitionRegistry.get(100));
+			assertEquals("goblin",
+					com.rs2.script.mob.MobDefinitionRegistry.get(100).id());
 			assertNotNull(LifecycleRegistry.getNpcDeath(14994));
 			assertNotNull(LifecycleRegistry.getItemPickup(14995));
 			assertNotNull(LifecycleRegistry.getAreaHandler(

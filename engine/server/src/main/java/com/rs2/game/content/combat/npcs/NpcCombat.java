@@ -117,6 +117,9 @@ public class NpcCombat {
 				|| !ScriptNpcService.getInstance().canAct(NpcHandler.npcs[i], c)) {
 			return;
 		}
+		if (com.rs2.script.mob.ScriptMobRuntime.getInstance().tryAttack(c, i)) {
+			return;
+		}
 		if (NpcHandler.npcs[i] != null) {
 			if (NpcHandler.npcs[i].absY == 3228 && c.absY == 3227
 				|| NpcHandler.npcs[i].absY == 3224 && c.absY == 3225
@@ -517,25 +520,30 @@ public class NpcCombat {
 			}
 			if (c.respawnTimer <= 0) {
 				int damage = 0;
+				int npcType = NpcHandler.npcs[i].npcType;
+				int scriptedMaxHit = com.rs2.script.mob.ScriptMobRuntime
+						.getInstance().maxHit(npcType);
+				int maxHit = scriptedMaxHit >= 0 ? scriptedMaxHit
+						: NPCDefinition.forId(npcType).getMaxHit();
 				if (NpcHandler.npcs[i].attackType == AttackType.MELEE.getValue()) {
-					damage = Misc.random(NPCDefinition.forId(NpcHandler.npcs[i].npcType).getMaxHit());
+					damage = Misc.random(maxHit);
 					if (5 + Misc.random(c.getCombatAssistant().calcDef()) > Misc
-							.random(NPCDefinition.forId(NpcHandler.npcs[i].npcType).getAttackBonus())) {
+							.random(NPCDefinition.forId(npcType).getAttackBonus())) {
 						damage = 0;
 					}
-					if (NpcData.cantKillYou(NpcHandler.npcs[i].npcType)) {
+					if (NpcData.cantKillYou(npcType)) {
 						if (damage >= c.playerLevel[Constants.HITPOINTS]) {
 							damage = c.playerLevel[Constants.HITPOINTS] - 1;
 						}
 					}
-					if (c.getPrayer().prayerActive[18] && !(NpcHandler.npcs[i].npcType == 2030)) { // protect from melee
+					if (c.getPrayer().prayerActive[18] && !(npcType == 2030)) { // protect from melee
 						damage = 0;
-					} else if (c.getPrayer().prayerActive[18] && NpcHandler.npcs[i].npcType == 2030) {
+					} else if (c.getPrayer().prayerActive[18] && npcType == 2030) {
 						if (NpcHandler.npcs[i].attackType == AttackType.MELEE.getValue()) {
-							damage = Misc.random(NPCDefinition.forId(NpcHandler.npcs[i].npcType).getMaxHit());
+							damage = Misc.random(maxHit);
 						}
-						if (5 + Misc.random(MeleeData.calculateMeleeDefence(c)) > Misc.random(NPCDefinition.forId(NpcHandler.npcs[i].npcType).getAttackBonus())) {
-							 if (NpcHandler.npcs[i].npcType == 1158 || NpcHandler.npcs[i].npcType == 1160) 
+						if (5 + Misc.random(MeleeData.calculateMeleeDefence(c)) > Misc.random(NPCDefinition.forId(npcType).getAttackBonus())) {
+							 if (npcType == 1158 || npcType == 1160) 
 								damage = (damage / 2);
 							 else
 								 damage = 0;
@@ -547,8 +555,8 @@ public class NpcCombat {
 				}
 
 				if (NpcHandler.npcs[i].attackType == AttackType.RANGE.getValue()) { // range
-					damage = Misc.random(NPCDefinition.forId(NpcHandler.npcs[i].npcType).getMaxHit());
-					if (5 + Misc.random(c.getCombatAssistant().calculateRangeDefence()) > Misc.random(NPCDefinition.forId(NpcHandler.npcs[i].npcType).getAttackBonus())) {
+					damage = Misc.random(maxHit);
+					if (5 + Misc.random(c.getCombatAssistant().calculateRangeDefence()) > Misc.random(NPCDefinition.forId(npcType).getAttackBonus())) {
 						if (NpcHandler.npcs[i].npcType == 1158 || NpcHandler.npcs[i].npcType == 1160) 
 							damage = (damage / 2);
 						 else
@@ -568,20 +576,20 @@ public class NpcCombat {
 				}
 
 				if (NpcHandler.npcs[i].attackType == AttackType.MAGIC.getValue()) { // magic
-					damage = Misc.random(NPCDefinition.forId(NpcHandler.npcs[i].npcType).getMaxHit());
+					damage = Misc.random(maxHit);
 					boolean magicFailed = false;
-					if (5 + Misc.random(c.getCombatAssistant().mageDef()) > Misc.random(NPCDefinition.forId(NpcHandler.npcs[i].npcType).getAttackBonus())) {
+					if (5 + Misc.random(c.getCombatAssistant().mageDef()) > Misc.random(NPCDefinition.forId(npcType).getAttackBonus())) {
 						damage = 0;
 						magicFailed = true;
 					}
-					if (NpcData.cantKillYou(NpcHandler.npcs[i].npcType)) {
+					if (NpcData.cantKillYou(npcType)) {
 						if (damage >= c.playerLevel[Constants.HITPOINTS]) {
 							damage = c.playerLevel[Constants.HITPOINTS] - 1;
 						}
 					}
 					if(c.getPrayer().prayerActive[16]) { // protect from magic
 						
-						 if (NpcHandler.npcs[i].npcType == 1158)  {
+						 if (npcType == 1158)  {
 							 damage = (damage / 2);
 						 } else {
 							 damage = 0;

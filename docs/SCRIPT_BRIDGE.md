@@ -149,6 +149,7 @@ engine/server/src/main/java/com/rs2/script/
 | `defineReward(def)` | `(RewardDefinition) => void` | parse and register a Java-owned named reward |
 | `defineGatheringResource(def)` | `(GatheringResourceDefinition) => void` | parse and register a canonical gathering resource consumed by the WP8 resource runtime |
 | `defineProcessingSkill(def)` | `(ProcessingSkillDefinition) => void` | parse and register a canonical processing skill (item-on-object cook/smith loop) |
+| `defineMob(def)` | `(MobDefinition) => void` | parse and register a canonical world mob; registered `npcId` suppresses `NpcCombat` |
 | `onObject(id, action, handler)` | `(number, "first" \| "second" \| "third" \| "fourth", fn) => void` | object click by interaction slot |
 | `onNpc(id, action, handler)` | `(number, "first" \| "second" \| "third", fn) => void` | NPC click by interaction slot |
 | `onCommand(name, fn)` | `(string, fn) => void` | register a player command |
@@ -1036,6 +1037,24 @@ reload closes the session. Unregistered item/object pairs keep legacy Java
 behavior. The shipped `content/src/skills/cooking.ts` module registers raw
 shrimps (317) on cooking range 114 as the production proof.
 
+### Declarative world mob runtime
+
+`defineMob` registers a canonical schema-v1 world mob for a cache NPC id:
+stable id, optional name, aggression radius (tiles; `0` = retaliate-only),
+`combatStyle` (`melee` / `ranged` / `magic`), `attackSpeed` (ticks),
+`maxHit`, optional attack `animation`, and optional `onSpawn` / `onTick` /
+`onDeath` callbacks.
+
+The Java `ScriptMobRuntime` owns aggression targeting, walk-to-target via
+the existing NPC follow path, and basic attack ticks from those stats.
+Registered `npcId` values suppress the legacy `NpcCombat` switch;
+unregistered ids keep legacy behavior. Callbacks receive a narrow
+`MobRuntimeContext` (identity, vitals, position, optional killer, plus
+`say` / `face` / `animate`) and are invalidated on `::scripts` reload and
+NPC despawn. Arena bosses remain on `defineBoss`. The shipped
+`content/src/mobs/goblin.ts` module registers goblin (npc 100) as the
+production proof.
+
 ### Scripted quest journal
 
 Every scripted quest definition is projected into the legacy client quest
@@ -1456,6 +1475,8 @@ definition to its logical source:
 | `dragon-island-shops` | The scripted island general store |
 | `dragon-island` | The activated Crandor area referencing the shop, quest, boss, and raid by id |
 | `woodcutting-resources` | The tree and oak gathering resources |
+| `cooking-skills` | Shrimp on cooking range 114 via `defineProcessingSkill` |
+| `world-mobs` | Goblin (npc 100) via `defineMob` |
 
 The area, boss, quest, and raid fixtures are the compiled production proofs:
 `content/src/areas/dragon_island/` activates on the real Crandor map region

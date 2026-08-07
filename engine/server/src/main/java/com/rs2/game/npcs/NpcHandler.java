@@ -632,7 +632,15 @@ public class NpcHandler {
 						npcs[i], client)) {
 					client = null;
 				}
-				if (client != null) {
+				if (com.rs2.script.mob.ScriptMobRuntime.getInstance()
+						.owns(npcs[i].npcType)) {
+					int scriptedTarget = com.rs2.script.mob.ScriptMobRuntime
+							.getInstance().findAggressionTarget(i);
+					if (scriptedTarget > 0 && !npcs[i].underAttack
+							&& !npcs[i].isDead && npcs[i].MaxHP > 0) {
+						npcs[i].killerId = scriptedTarget;
+					}
+				} else if (client != null) {
 					boolean aggressive = (NpcAggressive.isAggressive(i) || getNpcListCombat(npcs[i].npcType) * 2 > client.combatLevel && getNpcListAggressive(npcs[i].npcType));
 					if (aggressive && !npcs[i].underAttack && !npcs[i].isDead && npcs[i].MaxHP > 0) {
 						npcs[i].killerId = closePlayerId;

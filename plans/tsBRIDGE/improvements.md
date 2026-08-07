@@ -37,7 +37,7 @@ Existing pattern to copy everywhere: schema-v1 `defineX` → Java parser → Jav
 | **0.5** — Bridge hardening | **Done** | `BridgeValidation`, null-safe strings, `PolyglotException` logging, `beginEncounter` coordinate validation via `BridgeValidation`, `ScriptedPosition` cache; `ReadWriteLock` deferred |
 | **1** — Player capability parity | **~90%** | equip/unequip, openBank, prayer, magic routes done; attack styles / venom TBD |
 | **2** — Skilling kits | **In progress** | gathering packs + cooking via `defineProcessingSkill`; thieving/FM/agility kits pending |
-| **3–8** | Pending | See phases below |
+| **3–8** | Phase 3 done; 4–8 pending | See phases below |
 
 ---
 
@@ -195,7 +195,7 @@ Extend the gathering runtime pattern instead of hand-rolling every skill.
 
 ---
 
-## Phase 3 — World mob AI (close gap 4)
+## Phase 3 — World mob AI (close gap 4) ✅ Done
 
 Bosses work via `defineBoss`. Add the missing world-NPC authoring path:
 
@@ -208,10 +208,10 @@ Bosses work via `defineBoss`. Add the missing world-NPC authoring path:
 - **Not** for arena bosses — use `defineBoss` (see [kit boundaries](#kit-boundaries)).
 
 **Acceptance:**
-- [ ] Registered mob id suppresses `NpcCombat` switch; unregistered ids unchanged.
-- [ ] Parser validation test: invalid mob def rejected at load.
-- [ ] `onTick` / `onDeath` callbacks invalidated on reload and NPC despawn.
-- [ ] At least one world mob ported entirely in TS (e.g. a low-tier guard or goblin).
+- [x] Registered mob id suppresses `NpcCombat` switch; unregistered ids unchanged.
+- [x] Parser validation test: invalid mob def rejected at load.
+- [x] `onTick` / `onDeath` callbacks invalidated on reload and NPC despawn.
+- [x] At least one world mob ported entirely in TS (e.g. a low-tier guard or goblin).
 
 ---
 
@@ -322,7 +322,7 @@ Keep iteration cheap while porting:
 | **1** | Bridge hardening (Phase 0.5) | Stability | **Done** (ReadWriteLock deferred) |
 | **2** | Mining/fishing gathering packs | Gap 3 | **Done** |
 | **3** | One cooking port (raw handlers) → `defineProcessingSkill` | Gap 3 | **Done** |
-| **4** | `defineMob` world AI | Gap 4 | Pending |
+| **4** | `defineMob` world AI | Gap 4 | **Done** |
 | **5** | Overlays + asset-pipeline handoff (phases 7–8 ids) | Gap 1 | Pending |
 | **6** | Interface hook packs + presentation helpers | Gap 2 | Pending |
 | **7** | Trade gate + PvP queries (MVP scope) | Gap 5 (social) | Pending |

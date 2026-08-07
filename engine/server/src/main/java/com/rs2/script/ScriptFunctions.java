@@ -184,6 +184,25 @@ public final class ScriptFunctions {
 	}
 
 	/**
+	 * Registers one canonical world mob: declarative aggression, combat
+	 * style, attack speed, and max hit for a cache NPC id. Registered ids
+	 * suppress the legacy {@code NpcCombat} switch; optional callbacks are
+	 * generation-owned.
+	 */
+	public Consumer<Value> getDefineMob() {
+		return def -> {
+			requireObject("defineMob", def);
+			com.rs2.script.mob.MobDefinition mob =
+					new com.rs2.script.mob.MobDefinitionParser(
+							ModuleScope.currentSource(),
+							ModuleScope.currentSchemaVersion()).parse(def);
+			rejectDuplicateRecord("defineMob(npcId " + mob.npcId() + ")",
+					com.rs2.script.mob.MobDefinitionRegistry.put(mob));
+			com.rs2.script.mob.ScriptMobRuntime.getInstance().register(mob);
+		};
+	}
+
+	/**
 	 * Registers one canonical scripted shop: the guest payload is parsed
 	 * into a Java-owned typed descriptor with definition-backed items,
 	 * declared stock, prices, and restock policy. Opening routes are bound

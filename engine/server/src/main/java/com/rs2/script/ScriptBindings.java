@@ -45,6 +45,8 @@ public final class ScriptBindings {
 				consumeValue(functions.getDefineGatheringResource()));
 		globals.putMember("defineProcessingSkill",
 				consumeValue(functions.getDefineProcessingSkill()));
+		globals.putMember("defineMob",
+				consumeValue(functions.getDefineMob()));
 		globals.putMember("registerContentModule",
 				biValue(functions.getRegisterContentModule()));
 		globals.putMember("onObject", triIntStr(functions.getOnObject()));

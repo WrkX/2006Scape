@@ -135,6 +135,8 @@ public final class ScriptLifecycleService {
 				int npcType = npc.npcType;
 				ScriptedPlayer scriptedKiller = killer == null ? null
 						: new ScriptedPlayer(killer, generation);
+				com.rs2.script.mob.ScriptMobRuntime.getInstance()
+						.onNpcDeath(npc, killer, generation, position);
 				ScriptExecutor.execute(LifecycleRegistry.getNpcDeath(npcType),
 						"npc", Integer.toString(npcType), "death",
 						new NpcDeathScriptContext(ScriptedNpc.snapshot(npc, snapshot,
@@ -173,6 +175,8 @@ public final class ScriptLifecycleService {
 			public void run(long generation) {
 				processAreasUnderLease(generation);
 				com.rs2.script.raid.ScriptRaidRuntime.getInstance()
+						.processGameTick(generation);
+				com.rs2.script.mob.ScriptMobRuntime.getInstance()
 						.processGameTick(generation);
 			}
 		});

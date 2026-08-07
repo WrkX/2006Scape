@@ -453,6 +453,12 @@ public final class ScriptHost {
 					() -> com.rs2.script.processing.ScriptProcessingRuntime
 							.getInstance()
 							.closeGeneration(previousGeneration));
+			runPostCommit("publish mob generation",
+					() -> com.rs2.script.mob.ScriptMobRuntime.getInstance()
+							.onGenerationPublished(published.generation()));
+			runPostCommit("close old-generation mob callbacks",
+					() -> com.rs2.script.mob.ScriptMobRuntime.getInstance()
+							.closeGeneration(previousGeneration));
 			runPostCommit("publish scripted quest journal mapping",
 					() -> com.rs2.script.quest.ScriptQuestJournalService
 							.getInstance()
@@ -539,6 +545,10 @@ public final class ScriptHost {
 				.onGenerationPublished(generation);
 		com.rs2.script.processing.ScriptProcessingRuntime.getInstance()
 				.closeGeneration(previousGeneration);
+		com.rs2.script.mob.ScriptMobRuntime.getInstance()
+				.onGenerationPublished(generation);
+		com.rs2.script.mob.ScriptMobRuntime.getInstance()
+				.closeGeneration(previousGeneration);
 		com.rs2.script.quest.ScriptQuestJournalService.getInstance()
 				.onGenerationPublished(generation);
 		com.rs2.script.quest.ScriptQuestJournalService.getInstance()
@@ -561,6 +571,8 @@ public final class ScriptHost {
 		com.rs2.script.resource.ScriptResourceRuntime.getInstance()
 				.resetForTesting();
 		com.rs2.script.processing.ScriptProcessingRuntime.getInstance()
+				.resetForTesting();
+		com.rs2.script.mob.ScriptMobRuntime.getInstance()
 				.resetForTesting();
 		com.rs2.script.quest.ScriptQuestJournalService.getInstance()
 				.resetForTesting();

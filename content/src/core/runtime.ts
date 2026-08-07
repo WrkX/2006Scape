@@ -483,6 +483,50 @@ export type DefineProcessingSkill = (
   definition: ProcessingSkillDefinition,
 ) => void;
 
+/**
+ * Canonical schema-v1 world mob passed to `defineMob`.
+ *
+ * World-spawned NPCs replacing `NpcCombat` switch cases: declarative
+ * aggression radius, combat style, attack speed, and max hit. Optional
+ * callbacks override behavior beyond the Java-owned AI. Arena bosses use
+ * `defineBoss` instead.
+ */
+export interface MobDefinition {
+  readonly id: string;
+  readonly npcId: number;
+  readonly name?: string;
+  /** Aggression radius in tiles; 0 means retaliate-only. */
+  readonly aggression: number;
+  readonly combatStyle: "melee" | "ranged" | "magic";
+  /** Ticks between attacks. */
+  readonly attackSpeed: number;
+  readonly maxHit: number;
+  /** Optional attack animation override; omit to use the cache emote. */
+  readonly animation?: number;
+  readonly onSpawn?: (ctx: MobRuntimeContext) => void;
+  readonly onTick?: (ctx: MobRuntimeContext) => void;
+  readonly onDeath?: (ctx: MobRuntimeContext) => void;
+}
+
+/**
+ * Narrow runtime context for declarative world-mob callbacks.
+ */
+export interface MobRuntimeContext {
+  id(): string;
+  npcId(): number;
+  position(): ScriptedPosition;
+  hp(): number;
+  maxHp(): number;
+  alive(): boolean;
+  /** Killer on death callbacks; null for spawn/tick. */
+  killer(): ScriptedPlayer | null;
+  say(text: string): boolean;
+  face(x: number, y: number): boolean;
+  animate(animationId: number, delay: number): boolean;
+}
+
+export type DefineMob = (definition: MobDefinition) => void;
+
 export interface PlayerStateNamespace {
   has(key: string): boolean;
   getBoolean(key: string): boolean | null;
@@ -963,4 +1007,5 @@ declare global {
   const defineReward: DefineReward;
   const defineGatheringResource: DefineGatheringResource;
   const defineProcessingSkill: DefineProcessingSkill;
+  const defineMob: DefineMob;
 }

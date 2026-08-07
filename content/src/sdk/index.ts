@@ -34,6 +34,7 @@ export * from "./dialogue.js";
 export * from "./drop-tables.js";
 export * from "./gathering.js";
 export * from "./processing.js";
+export * from "./mob.js";
 
 export * from "../manifest.js";
 
