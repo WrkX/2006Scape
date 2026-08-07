@@ -34,9 +34,9 @@ Existing pattern to copy everywhere: schema-v1 `defineX` → Java parser → Jav
 | Phase | Status | Notes |
 | --- | --- | --- |
 | **0** — Entity capacity and author truth | **Done** | 65535 ceilings, `player.ts` / `bot.ts` quarantined, docs exist |
-| **0.5** — Bridge hardening | **In progress** | `BridgeValidation`, null-safe strings, `PolyglotException` logging done; `ReadWriteLock` deferred |
+| **0.5** — Bridge hardening | **Done** | `BridgeValidation`, null-safe strings, `PolyglotException` logging, `beginEncounter` coordinate validation via `BridgeValidation`, `ScriptedPosition` cache; `ReadWriteLock` deferred |
 | **1** — Player capability parity | **~90%** | equip/unequip, openBank, prayer, magic routes done; attack styles / venom TBD |
-| **2** — Skilling kits | **Next feature work** (after 0.5) | woodcutting exists; mining/fishing + one cooking port pending |
+| **2** — Skilling kits | **In progress** | woodcutting + mining + fishing resource packs shipped; cooking port + `defineProcessingSkill` pending |
 | **3–8** | Pending | See phases below |
 
 ---
@@ -134,8 +134,8 @@ Address all **Priority 1** findings in [TYPESCRIPT_BRIDGE_REVIEW.md](../../TYPES
 | 1.1 ProxyExecutable lacks input validation | ✅ Shared `BridgeValidation` for integral coercion; facades delegate to it |
 | 1.2 `SkillView.setLevel()` arbitrary modification | Route mutations through game logic; strengthen `canMutate()` guards |
 | 1.3 / 1.9 `ScriptHost` synchronized bottleneck | `ReadWriteLock` for registry reads vs writes (deferred — larger refactor) |
-| 1.6 `beginEncounter()` coordinate coercion | Integral coordinate validation with range checks |
-| 1.8 Hot-path allocations | Cache `ScriptedPosition`; consider wrapper reuse on event dispatch paths |
+| 1.6 `beginEncounter()` coordinate coercion | ✅ Integral coordinate validation with range checks via `BridgeValidation` in `ScriptEncounterService` |
+| 1.8 Hot-path allocations | ✅ Cache `ScriptedPosition` in `ScriptedPlayer.getPosition()` |
 
 **Acceptance:**
 - [x] `BridgeValidation` utility with unit tests; facades delegate integral coercion to it.
@@ -144,7 +144,8 @@ Address all **Priority 1** findings in [TYPESCRIPT_BRIDGE_REVIEW.md](../../TYPES
 - [x] `getRuntimeStatus()` returns generation + registry from one synchronized snapshot.
 - [x] `grantReward()` checks `canMutate()` before applying rewards.
 - [ ] `ReadWriteLock` on `ScriptHost` dispatch paths (deferred — larger refactor).
-- [ ] `beginEncounter()` integral coordinate validation.
+- [x] `beginEncounter()` integral coordinate validation.
+- [x] `ScriptedPosition` cached in `ScriptedPlayer.getPosition()`.
 - [ ] Per-phase gate: no new write API merges without passing the validation checklist above.
 
 ---
@@ -186,8 +187,8 @@ Extend the gathering runtime pattern instead of hand-rolling every skill.
 5. Kits register host routes per [route precedence](#route-precedence) so they win over legacy Java for ported ids.
 
 **Acceptance:**
-- [ ] Mining and fishing resource modules with at least one resource each.
-- [ ] Parser validation test: malformed gathering def fails load with clear error.
+- [x] Mining and fishing resource modules with at least one resource each.
+- [x] Parser validation test: malformed gathering def fails load with clear error.
 - [ ] Route authority test: scripted gathering route consumes packet; unregistered object id keeps legacy.
 - [ ] One cooking loop works via raw handlers before `defineProcessingSkill` lands.
 - [ ] Reload test: resources survive `::scripts` without duplicate-route errors.
@@ -318,8 +319,8 @@ Keep iteration cheap while porting:
 
 | Order | Deliverable | Closes | Status |
 | --- | --- | --- | --- |
-| **1** | Bridge hardening (Phase 0.5) | Stability | **In progress** |
-| **2** | Mining/fishing gathering packs | Gap 3 | Pending |
+| **1** | Bridge hardening (Phase 0.5) | Stability | **Done** (ReadWriteLock deferred) |
+| **2** | Mining/fishing gathering packs | Gap 3 | **Done** |
 | **3** | One cooking port (raw handlers) → `defineProcessingSkill` | Gap 3 | Pending |
 | **4** | `defineMob` world AI | Gap 4 | Pending |
 | **5** | Overlays + asset-pipeline handoff (phases 7–8 ids) | Gap 1 | Pending |

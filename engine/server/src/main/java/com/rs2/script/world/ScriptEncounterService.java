@@ -19,6 +19,7 @@ import org.graalvm.polyglot.Value;
 import com.rs2.game.items.GroundItem;
 import com.rs2.game.players.Player;
 import com.rs2.game.players.PlayerHandler;
+import com.rs2.script.BridgeValidation;
 import com.rs2.script.DialogueChain;
 import com.rs2.script.ScriptArray;
 import com.rs2.script.ScriptedPlayer;
@@ -1814,15 +1815,11 @@ public final class ScriptEncounterService {
 	}
 
 	private static Integer coordinate(double value) {
-		return integral(value, 0, 16383);
+		return BridgeValidation.integral(value, 0, 16383);
 	}
 
 	private static Integer integral(double value, int min, int max) {
-		if (!Double.isFinite(value) || value != Math.rint(value)
-				|| value < min || value > max) {
-			return null;
-		}
-		return Integer.valueOf((int) value);
+		return BridgeValidation.integral(value, min, max);
 	}
 
 	private static boolean isExecutable(Value callback) {

@@ -28,6 +28,10 @@ public class ScriptedPlayer {
     private final long generation;
     private final long facadeEpoch;
     private ScriptedDialogue cachedDialogue;
+    private int cachedPosX = Integer.MIN_VALUE;
+    private int cachedPosY = Integer.MIN_VALUE;
+    private int cachedPosPlane = Integer.MIN_VALUE;
+    private ScriptedPosition cachedPosition;
 
     public ScriptedPlayer(Player player) {
         this(player, ScriptHost.getInstance().getActiveGeneration());
@@ -72,7 +76,18 @@ public class ScriptedPlayer {
 
     @HostAccess.Export
     public ScriptedPosition getPosition() {
-        return new ScriptedPosition(player.absX, player.absY, player.heightLevel);
+        int x = player.absX;
+        int y = player.absY;
+        int plane = player.heightLevel;
+        if (cachedPosition != null && x == cachedPosX && y == cachedPosY
+                && plane == cachedPosPlane) {
+            return cachedPosition;
+        }
+        cachedPosX = x;
+        cachedPosY = y;
+        cachedPosPlane = plane;
+        cachedPosition = new ScriptedPosition(x, y, plane);
+        return cachedPosition;
     }
 
     @HostAccess.Export
@@ -89,6 +104,7 @@ public class ScriptedPlayer {
             return;
         }
         player.getPlayerAssistant().movePlayer(x, y, plane);
+        invalidatePositionCache();
     }
 
     @HostAccess.Export
@@ -97,6 +113,14 @@ public class ScriptedPlayer {
             return;
         }
         player.getPlayerAssistant().movePlayer(x, y, 0);
+        invalidatePositionCache();
+    }
+
+    private void invalidatePositionCache() {
+        cachedPosX = Integer.MIN_VALUE;
+        cachedPosY = Integer.MIN_VALUE;
+        cachedPosPlane = Integer.MIN_VALUE;
+        cachedPosition = null;
     }
 
     @HostAccess.Export

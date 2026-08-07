@@ -10,6 +10,8 @@ import java.util.logging.Logger;
 
 import com.rs2.GameEngine;
 import com.rs2.game.items.ItemAssistant;
+import com.rs2.game.npcs.Npc;
+import com.rs2.game.npcs.NpcHandler;
 import com.rs2.game.players.Player;
 import com.rs2.script.ScriptContext;
 import com.rs2.script.ScriptHost;
@@ -103,6 +105,11 @@ public final class ScriptResourceRuntime {
 	 */
 	public void registerRoutes(GatheringResourceDefinition definition) {
 		definitions.put(definition.id(), definition);
+		if (definition.npcId() > 0) {
+			RouteRegistry.putHost(ExecutableRouteKey.npc(definition.npcId(),
+					definition.action()), npcRoute(definition));
+			return;
+		}
 		RouteRegistry.putHost(ExecutableRouteKey.object(definition.objectId(),
 				definition.action()), objectRoute(definition));
 	}
@@ -275,6 +282,19 @@ public final class ScriptResourceRuntime {
 		};
 	}
 
+	private HostRoute npcRoute(final GatheringResourceDefinition definition) {
+		return new HostRoute() {
+			@Override
+			public void invoke(Object... arguments) {
+				Player player = playerOf(arguments);
+				if (player == null) {
+					return;
+				}
+				onNpcClicked(player, definition);
+			}
+		};
+	}
+
 	private synchronized void onObjectClicked(Player player,
 			GatheringResourceDefinition definition, int x, int y, int plane) {
 		if (!authoritativeLive(player)
@@ -297,6 +317,32 @@ public final class ScriptResourceRuntime {
 					"This resource has not yet respawned.");
 			return;
 		}
+		if (!beginSession(player, definition, state.key, -1, x, y, plane)) {
+			return;
+		}
+	}
+
+	private synchronized void onNpcClicked(Player player,
+			GatheringResourceDefinition definition) {
+		if (!authoritativeLive(player)
+				|| ScriptEncounterService.getInstance().isActionLocked(player)) {
+			return;
+		}
+		if (sessionsByPlayer.containsKey(player)) {
+			player.getPacketSender().sendMessage(
+					"You are already gathering from a resource.");
+			return;
+		}
+		if (sessionsByToken.size() >= MAX_SESSIONS_PER_GENERATION) {
+			player.getPacketSender().sendMessage(
+					"The resource runtime is at capacity; try again later.");
+			return;
+		}
+		int npcSlot = player.rememberNpcIndex;
+		Npc npc = npcAt(npcSlot);
+		if (npc == null || npc.npcType != definition.npcId()) {
+			return;
+		}
 		if (player.playerLevel.length <= definition.skill()
 				|| player.playerLevel[definition.skill()] < definition.level()) {
 			player.getPacketSender().sendMessage(
@@ -311,27 +357,44 @@ public final class ScriptResourceRuntime {
 					"You need a suitable tool to gather from this resource.");
 			return;
 		}
-		// Exact world-object identity: the clicked tile must still carry the
-		// declared object at the declared shape.
-		ResolvedWorldObject resolved = WorldObjectService.getInstance()
-				.resolve(player, x, y, plane);
-		if (resolved == null || resolved.getObjectId() != definition
-				.objectId()) {
-			return;
+		beginSession(player, definition, null, npcSlot, npc.absX, npc.absY,
+				npc.heightLevel);
+	}
+
+	private synchronized boolean beginSession(Player player,
+			GatheringResourceDefinition definition, ObjectKey key, int npcSlot,
+			int x, int y, int plane) {
+		if (player.playerLevel.length <= definition.skill()
+				|| player.playerLevel[definition.skill()] < definition.level()) {
+			player.getPacketSender().sendMessage(
+					"You need a " + skillName(definition.skill())
+							+ " level of " + definition.level()
+							+ " to gather from this resource.");
+			return false;
+		}
+		ToolResult tool = findTool(player, definition);
+		if (tool == null) {
+			player.getPacketSender().sendMessage(
+					"You need a suitable tool to gather from this resource.");
+			return false;
+		}
+		if (key != null) {
+			ResolvedWorldObject resolved = WorldObjectService.getInstance()
+					.resolve(player, x, y, plane);
+			if (resolved == null || resolved.getObjectId() != definition
+					.objectId()) {
+				return false;
+			}
 		}
 		long generation = ScriptHost.getInstance().getActiveGeneration();
 		long token = nextToken++;
 		ResourceSessionRng rng = new ResourceSessionRng(processSeed,
 				generation, nextOwnerToken++, nextOrdinal++);
 		final Session session = new Session(player, generation, token,
-				definition, x, y, plane, rng);
+				definition, key, npcSlot, rng);
 		sessionsByToken.put(Long.valueOf(token), session);
 		sessionsByPlayer.put(player, Long.valueOf(token));
 		player.scriptResourceSessionToken = token;
-		// Bounded per-player loop: one repeating game-cycle task owns all
-		// attempt state and cancels on movement-away, logout, death, or
-		// failure. The failure continuation closes the session after scheduler
-		// state is finalized.
 		session.task = ScriptScheduler.getInstance().schedule(player,
 				generation, definition.intervalTicks(), true,
 				new Runnable() {
@@ -347,10 +410,11 @@ public final class ScriptResourceRuntime {
 				});
 		if (session.task == null || session.task.isCancelled()) {
 			closeSession(session, "scheduler rejected");
-			return;
+			return false;
 		}
 		session.attempts++;
 		animate(player, definition);
+		return true;
 	}
 
 	private void tickSession(Session session) {
@@ -360,32 +424,39 @@ public final class ScriptResourceRuntime {
 				closeSession(session, "inactive");
 				return;
 			}
-			ObjectState state = objectStates.get(session.key);
-			if (state == null || state.depleted) {
-				closeSession(session, "resource depleted or replaced");
-				return;
+			if (session.npcSlot >= 0) {
+				Npc npc = npcAt(session.npcSlot);
+				if (npc == null || npc.npcType != session.definition.npcId()) {
+					closeSession(session, "npc replaced");
+					return;
+				}
+				if (!withinNpcRange(session.player, npc)) {
+					session.player.getPacketSender().sendMessage(
+							"You move away from the resource and stop gathering.");
+					closeSession(session, "moved away");
+					return;
+				}
+			} else {
+				ObjectState state = objectStates.get(session.key);
+				if (state == null || state.depleted) {
+					closeSession(session, "resource depleted or replaced");
+					return;
+				}
+				ResolvedWorldObject live = WorldObjectService.getInstance()
+						.resolve(session.player, session.key.x,
+								session.key.y, session.key.plane);
+				if (live == null || live.getObjectId() != session.definition
+						.objectId()) {
+					closeSession(session, "resource replaced");
+					return;
+				}
+				if (!withinRange(session.player, session.key)) {
+					session.player.getPacketSender().sendMessage(
+							"You move away from the resource and stop gathering.");
+					closeSession(session, "moved away");
+					return;
+				}
 			}
-			// The runtime's bookkeeping flag is not enough: an external writer
-			// (legacy deplete, an area projection, another timed object) may
-			// replace the tile mid-session. Revalidate the live world-object
-			// identity and stop when the resource is no longer there.
-			ResolvedWorldObject live = WorldObjectService.getInstance()
-					.resolve(session.player, session.key.x, session.key.y,
-							session.key.plane);
-			if (live == null || live.getObjectId() != session.definition
-					.objectId()) {
-				closeSession(session, "resource replaced");
-				return;
-			}
-			// Movement-away cancels: the player must remain within interaction
-			// range of the resource while gathering.
-			if (!withinRange(session.player, session.key)) {
-				session.player.getPacketSender().sendMessage(
-						"You move away from the resource and stop gathering.");
-				closeSession(session, "moved away");
-				return;
-			}
-			// Revalidate tool and skill before every attempt.
 			ToolResult tool = findTool(session.player, session.definition);
 			if (tool == null) {
 				session.player.getPacketSender().sendMessage(
@@ -413,8 +484,6 @@ public final class ScriptResourceRuntime {
 					session.definition.successDenominator())) {
 				return;
 			}
-			// Deterministic success: commit item + XP atomically, then
-			// deplete the object and close the session.
 			RewardResult reward = commitReward(session.player,
 					session.definition, tool);
 			if (reward != RewardResult.OK) {
@@ -437,8 +506,14 @@ public final class ScriptResourceRuntime {
 				closeSession(session, "reward failed: " + reward.name());
 				return;
 			}
+			if (!session.definition.depletes()) {
+				return;
+			}
+			ObjectState state = objectStates.get(session.key);
 			closeSession(session, "harvested");
-			deplete(state);
+			if (state != null) {
+				deplete(state);
+			}
 		}
 	}
 
@@ -592,6 +667,19 @@ public final class ScriptResourceRuntime {
 						Math.abs(player.absY - key.y)) <= MAX_RANGE;
 	}
 
+	private static boolean withinNpcRange(Player player, Npc npc) {
+		return player.heightLevel == npc.heightLevel
+				&& Math.max(Math.abs(player.absX - npc.absX),
+						Math.abs(player.absY - npc.absY)) <= MAX_RANGE;
+	}
+
+	private static Npc npcAt(int slot) {
+		if (slot < 0 || slot >= NpcHandler.npcs.length) {
+			return null;
+		}
+		return NpcHandler.npcs[slot];
+	}
+
 	private static String skillName(int skill) {
 		return com.rs2.script.quest.QuestSkill.values()[skill].getScriptName();
 	}
@@ -676,6 +764,7 @@ public final class ScriptResourceRuntime {
 		private final long generation;
 		private final long token;
 		private final ObjectKey key;
+		private final int npcSlot;
 		private final GatheringResourceDefinition definition;
 		private final ResourceSessionRng rng;
 		private ScriptTaskHandle task;
@@ -683,12 +772,13 @@ public final class ScriptResourceRuntime {
 		private boolean closed;
 
 		Session(Player player, long generation, long token,
-				GatheringResourceDefinition definition, int x, int y,
-				int plane, ResourceSessionRng rng) {
+				GatheringResourceDefinition definition, ObjectKey key,
+				int npcSlot, ResourceSessionRng rng) {
 			this.player = player;
 			this.generation = generation;
 			this.token = token;
-			this.key = ObjectKey.of(definition, x, y, plane);
+			this.key = key;
+			this.npcSlot = npcSlot;
 			this.definition = definition;
 			this.rng = rng;
 		}

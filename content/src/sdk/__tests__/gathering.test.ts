@@ -161,6 +161,35 @@ test("gathering builder accepts tool consumption flags and item names", () => {
   assert.equal(resource.tools[0].itemId, "Bronze axe");
 });
 
+test("gathering builder accepts npc fishing resources without depletion", () => {
+  const resource = createGatheringResource({
+    id: "net-fishing-spot",
+    name: "Net/Trap",
+    npcId: 316,
+    action: "first",
+    skill: "fishing",
+    level: 1,
+    tools: [{ itemId: 303 }],
+    animation: 621,
+    intervalTicks: 2,
+    successChance: { numerator: 3, denominator: 4 },
+    rewards: [{ itemId: 317, amount: 1 }],
+    experience: 10,
+    depletes: false,
+  });
+  assert.equal(resource.npcId, 316);
+  assert.equal(resource.depletes, false);
+  assert.equal(resource.objectId, undefined);
+  assert.equal(resource.depletedObjectId, undefined);
+});
+
+test("gathering builder rejects both objectId and npcId", () => {
+  assert.throws(() => createGatheringResource({
+    ...resourceOptions(),
+    npcId: 316,
+  }), /exactly one of objectId or npcId/);
+});
+
 test("registerGatheringResource forwards a frozen canonical definition", () => {
   const original = (globalThis as Record<string, unknown>)
     .defineGatheringResource;

@@ -45,6 +45,8 @@ public class GatheringResourceDefinitionParserTest {
 		items[1351] = named(1351, "Bronze axe");
 		items[1511] = named(1511, "Logs");
 		items[1521] = named(1521, "Oak logs");
+		items[303] = named(303, "Small fishing net");
+		items[317] = named(317, "Raw shrimps");
 		Field field = ItemDefinition.class.getDeclaredField("definitions");
 		field.setAccessible(true);
 		field.set(null, items);
@@ -168,6 +170,27 @@ public class GatheringResourceDefinitionParserTest {
 				+ "rewards:[{itemId:1511,amount:1}],experience:25,"
 				+ "depletedObjectId:1341,respawnTicks:4}",
 				"no loaded definition");
+	}
+
+	@Test
+	public void npcFishingResourceRegistersHostNpcRoute() {
+		register("{id:'net-fishing-spot',name:'Net/Trap',npcId:316,"
+				+ "action:'first',skill:'fishing',level:1,"
+				+ "tools:[{itemId:303}],animation:621,intervalTicks:2,"
+				+ "successChance:{numerator:3,denominator:4},"
+				+ "rewards:[{itemId:317,amount:1}],experience:10,"
+				+ "depletes:false}");
+		GatheringResourceDefinition resource = GatheringResourceRegistry
+				.get("net-fishing-spot");
+		assertNotNull(resource);
+		assertEquals(316, resource.npcId());
+		assertFalse(resource.depletes());
+		ExecutableRouteRecord route = ScriptHost.getInstance()
+				.readActiveRegistry(state -> RouteRegistry.get(state,
+						ExecutableRouteKey.npc(316, "first")));
+		assertNotNull(route);
+		assertFalse("the resource route must be a Java host consumer",
+				route.isGuest());
 	}
 
 	@Test

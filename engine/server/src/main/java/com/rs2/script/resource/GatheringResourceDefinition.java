@@ -8,14 +8,13 @@ import java.util.List;
  * Immutable Java-owned schema-v1 gathering resource descriptor.
  *
  * <p>The descriptor carries copied canonical values only: a stable string id,
- * one canonical object id and ordinal action, the required skill and level,
- * ordered tool alternatives (each an inventory-or-equipped item id with an
- * optional per-success consumption), the animation id and tick interval,
+ * one canonical object or NPC id and ordinal action, the required skill and
+ * level, ordered tool alternatives (each an inventory-or-equipped item id with
+ * an optional per-success consumption), the animation id and tick interval,
  * the deterministic success chance as an exact numerator/denominator pair,
- * bounded item rewards and one experience grant, the depleted object
- * replacement id, and the respawn interval. All item ids are copied numeric
- * ids resolved at candidate load; no guest value survives into the
- * descriptor.
+ * bounded item rewards and one experience grant, and optional depletion state
+ * for object targets. All item ids are copied numeric ids resolved at
+ * candidate load; no guest value survives into the descriptor.
  */
 public final class GatheringResourceDefinition {
 
@@ -61,6 +60,7 @@ public final class GatheringResourceDefinition {
 	private final String id;
 	private final String name;
 	private final int objectId;
+	private final int npcId;
 	private final String action;
 	private final int skill;
 	private final int level;
@@ -71,20 +71,22 @@ public final class GatheringResourceDefinition {
 	private final int successDenominator;
 	private final List<ItemReward> rewards;
 	private final int experience;
+	private final boolean depletes;
 	private final int depletedObjectId;
 	private final int respawnTicks;
 	private final String source;
 	private final int schemaVersion;
 
 	public GatheringResourceDefinition(String id, String name, int objectId,
-			String action, int skill, int level, List<Tool> tools,
+			int npcId, String action, int skill, int level, List<Tool> tools,
 			int animation, int intervalTicks, int successNumerator,
 			int successDenominator, List<ItemReward> rewards, int experience,
-			int depletedObjectId, int respawnTicks, String source,
-			int schemaVersion) {
+			boolean depletes, int depletedObjectId, int respawnTicks,
+			String source, int schemaVersion) {
 		this.id = id;
 		this.name = name;
 		this.objectId = objectId;
+		this.npcId = npcId;
 		this.action = action;
 		this.skill = skill;
 		this.level = level;
@@ -96,6 +98,7 @@ public final class GatheringResourceDefinition {
 		this.rewards = Collections.unmodifiableList(
 				new ArrayList<ItemReward>(rewards));
 		this.experience = experience;
+		this.depletes = depletes;
 		this.depletedObjectId = depletedObjectId;
 		this.respawnTicks = respawnTicks;
 		this.source = source;
@@ -110,9 +113,14 @@ public final class GatheringResourceDefinition {
 		return name;
 	}
 
-	/** The canonical object id the resource is gathered from. */
+	/** The canonical object id the resource is gathered from, or {@code 0}. */
 	public int objectId() {
 		return objectId;
+	}
+
+	/** The canonical NPC id the resource is gathered from, or {@code 0}. */
+	public int npcId() {
+		return npcId;
 	}
 
 	/** The ordinal action (one of first, second, third, fourth). */
@@ -163,6 +171,11 @@ public final class GatheringResourceDefinition {
 		return experience;
 	}
 
+	/** Whether a successful harvest depletes the object and closes the session. */
+	public boolean depletes() {
+		return depletes;
+	}
+
 	/** The object id shown after the resource depletes, or {@code -1}. */
 	public int depletedObjectId() {
 		return depletedObjectId;
@@ -184,7 +197,10 @@ public final class GatheringResourceDefinition {
 
 	@Override
 	public String toString() {
-		return "resource '" + id + "' (object " + objectId + "/" + action
+		String target = npcId > 0
+				? "npc " + npcId
+				: "object " + objectId;
+		return "resource '" + id + "' (" + target + "/" + action
 				+ ", skill " + skill + " " + level + ", tools: " + tools.size()
 				+ ", source: " + source + ", schema v" + schemaVersion + ")";
 	}

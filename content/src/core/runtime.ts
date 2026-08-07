@@ -399,7 +399,10 @@ export interface RewardDefinition {
 export interface GatheringResourceDefinition {
   readonly id: string;
   readonly name: string;
-  readonly objectId: number;
+  /** Object target id; exactly one of objectId or npcId is required. */
+  readonly objectId?: number;
+  /** NPC target id for fishing-style spots; mutually exclusive with objectId. */
+  readonly npcId?: number;
   readonly action: "first" | "second" | "third" | "fourth";
   readonly skill: string;
   readonly level: number;
@@ -412,8 +415,10 @@ export interface GatheringResourceDefinition {
   };
   readonly rewards: readonly GatheringResourceReward[];
   readonly experience: number;
-  readonly depletedObjectId: number;
-  readonly respawnTicks: number;
+  /** When false the session stays open after each success (fishing). Default true for objects. */
+  readonly depletes?: boolean;
+  readonly depletedObjectId?: number;
+  readonly respawnTicks?: number;
 }
 
 export interface GatheringResourceTool {

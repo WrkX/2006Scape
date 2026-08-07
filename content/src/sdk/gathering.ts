@@ -16,7 +16,7 @@ import type {
   GatheringResourceReward,
   GatheringResourceTool,
 } from "../core/runtime.js";
-import { MAX_ITEM_ID, MAX_OBJECT_ID } from "../core/limits.js";
+import { MAX_ITEM_ID, MAX_NPC_ID, MAX_OBJECT_ID } from "../core/limits.js";
 import { isScriptSkill, type ScriptSkillName } from "./skills.js";
 
 const ID_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/;
@@ -131,9 +131,25 @@ export function createGatheringResource(
       && utf8Length(definition.name) <= 128,
     `resource.name must be 1..128 UTF-8 bytes, got ` +
       `'${String(definition.name)}'`);
-  assert(integral(definition.objectId, 0, MAX_OBJECT_ID),
-    `resource.objectId must be an integer 0..${MAX_OBJECT_ID}, ` +
-      `got ${definition.objectId}`);
+  const hasObject = definition.objectId !== undefined;
+  const hasNpc = definition.npcId !== undefined;
+  assert(hasObject !== hasNpc,
+    "resource must declare exactly one of objectId or npcId");
+  let objectId = 0;
+  let npcId = 0;
+  if (hasObject) {
+    objectId = definition.objectId as number;
+    assert(integral(objectId, 0, MAX_OBJECT_ID),
+      `resource.objectId must be an integer 0..${MAX_OBJECT_ID}, ` +
+        `got ${objectId}`);
+  } else {
+    npcId = definition.npcId as number;
+    assert(integral(npcId, 1, MAX_NPC_ID),
+      `resource.npcId must be an integer 1..${MAX_NPC_ID}, got ${npcId}`);
+  }
+  const depletes = definition.depletes ?? hasObject;
+  assert(typeof depletes === "boolean",
+    "resource.depletes must be a boolean when present");
   assert((ACTIONS as readonly string[]).includes(definition.action),
     `resource.action must be one of ${ACTIONS.join(", ")}`);
   const skill = definition.skill;
@@ -166,19 +182,34 @@ export function createGatheringResource(
   assert(integral(definition.experience, 1, MAX_EXPERIENCE),
     `resource.experience must be an integer 1..${MAX_EXPERIENCE}, ` +
       `got ${definition.experience}`);
-  assert(integral(definition.depletedObjectId, 0, MAX_OBJECT_ID),
-    `resource.depletedObjectId must be an integer 0..${MAX_OBJECT_ID}, ` +
-      `got ${definition.depletedObjectId}`);
-  assert(definition.depletedObjectId !== definition.objectId,
-    "resource.depletedObjectId must differ from the resource objectId");
-  assert(integral(definition.respawnTicks, 1, MAX_RESPAWN_TICKS),
-    `resource.respawnTicks must be an integer 1..${MAX_RESPAWN_TICKS}, ` +
-      `got ${definition.respawnTicks}`);
+  let depletedObjectId = -1;
+  let respawnTicks = 0;
+  if (depletes) {
+    assert(definition.depletedObjectId !== undefined,
+      "resource.depletedObjectId is required when depletes is true");
+    assert(definition.respawnTicks !== undefined,
+      "resource.respawnTicks is required when depletes is true");
+    depletedObjectId = definition.depletedObjectId as number;
+    respawnTicks = definition.respawnTicks as number;
+    assert(integral(depletedObjectId, 0, MAX_OBJECT_ID),
+      `resource.depletedObjectId must be an integer 0..${MAX_OBJECT_ID}, ` +
+        `got ${depletedObjectId}`);
+    assert(depletedObjectId !== objectId,
+      "resource.depletedObjectId must differ from the resource objectId");
+    assert(integral(respawnTicks, 1, MAX_RESPAWN_TICKS),
+      `resource.respawnTicks must be an integer 1..${MAX_RESPAWN_TICKS}, ` +
+        `got ${respawnTicks}`);
+  } else {
+    assert(definition.depletedObjectId === undefined,
+      "resource.depletedObjectId is only allowed when depletes is true");
+    assert(definition.respawnTicks === undefined,
+      "resource.respawnTicks is only allowed when depletes is true");
+  }
 
   return Object.freeze({
     id: definition.id,
     name: definition.name,
-    objectId: definition.objectId,
+    ...(hasObject ? { objectId } : { npcId }),
     action: definition.action,
     skill: skill as ScriptSkillName,
     level: definition.level,
@@ -193,8 +224,10 @@ export function createGatheringResource(
     rewards: Object.freeze(definition.rewards.map(
       (reward) => Object.freeze({ ...reward }))),
     experience: definition.experience,
-    depletedObjectId: definition.depletedObjectId,
-    respawnTicks: definition.respawnTicks,
+    ...(depletes ? {} : { depletes: false as const }),
+    ...(depletes
+      ? { depletedObjectId, respawnTicks }
+      : {}),
   });
 }
 

@@ -17,6 +17,7 @@ import com.rs2.game.items.ItemConstants;
 import com.rs2.game.players.Player;
 import com.rs2.game.players.PlayerHandler;
 import com.rs2.util.Stream;
+import com.rs2.script.ScriptedPosition;
 import org.apollo.util.security.IsaacRandom;
 
 public class ScriptedPlayerTest {
@@ -140,6 +141,30 @@ public class ScriptedPlayerTest {
 		Player player = authoritativePlayer();
 		ScriptedPlayer scripted = new ScriptedPlayer(player);
 		scripted.message(null);
+	}
+
+	@Test
+	public void getPositionReusesCachedInstanceUntilPlayerMoves() {
+		Player player = authoritativePlayer();
+		player.absX = 3200;
+		player.absY = 3201;
+		player.heightLevel = 0;
+		ScriptedPlayer scripted = new ScriptedPlayer(player);
+
+		ScriptedPosition first = scripted.getPosition();
+		ScriptedPosition second = scripted.getPosition();
+		assertTrue(first == second);
+		assertEquals(3200, first.x);
+		assertEquals(3201, first.y);
+
+		player.absX = 3202;
+		player.absY = 3203;
+		player.heightLevel = 1;
+		ScriptedPosition third = scripted.getPosition();
+		assertTrue(first != third);
+		assertEquals(3202, third.x);
+		assertEquals(3203, third.y);
+		assertEquals(1, third.plane);
 	}
 
 	@Test

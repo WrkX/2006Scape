@@ -18,16 +18,16 @@ import com.rs2.script.quest.QuestSkill;
  * Strict one-way parser for {@code defineGatheringResource} schema-v1
  * definitions.
  *
- * <p>Allowed members: {@code id}, {@code name}, {@code objectId}, {@code action},
- * {@code skill}, {@code level}, {@code tools}, {@code animation},
- * {@code intervalTicks}, {@code successChance}, {@code rewards},
- * {@code experience}, {@code depletedObjectId}, and {@code respawnTicks}. The
- * object id and every tool/reward item id must be definition-backed when
- * definitions are loaded; string item ids resolve at candidate load through
- * {@link ItemNameResolver} and missing or ambiguous names fail with the
- * definition source and field path. Tool ids are unique and ordered;
- * exactly one success chance, animation, and interval are required; a
- * resource must have at least one tool and at least one item reward.
+ * <p>Allowed members: {@code id}, {@code name}, {@code objectId},
+ * {@code npcId}, {@code action}, {@code skill}, {@code level}, {@code tools},
+ * {@code animation}, {@code intervalTicks}, {@code successChance},
+ * {@code rewards}, {@code experience}, {@code depletes},
+ * {@code depletedObjectId}, and {@code respawnTicks}. Exactly one of
+ * {@code objectId} or {@code npcId} must be present. Object targets require
+ * {@code depletedObjectId} and {@code respawnTicks} when {@code depletes} is
+ * true (the default for object targets). NPC targets default to
+ * {@code depletes=false} and keep harvesting until the player moves away or
+ * inventory is full.
  */
 public final class GatheringResourceDefinitionParser {
 
@@ -58,18 +58,39 @@ public final class GatheringResourceDefinitionParser {
 		if (value == null || !value.hasMembers()) {
 			throw failure("definition must be an object");
 		}
-		only(value, "resource", "id", "name", "objectId", "action", "skill",
-				"level", "tools", "animation", "intervalTicks",
-				"successChance", "rewards", "experience", "depletedObjectId",
-				"respawnTicks");
+		only(value, "resource", "id", "name", "objectId", "npcId", "action",
+				"skill", "level", "tools", "animation", "intervalTicks",
+				"successChance", "rewards", "experience", "depletes",
+				"depletedObjectId", "respawnTicks");
 		String id = requireId(value);
 		String name = optionalBoundedString(value.getMember("name"), "name", 128);
 		if (name == null) {
 			throw failure("'name' must be a non-empty string");
 		}
-		int objectId = integral(required(value, "objectId"), 0, MAX_OBJECT_ID,
-				"objectId");
-		requireLoadedObject(objectId);
+		Value objectMember = value.getMember("objectId");
+		Value npcMember = value.getMember("npcId");
+		boolean hasObject = objectMember != null && !objectMember.isNull();
+		boolean hasNpc = npcMember != null && !npcMember.isNull();
+		if (hasObject == hasNpc) {
+			throw failure("exactly one of 'objectId' or 'npcId' must be present");
+		}
+		int objectId = 0;
+		int npcId = 0;
+		if (hasObject) {
+			objectId = integral(objectMember, 0, MAX_OBJECT_ID, "objectId");
+			requireLoadedObject(objectId);
+		} else {
+			npcId = integral(npcMember, 1, ScriptEntityLimits.MAX_NPC_ID,
+					"npcId");
+		}
+		boolean depletes = hasObject;
+		Value depletesMember = value.getMember("depletes");
+		if (depletesMember != null && !depletesMember.isNull()) {
+			if (!depletesMember.isBoolean()) {
+				throw failure("'depletes' must be a boolean when present");
+			}
+			depletes = depletesMember.asBoolean();
+		}
 		String action = requiredAction(value);
 		QuestSkill skill = QuestSkill.fromScriptName(boundedString(
 				required(value, "skill"), "skill", 32));
@@ -95,19 +116,32 @@ public final class GatheringResourceDefinitionParser {
 				required(value, "rewards"));
 		int experience = integral(required(value, "experience"), 1,
 				MAX_EXPERIENCE, "experience");
-		int depletedObjectId = integral(required(value, "depletedObjectId"), 0,
-				MAX_OBJECT_ID, "depletedObjectId");
-		requireLoadedObject(depletedObjectId);
-		if (depletedObjectId == objectId) {
-			throw failure("'depletedObjectId' must differ from the resource "
-					+ "objectId");
+		int depletedObjectId = -1;
+		int respawnTicks = 0;
+		if (depletes) {
+			depletedObjectId = integral(required(value, "depletedObjectId"), 0,
+					MAX_OBJECT_ID, "depletedObjectId");
+			requireLoadedObject(depletedObjectId);
+			if (depletedObjectId == objectId) {
+				throw failure("'depletedObjectId' must differ from the resource "
+						+ "objectId");
+			}
+			respawnTicks = integral(required(value, "respawnTicks"), 1,
+					MAX_RESPAWN_TICKS, "respawnTicks");
+		} else if (hasMember(value, "depletedObjectId")
+				|| hasMember(value, "respawnTicks")) {
+			throw failure("'depletedObjectId' and 'respawnTicks' are only "
+					+ "allowed when depletes is true");
 		}
-		int respawnTicks = integral(required(value, "respawnTicks"), 1,
-				MAX_RESPAWN_TICKS, "respawnTicks");
-		return new GatheringResourceDefinition(id, name, objectId, action,
-				skill.getIndex(), level, tools, animation, intervalTicks,
-				numerator, denominator, rewards, experience, depletedObjectId,
-				respawnTicks, source, schemaVersion);
+		return new GatheringResourceDefinition(id, name, objectId, npcId,
+				action, skill.getIndex(), level, tools, animation, intervalTicks,
+				numerator, denominator, rewards, experience, depletes,
+				depletedObjectId, respawnTicks, source, schemaVersion);
+	}
+
+	private static boolean hasMember(Value value, String member) {
+		Value entry = value.getMember(member);
+		return entry != null && !entry.isNull();
 	}
 
 	private List<GatheringResourceDefinition.Tool> parseTools(Value array) {
