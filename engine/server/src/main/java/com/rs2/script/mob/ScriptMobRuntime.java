@@ -48,6 +48,8 @@ public final class ScriptMobRuntime {
 	private final Set<Long> spawnedTokens = new HashSet<Long>();
 	/** Allocation tokens currently tracked for tick/death callbacks. */
 	private final Set<Long> trackedSlots = new HashSet<Long>();
+	/** Reused per-tick buffer of currently-live allocation tokens. */
+	private final Set<Long> liveTokens = new HashSet<Long>();
 
 	/**
 	 * Immutable npcId-to-definition lookup published once per generation. The
@@ -141,18 +143,20 @@ public final class ScriptMobRuntime {
 	}
 
 	/**
-	 * Finds a player inside the mob's aggression radius, or {@code 0}.
-	 * Aggression {@code 0} never auto-aggros.
+	 * Finds a player inside the mob's aggression radius, or {@code -1} when no
+	 * target is found. Aggression {@code 0} never auto-aggros. The returned
+	 * value is a {@link PlayerHandler} slot, so {@code 0} is a valid target
+	 * (the slot-0 player) rather than a no-target sentinel.
 	 */
 	public int findAggressionTarget(int npcIndex) {
 		if (npcIndex < 0 || npcIndex >= NpcHandler.npcs.length
 				|| NpcHandler.npcs[npcIndex] == null) {
-			return 0;
+			return -1;
 		}
 		Npc npc = NpcHandler.npcs[npcIndex];
 		MobDefinition definition = definitionForType(npc.npcType);
 		if (definition == null || definition.aggression() <= 0) {
-			return 0;
+			return -1;
 		}
 		int radius = definition.aggression();
 		for (int j = 0; j < PlayerHandler.players.length; j++) {
@@ -171,7 +175,10 @@ public final class ScriptMobRuntime {
 			if (player.heightLevel != npc.heightLevel) {
 				continue;
 			}
-			if (player.underAttackBy > 0 || player.underAttackBy2 > 0) {
+			// Mirror the legacy getCloseRandomPlayer gate: a player already in
+			// combat is skipped only outside multi-combat zones.
+			if ((player.underAttackBy > 0 || player.underAttackBy2 > 0)
+					&& !Boundary.isIn(player, Boundary.MULTI)) {
 				continue;
 			}
 			int dx = Math.abs(player.absX - npc.absX);
@@ -180,7 +187,7 @@ public final class ScriptMobRuntime {
 				return j;
 			}
 		}
-		return 0;
+		return -1;
 	}
 
 	/**
@@ -342,7 +349,12 @@ public final class ScriptMobRuntime {
 				return;
 			}
 		}
-		Set<Long> liveTokens = new HashSet<Long>();
+		// No registered mobs: the scan is a no-op. Skip before touching the
+		// shared liveTokens buffer so a zero-definition tick does not churn.
+		if (definitionSnapshot.isEmpty()) {
+			return;
+		}
+		liveTokens.clear();
 		for (int i = 0; i < NpcHandler.npcs.length; i++) {
 			Npc npc = NpcHandler.npcs[i];
 			if (npc == null) {

@@ -48,6 +48,8 @@ public class Npc {
             combatLevel;
     public boolean applyDead, isDead, needRespawn, respawns, aggressive;
     public boolean walkingHome, underAttack;
+    /** True when killerId was armed by the scripted aggression path (slot 0 is a valid player). */
+    public boolean scriptedAggroTarget;
     public int freezeTimer, attackTimer, killerId, killedBy, oldIndex,
             underAttackBy;
     public long oldAllocationToken;

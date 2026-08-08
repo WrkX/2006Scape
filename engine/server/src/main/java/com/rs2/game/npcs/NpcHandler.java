@@ -636,9 +636,15 @@ public class NpcHandler {
 						.owns(npcs[i].npcType)) {
 					int scriptedTarget = com.rs2.script.mob.ScriptMobRuntime
 							.getInstance().findAggressionTarget(i);
-					if (scriptedTarget > 0 && !npcs[i].underAttack
+					// A returned slot of 0 is a valid player (slot 0); -1 means
+					// no target. scriptedAggroTarget records that killerId was
+					// armed here so the retaliation gate accepts slot 0.
+					if (scriptedTarget >= 0 && !npcs[i].underAttack
 							&& !npcs[i].isDead && npcs[i].MaxHP > 0) {
 						npcs[i].killerId = scriptedTarget;
+						npcs[i].scriptedAggroTarget = true;
+					} else {
+						npcs[i].scriptedAggroTarget = false;
 					}
 				} else if (client != null) {
 					boolean aggressive = (NpcAggressive.isAggressive(i) || getNpcListCombat(npcs[i].npcType) * 2 > client.combatLevel && getNpcListAggressive(npcs[i].npcType));
@@ -651,7 +657,7 @@ public class NpcHandler {
                     npcs[i].underAttackBy = 0;
                 }
 
-                if ((npcs[i].killerId > 0 || npcs[i].underAttack) && !npcs[i].walkingHome && retaliates(npcs[i].npcType)) {
+                if ((npcs[i].killerId > 0 || npcs[i].underAttack || npcs[i].scriptedAggroTarget) && !npcs[i].walkingHome && retaliates(npcs[i].npcType)) {
                     if (!npcs[i].isDead) {
                         int p = npcs[i].killerId;
 						if (p >= 0 && p < PlayerHandler.players.length
@@ -670,6 +676,7 @@ public class NpcHandler {
                         } else {
                             npcs[i].killerId = 0;
                             npcs[i].underAttack = false;
+                            npcs[i].scriptedAggroTarget = false;
                             npcs[i].facePlayer(null);
                         }
                     }
@@ -686,6 +693,7 @@ public class NpcHandler {
                         && npcs[i].randomWalk && !npcs[i].isDead) {
                     npcs[i].facePlayer(null);
                     npcs[i].killerId = 0;
+                    npcs[i].scriptedAggroTarget = false;
                     if (npcs[i].spawnedBy == 0) {
                         if (npcs[i].absX > npcs[i].makeX
                                 + Constants.NPC_RANDOM_WALK_DISTANCE

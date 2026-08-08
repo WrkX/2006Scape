@@ -154,6 +154,39 @@ public class ScriptMobPortE2ETest {
 	}
 
 	@Test
+	public void multiAttackMobUsesDeclarativeMaxHit() throws Exception {
+		Path root = Files.createTempDirectory("script-mob-multi-max");
+		Files.write(root.resolve("loader.js"), (
+				"defineMob({"
+				+ "id:'kq',npcId:1158,name:'KQ',aggression:0,"
+				+ "combatStyle:'magic',attackSpeed:4,maxHit:9"
+				+ "});")
+				.getBytes(StandardCharsets.UTF_8));
+		System.setProperty("singlescape.contentDir",
+				root.toFile().getAbsolutePath());
+		ScriptHost.getInstance().reload();
+		assertNotNull(MobDefinitionRegistry.get(1158));
+		assertEquals("declarative maxHit must win over the hardcoded KQ 30",
+				9, ScriptMobRuntime.getInstance().maxHit(1158));
+
+		Npc npc = spawnNpc(1158, 3200, 3201);
+		npc.attackType = com.rs2.game.content.combat.AttackType.MAGIC
+				.getValue();
+		player.absX = 3200;
+		player.absY = 3203; // within the multi-attack distance 15
+		player.isDead = false;
+		player.respawnTimer = 0;
+		int hp = player.playerLevel[com.rs2.Constants.HITPOINTS];
+
+		// multiAttackDamage deals Misc.random(max) per in-range player; with
+		// max 9 the worst-case hit is bounded well below the legacy KQ 30.
+		NpcCombat.multiAttackDamage(npcSlot);
+		assertTrue("multi-attack damage must be capped by the declarative "
+				+ "maxHit 9",
+				hp - player.playerLevel[com.rs2.Constants.HITPOINTS] <= 9);
+	}
+
+	@Test
 	public void onTickAndOnDeathInvalidateOnReload() throws Exception {
 		Path root = Files.createTempDirectory("script-mob-callbacks");
 		Files.write(root.resolve("loader.js"), (
@@ -225,12 +258,99 @@ public class ScriptMobPortE2ETest {
 
 		player.respawnTimer = 1;
 		assertEquals("a player in the respawn window must be skipped",
-				0, runtime.findAggressionTarget(npcSlot));
+				-1, runtime.findAggressionTarget(npcSlot));
 		player.respawnTimer = 0;
 
 		player.isDead = true;
 		assertEquals("a dead player must be skipped",
-				0, runtime.findAggressionTarget(npcSlot));
+				-1, runtime.findAggressionTarget(npcSlot));
+	}
+
+	@Test
+	public void aggressionTargetsPlayerAlreadyInCombatInsideMulti()
+			throws Exception {
+		Path root = Files.createTempDirectory("script-mob-multi");
+		Files.write(root.resolve("loader.js"), (
+				"defineMob({"
+				+ "id:'goblin',npcId:100,name:'Goblin',aggression:5,"
+				+ "combatStyle:'melee',attackSpeed:4,maxHit:1"
+				+ "});")
+				.getBytes(StandardCharsets.UTF_8));
+		System.setProperty("singlescape.contentDir",
+				root.toFile().getAbsolutePath());
+		ScriptHost.getInstance().reload();
+		assertNotNull(MobDefinitionRegistry.get(GOBLIN));
+
+		ScriptMobRuntime runtime = ScriptMobRuntime.getInstance();
+		player.respawnTimer = 0;
+		player.isDead = false;
+		player.underAttackBy = 999; // another mob already owns the player
+
+		// Negative case first: a mob in a single-combat tile must skip an
+		// in-combat player even though it is inside the aggression radius.
+		int singleSlot = spawnNpcSlot(GOBLIN, 3200, 3201);
+		player.absX = 3200;
+		player.absY = 3203; // within radius 5, not inside any MULTI boundary
+		assertEquals("an in-combat player outside multi must be skipped",
+				-1, runtime.findAggressionTarget(singleSlot));
+
+		// Positive case: (3200, 3845) is inside MULTI boundary
+		// (3200,3390)-(3840,3967); the same in-combat player is a valid target.
+		int multiSlot = spawnNpcSlot(GOBLIN, 3200, 3841);
+		player.absX = 3200;
+		player.absY = 3845; // within radius 5 and inside MULTI
+		assertEquals("a player already in combat inside multi must still be "
+				+ "a valid aggression target",
+				player.playerId, runtime.findAggressionTarget(multiSlot));
+
+		if (NpcHandler.npcs[singleSlot] != null) {
+			NpcHandler.npcs[singleSlot] = null;
+		}
+		if (NpcHandler.npcs[multiSlot] != null) {
+			NpcHandler.npcs[multiSlot] = null;
+		}
+		npcSlot = -1;
+	}
+
+	/** Spawns one mob and returns its {@link NpcHandler} slot index. */
+	private int spawnNpcSlot(int npcType, int x, int y) {
+		spawnNpc(npcType, x, y);
+		return npcSlot;
+	}
+
+	@Test
+	public void aggressionTargetsPlayerInSlotZero() throws Exception {
+		Path root = Files.createTempDirectory("script-mob-slot0");
+		Files.write(root.resolve("loader.js"), (
+				"defineMob({"
+				+ "id:'goblin',npcId:100,name:'Goblin',aggression:5,"
+				+ "combatStyle:'melee',attackSpeed:4,maxHit:1"
+				+ "});")
+				.getBytes(StandardCharsets.UTF_8));
+		System.setProperty("singlescape.contentDir",
+				root.toFile().getAbsolutePath());
+		ScriptHost.getInstance().reload();
+		assertNotNull(MobDefinitionRegistry.get(GOBLIN));
+
+		// Move the fixture's slot-94 player far out of range so the only
+		// candidate is a freshly-added slot-0 player.
+		player.absX = 3300;
+		player.absY = 3300;
+		Player slotZero = Wp5PlayerSupport.additionalPlayer(0);
+		slotZero.absX = 3200;
+		slotZero.absY = 3201;
+		slotZero.respawnTimer = 0;
+		slotZero.isDead = false;
+		slotZero.heightLevel = 0;
+
+		try {
+			Npc npc = spawnNpc(GOBLIN, 3200, 3200);
+			ScriptMobRuntime runtime = ScriptMobRuntime.getInstance();
+			assertEquals("slot 0 is a valid aggression target, not a sentinel",
+					0, runtime.findAggressionTarget(npcSlot));
+		} finally {
+			PlayerHandler.players[0] = null;
+		}
 	}
 
 	@Test
@@ -364,6 +484,29 @@ public class ScriptMobPortE2ETest {
 		runtime.processGameTick(generation);
 		assertFalse("corpse in the respawn window must not re-fire onSpawn",
 				runtime.hasSpawnedTokenForTesting(token));
+	}
+
+	@Test
+	public void noMobsRegisteredProcessTickIsNoop() throws Exception {
+		Path root = Files.createTempDirectory("script-mob-empty");
+		Files.write(root.resolve("loader.js"), (
+				"// deliberately no defineMob calls").getBytes(
+						StandardCharsets.UTF_8));
+		System.setProperty("singlescape.contentDir",
+				root.toFile().getAbsolutePath());
+		ScriptHost.getInstance().reload();
+		long generation = ScriptHost.getInstance().getActiveGeneration();
+		assertTrue("reload must arm a generation even with no mobs",
+				generation != 0L);
+
+		// With an empty definition snapshot the per-tick scan must early-return
+		// instead of iterating every npc slot and churning the live buffer.
+		ScriptMobRuntime runtime = ScriptMobRuntime.getInstance();
+		assertFalse("no mobs registered means no owned npc ids",
+				runtime.owns(0));
+		runtime.processGameTick(generation);
+		assertEquals("no registered mobs must not track any allocation",
+				0, runtime.trackedCount());
 	}
 
 	@Test

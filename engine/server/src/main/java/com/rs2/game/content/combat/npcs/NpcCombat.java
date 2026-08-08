@@ -28,7 +28,10 @@ public class NpcCombat {
 				|| NpcHandler.npcs[i] == null) {
 			return;
 		}
-		int max = NpcHandler.getMaxHit(i);
+		int npcType = NpcHandler.npcs[i].npcType;
+		int scriptedMax = com.rs2.script.mob.ScriptMobRuntime
+				.getInstance().maxHit(npcType);
+		int max = scriptedMax >= 0 ? scriptedMax : NpcHandler.getMaxHit(i);
 		for (Player player : PlayerHandler.players) {
 			if (player != null) {
 				Client c = (Client) player;
