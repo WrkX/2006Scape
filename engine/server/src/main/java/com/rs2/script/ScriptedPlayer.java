@@ -189,9 +189,6 @@ public class ScriptedPlayer {
         if (!canMutate()) {
             return;
         }
-        com.rs2.script.interfacehook.ScriptInterfaceHookRuntime.getInstance()
-                .notifyClosingMainFrame(player);
-        player.scriptHookArmed = false;
         player.getPacketSender().closeAllWindows();
     }
 
@@ -210,8 +207,7 @@ public class ScriptedPlayer {
             com.rs2.script.interfacehook.ScriptInterfaceHookRuntime
                     .getInstance().notifyClose(player, previous);
         }
-        player.getPacketSender().showInterface(interfaceId);
-        boolean shown = player.lastMainFrameInterface == interfaceId;
+        boolean shown = player.getPacketSender().showInterface(interfaceId);
         if (shown) {
             // Only interfaces shown through this scripted path arm their hook
             // buttons; a legacy showInterface of the same id does not.

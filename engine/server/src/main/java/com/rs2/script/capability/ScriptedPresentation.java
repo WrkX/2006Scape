@@ -73,8 +73,7 @@ public final class ScriptedPresentation {
             ScriptInterfaceHookRuntime.getInstance().notifyClose(player,
                     previous);
         }
-        player.getPacketSender().showInterface(id.intValue());
-        boolean shown = player.lastMainFrameInterface == id.intValue();
+        boolean shown = player.getPacketSender().showInterface(id.intValue());
         if (shown) {
             // Only interfaces shown through this scripted path arm their hook
             // buttons; a legacy showInterface of the same id does not.
@@ -88,8 +87,6 @@ public final class ScriptedPresentation {
     @HostAccess.Export
     public boolean closeInterfaces() {
         if (!mutate() || player.getOutStream() == null) return false;
-        ScriptInterfaceHookRuntime.getInstance().notifyClosingMainFrame(player);
-        player.scriptHookArmed = false;
         player.getPacketSender().closeAllWindows();
         return true;
     }

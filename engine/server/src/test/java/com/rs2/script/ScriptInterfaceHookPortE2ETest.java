@@ -10,6 +10,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import org.graalvm.polyglot.Context;
+import org.graalvm.polyglot.HostAccess;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -18,6 +20,7 @@ import com.rs2.game.players.Player;
 import com.rs2.game.players.PlayerHandler;
 import com.rs2.script.interfacehook.InterfaceHookDefinitionRegistry;
 import com.rs2.script.interfacehook.ScriptInterfaceHookRuntime;
+import com.rs2.script.registries.RegistryStore;
 
 /**
  * End-to-end interface hook dispatch and reload behavior.
@@ -201,6 +204,67 @@ public class ScriptInterfaceHookPortE2ETest {
 		// Closing beta through the scripted path fires beta's onClose.
 		scripted.getPresentation().closeInterfaces();
 		assertFalse("closing must disarm the hook", player.scriptHookArmed);
+	}
+
+	@Test
+	public void tradeBlocksDuplicateScriptedShowFromReArmingHook()
+			throws Exception {
+		File contentDir = findCompiledContent();
+		System.setProperty("singlescape.contentDir",
+				contentDir.getAbsolutePath());
+		Wp5PlayerSupport.ensureItemDefinitions();
+		Wp5PlayerSupport.ensureObjectDefinitions();
+		Wp5PlayerSupport.ensureNpcDefinitions();
+		Wp5PlayerSupport.ensureCustomNamespaceDefinitions();
+		Wp5PlayerSupport.ensureAreaRegions();
+		ScriptHost.getInstance().reload();
+
+		Player player = Wp5PlayerSupport.player(99);
+		Wp5PlayerSupport.RecordingPlayer recording =
+				Wp5PlayerSupport.recording(player);
+		com.rs2.script.ScriptedPlayer scripted =
+				Wp5PlayerSupport.scripted(player);
+
+		assertTrue(scripted.getPresentation().showInterface(
+				COOKING_GUIDE_INTERFACE));
+		assertTrue("scripted show must arm the hook", player.scriptHookArmed);
+
+		recording.clearPackets();
+		player.inTrade = true;
+		assertFalse("trade must block re-showing the same interface",
+				scripted.getPresentation().showInterface(
+						COOKING_GUIDE_INTERFACE));
+		assertTrue("failed re-show must leave the hook armed",
+				player.scriptHookArmed);
+		assertEquals("blocked show must not send another open packet", 0,
+				recording.flushCount);
+	}
+
+	@Test
+	public void legacyCloseAllWindowsFiresHookOnClose() throws Exception {
+		final boolean[] closed = { false };
+		Context context = Context.newBuilder("js")
+				.allowHostAccess(HostAccess.ALL)
+				.build();
+		context.getBindings("js").putMember("markClosed",
+				(Runnable) () -> closed[0] = true);
+
+		RegistryStore.State candidate = RegistryStore.beginStaging();
+		ScriptFunctions.getInstance().getDefineInterfaceHook().accept(
+				context.eval("js",
+						"({id:'alpha',interfaceId:8134,"
+						+ "onClose:function(ctx){ markClosed.run(); }})"));
+		ScriptRuntimeTestFixture.publishCandidate(context, candidate);
+
+		Player player = Wp5PlayerSupport.player(100);
+		Wp5PlayerSupport.scripted(player).getPresentation().showInterface(8134);
+		assertTrue("opening alpha must arm the hook", player.scriptHookArmed);
+
+		player.getPacketSender().closeAllWindows();
+
+		assertFalse("legacy close must disarm the hook",
+				player.scriptHookArmed);
+		assertTrue("legacy close must fire hook onClose", closed[0]);
 	}
 
 	private static File findCompiledContent() {

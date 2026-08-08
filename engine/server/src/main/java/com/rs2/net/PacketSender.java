@@ -18,6 +18,7 @@ import com.rs2.game.players.Client;
 import com.rs2.game.players.Player;
 import com.rs2.game.players.PlayerHandler;
 import com.rs2.gui.ControlPanel;
+import com.rs2.script.interfacehook.ScriptInterfaceHookRuntime;
 import com.rs2.util.Misc;
 import com.rs2.world.Boundary;
 import com.rs2.world.clip.Region;
@@ -366,9 +367,9 @@ public class PacketSender {
 		return this;
 	}
 
-	public PacketSender showInterface(int interfaceid) {
+	public boolean showInterface(int interfaceid) {
 		if (player.inTrade || player.inDuel) {
-			return this;
+			return false;
 		}
 		if (player.getOutStream() != null && player != null) {
 			// Legacy callers (e.g. quest detail interfaces) open main frames
@@ -379,8 +380,9 @@ public class PacketSender {
 			player.getOutStream().writeWord(interfaceid);
 			player.flushOutStream();
 			player.lastMainFrameInterface = interfaceid;
+			return true;
 		}
-		return this;
+		return false;
 	}
 
 	public PacketSender sendFrame248(int MainFrame, int SubFrame) { //Trade-like interfaces
@@ -553,6 +555,10 @@ public class PacketSender {
 	}
 
 	public PacketSender closeAllWindows() {
+		if (player.scriptHookArmed) {
+			ScriptInterfaceHookRuntime.getInstance()
+					.notifyClosingMainFrame(player);
+		}
 		player.lastMainFrameInterface = -1;
 		player.scriptHookArmed = false;
 		if (player.getOutStream() != null && player != null) {
