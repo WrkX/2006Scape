@@ -170,6 +170,14 @@ export interface ScriptedCombat {
   underAttack(): boolean;
   /** True when poison damage or mask is active. */
   poisoned(): boolean;
+  /** True when the player currently has a wilderness skull. */
+  skulled(): boolean;
+  /** Side-effect-free wilderness membership check. */
+  inWilderness(): boolean;
+  /** Wilderness combat level, or `0` outside the wilderness. */
+  wildernessLevel(): number;
+  /** True when the player is outside the wilderness PvP area. */
+  inSafeArea(): boolean;
   damage(amount: number): number;
   heal(amount: number): number;
 }
@@ -953,6 +961,23 @@ export interface PlayerDeathScriptContext {
   readonly action: "death";
 }
 
+/** Gate context for trade initiation; scripts may deny but cannot mutate offers. */
+export interface TradeRequestScriptContext {
+  readonly requester: ScriptedPlayer;
+  readonly target: ScriptedPlayer;
+  readonly action: "trade-request";
+  /** Blocks trade and optionally sends a message to the requester. */
+  deny(message?: string): boolean;
+}
+
+/** Observe-only context for delivered private messages. */
+export interface PrivateMessageScriptContext {
+  readonly sender: ScriptedPlayer;
+  readonly recipient: ScriptedPlayer;
+  readonly message: string;
+  readonly action: "private-message";
+}
+
 export type OnNpc = (
   npcId: number,
   action: NpcAction,
@@ -1054,6 +1079,14 @@ export type OnPlayerDeath = (
   handler: (context: PlayerDeathScriptContext) => void,
 ) => void;
 
+export type OnTradeRequest = (
+  handler: (context: TradeRequestScriptContext) => void,
+) => void;
+
+export type OnPrivateMessage = (
+  handler: (context: PrivateMessageScriptContext) => void,
+) => void;
+
 /**
  * Logical content-module envelope accepted by the Java module registrar.
  *
@@ -1095,6 +1128,8 @@ declare global {
   const onMagicOnNpc: OnMagicOnNpc;
   const onMagicOnPlayer: OnMagicOnPlayer;
   const onPlayerDeath: OnPlayerDeath;
+  const onTradeRequest: OnTradeRequest;
+  const onPrivateMessage: OnPrivateMessage;
   const registerContentModule: RegisterContentModule;
   const defineBoss: DefineBoss;
   const defineQuest: DefineQuest;

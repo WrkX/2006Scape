@@ -49,6 +49,36 @@ public final class ScriptedCombat {
         return live() && (player.poisonDamage > 0 || player.poisonMask > 0);
     }
 
+    /** True when the player currently has a wilderness skull. */
+    @HostAccess.Export
+    public boolean skulled() {
+        return live() && player.isSkulled;
+    }
+
+    /**
+     * Side-effect-free wilderness membership check. Does not open the legacy
+     * wilderness warning interface.
+     */
+    @HostAccess.Export
+    public boolean inWilderness() {
+        return live() && coordinatesInWilderness();
+    }
+
+    /** Wilderness combat level, or {@code 0} when outside the wilderness. */
+    @HostAccess.Export
+    public int wildernessLevel() {
+        if (!live() || !coordinatesInWilderness()) {
+            return 0;
+        }
+        return Math.max(0, player.wildLevel);
+    }
+
+    /** True when the player is outside the wilderness PvP area. */
+    @HostAccess.Export
+    public boolean inSafeArea() {
+        return live() && !coordinatesInWilderness();
+    }
+
     @HostAccess.Export
     public int damage(double amountValue) {
         Integer amount = BridgeValidation.integral(amountValue, 1, 32767);
@@ -85,5 +115,15 @@ public final class ScriptedCombat {
     private boolean canMutate() {
         return ScriptEncounterService.getInstance().canMutate(player,
                 generation, facadeEpoch);
+    }
+
+    private boolean coordinatesInWilderness() {
+        if (player.inCw()) {
+            return true;
+        }
+        return (player.absX > 2941 && player.absX < 3392
+                && player.absY > 3518 && player.absY < 3966)
+                || (player.absX > 2941 && player.absX < 3392
+                        && player.absY > 9918 && player.absY < 10366);
     }
 }

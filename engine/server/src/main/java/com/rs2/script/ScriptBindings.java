@@ -89,6 +89,10 @@ public final class ScriptBindings {
 				"onMagicOnPlayer", functions.getOnMagicOnPlayer()));
 		globals.putMember("onPlayerDeath", requireHandler(
 				"onPlayerDeath", functions.getOnPlayerDeath()));
+		globals.putMember("onTradeRequest", requireHandler(
+				"onTradeRequest", functions.getOnTradeRequest()));
+		globals.putMember("onPrivateMessage", requireHandler(
+				"onPrivateMessage", functions.getOnPrivateMessage()));
 
 		Map<String, Object> devMembers = new HashMap<>();
 		devMembers.put("log", (ProxyExecutable) arguments -> {

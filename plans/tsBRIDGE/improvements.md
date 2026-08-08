@@ -37,7 +37,7 @@ Existing pattern to copy everywhere: schema-v1 `defineX` → Java parser → Jav
 | **0.5** — Bridge hardening | **Done** | `BridgeValidation`, null-safe strings, `PolyglotException` logging, `beginEncounter` coordinate validation via `BridgeValidation`, `ScriptedPosition` cache; `ReadWriteLock` deferred |
 | **1** — Player capability parity | **~90%** | equip/unequip, openBank, prayer, magic routes done; attack styles / venom TBD |
 | **2** — Skilling kits | **In progress** | gathering packs + cooking via `defineProcessingSkill`; thieving/FM/agility kits pending |
-| **3–8** | Phase 3–5 done; 6–8 pending | See phases below |
+| **3–8** | Phase 3–6 done; 7–8 pending | See phases below |
 
 ---
 
@@ -249,7 +249,7 @@ Full “design new interfaces in TS” needs client changes. Practical bridge pa
 
 ---
 
-## Phase 6 — Economy and social (close gap 5 remainder)
+## Phase 6 — Economy and social (close gap 5 remainder) ✅ Done
 
 Needed for authentic OSRS ports, not for early skilling/PvM. Tighten scope to avoid ballooning.
 
@@ -267,10 +267,10 @@ Needed for authentic OSRS ports, not for early skilling/PvM. Tighten scope to av
 - Grand Exchange (`defineGeOffer` / open GE) — after shop/bank parity; requires Java protocol matching.
 
 **Acceptance:**
-- [ ] Script can block trade initiation with a user-facing message.
-- [ ] Scripts cannot mutate trade offers in MVP (gate-only).
-- [ ] Wilderness skull / safe-area query available on combat facade.
-- [ ] GE explicitly out of MVP; tracked as separate work item.
+- [x] Script can block trade initiation with a user-facing message.
+- [x] Scripts cannot mutate trade offers in MVP (gate-only).
+- [x] Wilderness skull / safe-area query available on combat facade.
+- [x] GE explicitly out of MVP; tracked as separate work item.
 
 ---
 
@@ -325,7 +325,7 @@ Keep iteration cheap while porting:
 | **4** | `defineMob` world AI | Gap 4 | **Done** |
 | **5** | Overlays + asset-pipeline handoff (phases 7–8 ids) | Gap 1 | **Done** |
 | **5** | Interface hook packs + presentation helpers | Gap 2 | **Done** |
-| **6** | Trade gate + PvP queries (MVP scope) | Gap 5 (social) | Pending |
+| **6** | Trade gate + PvP queries (MVP scope) | Gap 5 (social) | **Done** |
 | **8** | Minigame kit; bot wiring decision | Gap 7 | Pending |
 | **9** | Reload diagnostics + duplicate-route errors | Gap 8 | Pending |
 

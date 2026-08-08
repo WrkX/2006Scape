@@ -13,6 +13,7 @@ import com.rs2.game.items.DeprecatedItems;
 import com.rs2.game.items.GameItem;
 import com.rs2.game.items.ItemData;
 import com.rs2.game.items.ItemConstants;
+import com.rs2.script.social.ScriptSocialRuntime;
 import com.rs2.util.GameLogger;
 import com.rs2.util.Misc;
 
@@ -50,6 +51,10 @@ public class Trading {
 			player.tradeWith = id;
 
 			if (!CastleWars.deleteCastleWarsItems(player, id)) {
+				return;
+			}
+
+			if (!ScriptSocialRuntime.getInstance().allowTradeRequest(player, o)) {
 				return;
 			}
 

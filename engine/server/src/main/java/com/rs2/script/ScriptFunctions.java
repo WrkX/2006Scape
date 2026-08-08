@@ -587,6 +587,22 @@ public final class ScriptFunctions {
 		};
 	}
 
+	public Consumer<Value> getOnTradeRequest() {
+		return fn -> {
+			requireExecutable("onTradeRequest()", fn);
+			rejectDuplicate("onTradeRequest()",
+					LifecycleRegistry.putSingleton("trade-request", fn));
+		};
+	}
+
+	public Consumer<Value> getOnPrivateMessage() {
+		return fn -> {
+			requireExecutable("onPrivateMessage()", fn);
+			rejectDuplicate("onPrivateMessage()",
+					LifecycleRegistry.putSingleton("private-message", fn));
+		};
+	}
+
 	public DevConsole getDev() {
 		return DefaultDevConsole.INSTANCE;
 	}

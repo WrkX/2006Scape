@@ -31,4 +31,14 @@ onLeaveArea(bridgeExampleArea, (ctx) => {
   ctx.player.message(`Left ${ctx.area.getId()}.`);
 });
 
+onTradeRequest((ctx) => {
+  const pos = ctx.requester.getPosition();
+  const area = bridgeExampleArea;
+  if (pos.x >= area.minX && pos.x <= area.maxX
+      && pos.y >= area.minY && pos.y <= area.maxY
+      && pos.plane === area.plane) {
+    ctx.deny("Trading is disabled in the bridge example courtyard.");
+  }
+});
+
 export {};

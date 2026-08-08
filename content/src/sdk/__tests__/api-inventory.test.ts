@@ -28,6 +28,7 @@ test("inventory documents every declared runtime global", () => {
     "onLogout", "onNpcDeath", "onItemPickup", "onEnterArea", "onLeaveArea",
     "onButton", "onItemOnGroundItem", "onItemOnPlayer", "onMagicOnItem",
     "onMagicOnObject", "onMagicOnNpc", "onMagicOnPlayer", "onPlayerDeath",
+    "onTradeRequest", "onPrivateMessage",
     "registerContentModule", "dev",
     "log",
   ];

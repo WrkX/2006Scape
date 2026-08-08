@@ -8,6 +8,7 @@ import com.rs2.game.players.PlayerHandler;
 import com.rs2.game.players.antimacro.AntiSpam;
 import com.rs2.net.Packet;
 import com.rs2.net.packets.PacketType;
+import com.rs2.script.social.ScriptSocialRuntime;
 import com.rs2.util.GameLogger;
 import com.rs2.util.Misc;
 
@@ -77,6 +78,11 @@ public class PrivateMessaging implements PacketType {
 							if (o != null) {
 								if (PlayerHandler.players[i2].privateChat == 0 || PlayerHandler.players[i2].privateChat == 1 && o.getPlayerAssistant().isInPM(Misc.playerNameToInt64(player.playerName))) {
 									if (friend == sendMessageToFriendId) {
+										String unpacked = Misc.textUnpack(pmchatText,
+												packet.getLength() - 8);
+										ScriptSocialRuntime.getInstance()
+												.observePrivateMessage(player, o,
+														unpacked);
 										o.getPacketSender().sendPM(Misc.playerNameToInt64(player.playerName), player.playerRights, pmchatText, pmchatTextSize);
 										if (player.getPlayerAssistant().isPlayer()) {
 											GameLogger.writeLog(o.playerName, "pmrecieved", player.playerName + " said to " + o.playerName + " " + Misc.textUnpack(pmchatText, packet.getLength() - 8) + "");
