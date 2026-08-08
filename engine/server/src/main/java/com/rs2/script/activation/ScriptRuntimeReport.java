@@ -26,16 +26,25 @@ public final class ScriptRuntimeReport {
 	private final int definitionCount;
 	private final int routeCount;
 	private final HookResult unloadResult;
+	private final String quarantineWarning;
 
 	public ScriptRuntimeReport(Status status, long generation,
 			int moduleCount, int definitionCount, int routeCount,
 			HookResult unloadResult) {
+		this(status, generation, moduleCount, definitionCount, routeCount,
+				unloadResult, null);
+	}
+
+	public ScriptRuntimeReport(Status status, long generation,
+			int moduleCount, int definitionCount, int routeCount,
+			HookResult unloadResult, String quarantineWarning) {
 		this.status = status;
 		this.generation = generation;
 		this.moduleCount = moduleCount;
 		this.definitionCount = definitionCount;
 		this.routeCount = routeCount;
 		this.unloadResult = unloadResult;
+		this.quarantineWarning = quarantineWarning;
 	}
 
 	public Status status() {
@@ -61,6 +70,14 @@ public final class ScriptRuntimeReport {
 	/** First old-generation unload-observer failure, or {@code null}. */
 	public HookResult unloadResult() {
 		return unloadResult;
+	}
+
+	/**
+	 * Bounded non-fatal activation failure captured during commit, or
+	 * {@code null} when none occurred.
+	 */
+	public String quarantineWarning() {
+		return quarantineWarning;
 	}
 
 }

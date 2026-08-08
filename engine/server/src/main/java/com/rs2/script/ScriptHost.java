@@ -506,6 +506,11 @@ public final class ScriptHost {
 				String quarantine = ((RuntimeActivationTransaction.Aborted) e)
 						.quarantine();
 				if (quarantine != null) {
+					appendDiagnostic("script reload quarantined: "
+							+ quarantine);
+					lastReloadFailure = lastReloadFailure == null
+							? quarantine
+							: lastReloadFailure + "; " + quarantine;
 					logger.log(Level.SEVERE, quarantine, e);
 				}
 			}

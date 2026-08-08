@@ -37,7 +37,7 @@ Existing pattern to copy everywhere: schema-v1 `defineX` → Java parser → Jav
 | **0.5** — Bridge hardening | **Done** | `BridgeValidation`, null-safe strings, `PolyglotException` logging, `beginEncounter` coordinate validation via `BridgeValidation`, `ScriptedPosition` cache; `ReadWriteLock` deferred |
 | **1** — Player capability parity | **~90%** | equip/unequip, openBank, prayer, magic routes done; attack styles / venom TBD |
 | **2** — Skilling kits | **In progress** | gathering packs + cooking via `defineProcessingSkill`; thieving/FM/agility kits pending |
-| **3–8** | Phase 3–7 done; 8 pending | See phases below |
+| **3–8** | **Done** | Phases 3–8 complete; bots deferred per Phase 7 |
 
 ---
 
@@ -289,7 +289,7 @@ Needed for authentic OSRS ports, not for early skilling/PvM. Tighten scope to av
 
 ---
 
-## Phase 8 — Workflow polish (close gap 8)
+## Phase 8 — Workflow polish (close gap 8) ✅ Done
 
 Keep iteration cheap while porting:
 
@@ -299,9 +299,9 @@ Keep iteration cheap while porting:
 - `::scripts status` shows quarantine warnings from reload (see review item 2.3.3).
 
 **Acceptance:**
-- [ ] CONTRIBUTING or SCRIPTING.md documents the full edit-reload loop.
-- [ ] Duplicate route registration fails load with route key in error message.
-- [ ] Quarantine state visible in `::scripts status` output.
+- [x] CONTRIBUTING or SCRIPTING.md documents the full edit-reload loop.
+- [x] Duplicate route registration fails load with route key in error message.
+- [x] Quarantine state visible in `::scripts status` output.
 
 ---
 
@@ -327,7 +327,7 @@ Keep iteration cheap while porting:
 | **5** | Interface hook packs + presentation helpers | Gap 2 | **Done** |
 | **6** | Trade gate + PvP queries (MVP scope) | Gap 5 (social) | **Done** |
 | **8** | Minigame kit; bot wiring decision | Gap 7 | **Done** (bots deferred) |
-| **9** | Reload diagnostics + duplicate-route errors | Gap 8 | Pending |
+| **9** | Reload diagnostics + duplicate-route errors | Gap 8 | **Done** |
 
 ---
 

@@ -39,6 +39,27 @@ callbacks from the previous generation are invalidated before its Graal
 context closes; a failed candidate leaves the active generation and its tasks
 untouched.
 
+## Content iteration workflow
+
+Use this loop while authoring or porting content:
+
+1. **Edit** TypeScript under `content/src/`.
+2. **Compile** with `pnpm build:content` from the repo root (or run
+   `pnpm watch` in another terminal to rebuild on save).
+3. **Reload** in-game as an administrator with `::scripts reload` (or
+   `::reload`).
+4. **Inspect** with `::scripts status` — generation, module/definition/route
+   counts, runtime session totals, the last rejected-reload reason, and any
+   reload quarantine or diagnostic warnings.
+
+A failed reload keeps the last-known-good generation live. Fix the compile or
+registration error, rebuild, and reload again. Duplicate route keys fail the
+candidate with the exact route identity (for example `command:dup` or
+`object:409/first`) in the error message.
+
+`pnpm watch` only recompiles TypeScript; you still need `::scripts reload` to
+load the new `content/dist/` output into the running server.
+
 ## Globals available in scripts
 
 These are injected by `ScriptBindings.java` and available in any script module.

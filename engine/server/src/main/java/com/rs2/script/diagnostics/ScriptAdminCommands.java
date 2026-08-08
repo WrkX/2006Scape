@@ -8,6 +8,7 @@ import java.util.Map;
 
 import com.rs2.game.players.Player;
 import com.rs2.script.ScriptHost;
+import com.rs2.script.activation.ScriptRuntimeReport;
 import com.rs2.script.definition.DefinitionKind;
 import com.rs2.script.definition.DefinitionRecord;
 
@@ -32,6 +33,7 @@ public final class ScriptAdminCommands {
 
 	private static final int PAGE_SIZE = 20;
 	private static final int MAX_LINE_LENGTH = 96;
+	private static final int MAX_STATUS_DIAGNOSTICS = 3;
 
 	private ScriptAdminCommands() {
 		throw new UnsupportedOperationException(
@@ -116,6 +118,20 @@ public final class ScriptAdminCommands {
 		String failure = ScriptHost.getInstance().lastFailedMessage();
 		if (failure != null) {
 			message(player, "Last reload failed: " + boundLine(failure));
+		}
+		ScriptRuntimeReport report = ScriptHost.getInstance().getRuntimeReport();
+		if (report != null && report.quarantineWarning() != null) {
+			message(player, "Reload quarantine: "
+					+ boundLine(report.quarantineWarning()));
+		}
+		List<String> diagnostics = ScriptHost.getInstance()
+				.getRuntimeDiagnostics();
+		if (!diagnostics.isEmpty()) {
+			int from = Math.max(0, diagnostics.size() - MAX_STATUS_DIAGNOSTICS);
+			for (int index = from; index < diagnostics.size(); index++) {
+				message(player, "Reload diagnostic: "
+						+ boundLine(diagnostics.get(index)));
+			}
 		}
 	}
 

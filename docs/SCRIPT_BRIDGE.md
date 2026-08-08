@@ -1467,7 +1467,7 @@ source-aware registration"):
 
 | Command | Behavior |
 |---|---|
-| `::scripts status` (or bare `::scripts`) | Reports the active generation, registered module/definition/route counts, scheduled tasks, and the active encounter/boss/area/shop/raid-lobby/raid-session/resource-session/quest-row counts, plus the last rejected-reload reason when one exists. |
+| `::scripts status` (or bare `::scripts`) | Reports the active generation, registered module/definition/route counts, scheduled tasks, and the active encounter/boss/area/shop/raid-lobby/raid-session/resource-session/quest-row counts, plus the last rejected-reload reason when one exists, any committed reload quarantine warning, and up to three recent reload diagnostic lines. |
 | `::scripts list [kind] [page]` | Sorted, paged listing (at most 20 entries per page). `kind` is `modules` (default) or a definition kind: `boss`, `raid`, `area`, `quest`, `drop`, `reward`, `shop`, `resource`. Module listings show logical module ids; definition listings show the stable key and its logical source module. |
 | `::scripts reload` | Triggers one transactional reload and reports the truthful outcome. On success it reports the new generation and module count; on failure it reports the bounded candidate error and proves the previous generation remains live. |
 | `::reload` | Same truthful reload as `::scripts reload`. |

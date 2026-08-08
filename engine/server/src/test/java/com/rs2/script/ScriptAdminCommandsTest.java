@@ -253,6 +253,38 @@ public class ScriptAdminCommandsTest {
 				m -> m.contains("Scripts reloaded")));
 	}
 
+	@Test
+	public void statusReportsReloadDiagnosticsAndDuplicateRouteFailure()
+			throws Exception {
+		context = Context.create("js");
+		ensureCompiledFixtureSupport();
+		ScriptRuntimeTestFixture.reset();
+		java.nio.file.Path root = java.nio.file.Files.createTempDirectory(
+				"wp9-dup-route");
+		java.nio.file.Files.write(root.resolve("loader.js"),
+				("onCommand('ok', function () {});"
+						+ "onCommand('dup', function () {});"
+						+ "onCommand('dup', function () {});")
+						.getBytes(StandardCharsets.UTF_8));
+		String previousDir = System.getProperty("singlescape.contentDir");
+		System.setProperty("singlescape.contentDir", root.toAbsolutePath().toString());
+		try {
+			com.rs2.script.ScriptHost.getInstance().reload();
+			Player admin = player(100, 2);
+			command(admin, "scripts status");
+			String joined = String.join("\n", messages(admin));
+			assertTrue(joined.contains("Last reload failed"));
+			assertTrue(joined.contains("command:dup"));
+			assertTrue(joined.contains("Reload diagnostic"));
+		} finally {
+			if (previousDir == null) {
+				System.clearProperty("singlescape.contentDir");
+			} else {
+				System.setProperty("singlescape.contentDir", previousDir);
+			}
+		}
+	}
+
 	// ─── Helpers ────────────────────────────────────────────────────────────
 
 	private void ensureCompiledFixtureSupport() throws Exception {

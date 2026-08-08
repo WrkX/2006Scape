@@ -190,7 +190,12 @@ public final class RuntimeActivationTransaction {
 				candidate.generation(),
 				candidate.registry().manifest.size(),
 				candidate.registry().definitions.size(),
-				candidate.registry().routes.size(), unload);
+				candidate.registry().routes.size(), unload, quarantine);
+	}
+
+	/** Bounded quarantine note from this transaction, or {@code null}. */
+	public String quarantineWarning() {
+		return quarantine;
 	}
 
 	/**
