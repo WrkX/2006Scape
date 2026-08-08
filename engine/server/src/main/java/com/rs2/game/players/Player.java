@@ -182,6 +182,8 @@ public abstract class Player {
 	}
 	
 	public int lastMainFrameInterface = -1; //Possibly used in future to prevent packet exploits
+	/** True when lastMainFrameInterface was opened through the scripted path. */
+	public boolean scriptHookArmed;
 
 	public int getXPRate() { return xpRate; }
 

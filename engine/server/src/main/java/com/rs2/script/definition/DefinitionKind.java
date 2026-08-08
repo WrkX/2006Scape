@@ -47,6 +47,9 @@ public enum DefinitionKind {
 	NPC_OVERLAY,
 
 	/** Cache object overlays keyed by numeric object id. */
-	OBJECT_OVERLAY
+	OBJECT_OVERLAY,
+
+	/** Interface hook packs keyed by stable string id. */
+	INTERFACE_HOOK
 
 }

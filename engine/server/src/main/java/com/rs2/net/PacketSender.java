@@ -371,6 +371,10 @@ public class PacketSender {
 			return this;
 		}
 		if (player.getOutStream() != null && player != null) {
+			// Legacy callers (e.g. quest detail interfaces) open main frames
+			// through this same packet; disarm any scripted hook so its button
+			// handlers do not intercept legacy clicks.
+			player.scriptHookArmed = false;
 			player.getOutStream().createFrame(97);
 			player.getOutStream().writeWord(interfaceid);
 			player.flushOutStream();
@@ -381,6 +385,7 @@ public class PacketSender {
 
 	public PacketSender sendFrame248(int MainFrame, int SubFrame) { //Trade-like interfaces
 		// synchronized(c) {
+		player.scriptHookArmed = false;
 		player.lastMainFrameInterface = MainFrame;
 		if (player.getOutStream() != null && player != null) {
 			player.getOutStream().createFrame(248);
@@ -392,6 +397,7 @@ public class PacketSender {
 	}
 
 	public PacketSender sendFrame246(int MainFrame, int SubFrame, int SubFrame2) { //A lot of generic interfaces; cooking, etc
+		player.scriptHookArmed = false;
 		player.lastMainFrameInterface = MainFrame;
 		// synchronized(c) {
 		if (player.getOutStream() != null && player != null) {
@@ -548,6 +554,7 @@ public class PacketSender {
 
 	public PacketSender closeAllWindows() {
 		player.lastMainFrameInterface = -1;
+		player.scriptHookArmed = false;
 		if (player.getOutStream() != null && player != null) {
 			player.getOutStream().createFrame(219);
 			player.flushOutStream();

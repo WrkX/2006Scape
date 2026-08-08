@@ -62,6 +62,8 @@ public class ClickingButtons implements PacketType {
 			return;
 		}
 		if (ScriptInteractionGate.isActionLocked(player)
+				|| com.rs2.script.interfacehook.ScriptInterfaceHookRuntime
+						.getInstance().handleButton(player, actionButtonId)
 				|| executeScriptButton(player, actionButtonId)) {
 			return;
 		}

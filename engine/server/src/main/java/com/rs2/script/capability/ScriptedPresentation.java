@@ -5,7 +5,9 @@ import org.graalvm.polyglot.HostAccess;
 import com.rs2.game.players.Player;
 import com.rs2.game.players.PlayerHandler;
 import com.rs2.net.PacketSender;
+import com.rs2.script.BridgeValidation;
 import com.rs2.script.ScriptEntityLimits;
+import com.rs2.script.interfacehook.ScriptInterfaceHookRuntime;
 import com.rs2.script.world.ScriptEncounterService;
 import com.rs2.game.shops.ShopHandler;
 import com.rs2.world.clip.PathFinder;
@@ -64,13 +66,30 @@ public final class ScriptedPresentation {
     public boolean showInterface(double interfaceValue) {
         Integer id = integral(interfaceValue, 0, 65535);
         if (id == null || !mutate() || player.getOutStream() == null) return false;
+        int previous = player.lastMainFrameInterface;
+        if (previous >= 0 && previous != id.intValue() && player.scriptHookArmed) {
+            // A scripted interface replacing another scripted one must run the
+            // old hook's onClose teardown.
+            ScriptInterfaceHookRuntime.getInstance().notifyClose(player,
+                    previous);
+        }
         player.getPacketSender().showInterface(id.intValue());
-        return player.lastMainFrameInterface == id.intValue();
+        boolean shown = player.lastMainFrameInterface == id.intValue();
+        if (shown) {
+            // Only interfaces shown through this scripted path arm their hook
+            // buttons; a legacy showInterface of the same id does not.
+            player.scriptHookArmed = true;
+            ScriptInterfaceHookRuntime.getInstance().notifyOpen(player,
+                    id.intValue());
+        }
+        return shown;
     }
 
     @HostAccess.Export
     public boolean closeInterfaces() {
         if (!mutate() || player.getOutStream() == null) return false;
+        ScriptInterfaceHookRuntime.getInstance().notifyClosingMainFrame(player);
+        player.scriptHookArmed = false;
         player.getPacketSender().closeAllWindows();
         return true;
     }
@@ -92,6 +111,28 @@ public final class ScriptedPresentation {
         if (component == null || item == null || zoom == null || !definition(item.intValue()) || !mutate()
                 || player.getOutStream() == null) return false;
         player.getPacketSender().sendItemOnInterface(item.intValue(), zoom.intValue(), component.intValue());
+        return true;
+    }
+
+    @HostAccess.Export
+    public boolean setConfig(double configValue, double stateValue) {
+        Integer config = integral(configValue, 0, 65535);
+        Integer state = BridgeValidation.integral(stateValue, -1_000_000,
+                1_000_000);
+        if (config == null || state == null || !mutate()
+                || player.getOutStream() == null) return false;
+        player.getPacketSender().sendConfig(config.intValue(), state.intValue());
+        return true;
+    }
+
+    @HostAccess.Export
+    public boolean setChildHidden(double componentValue, boolean hidden) {
+        Integer component = integral(componentValue, 0, 65535);
+        if (component == null || !mutate() || player.getOutStream() == null) {
+            return false;
+        }
+        player.getPacketSender().sendHideInterfaceLayer(component.intValue(),
+                hidden);
         return true;
     }
 

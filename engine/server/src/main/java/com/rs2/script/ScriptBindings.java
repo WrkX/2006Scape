@@ -57,6 +57,8 @@ public final class ScriptBindings {
 				consumeValue(functions.getDefineNpcOverlay()));
 		globals.putMember("defineObjectOverlay",
 				consumeValue(functions.getDefineObjectOverlay()));
+		globals.putMember("defineInterfaceHook",
+				consumeValue(functions.getDefineInterfaceHook()));
 		globals.putMember("registerContentModule",
 				biValue(functions.getRegisterContentModule()));
 		globals.putMember("onObject", triIntStr(functions.getOnObject()));

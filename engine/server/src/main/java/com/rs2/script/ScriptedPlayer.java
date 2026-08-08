@@ -189,6 +189,9 @@ public class ScriptedPlayer {
         if (!canMutate()) {
             return;
         }
+        com.rs2.script.interfacehook.ScriptInterfaceHookRuntime.getInstance()
+                .notifyClosingMainFrame(player);
+        player.scriptHookArmed = false;
         player.getPacketSender().closeAllWindows();
     }
 
@@ -200,8 +203,23 @@ public class ScriptedPlayer {
         if (!canMutate()) {
             return false;
         }
+        int previous = player.lastMainFrameInterface;
+        if (previous >= 0 && previous != interfaceId && player.scriptHookArmed) {
+            // A scripted interface replacing another scripted one must run the
+            // old hook's onClose teardown.
+            com.rs2.script.interfacehook.ScriptInterfaceHookRuntime
+                    .getInstance().notifyClose(player, previous);
+        }
         player.getPacketSender().showInterface(interfaceId);
-        return player.lastMainFrameInterface == interfaceId;
+        boolean shown = player.lastMainFrameInterface == interfaceId;
+        if (shown) {
+            // Only interfaces shown through this scripted path arm their hook
+            // buttons; a legacy showInterface of the same id does not.
+            player.scriptHookArmed = true;
+            com.rs2.script.interfacehook.ScriptInterfaceHookRuntime
+                    .getInstance().notifyOpen(player, interfaceId);
+        }
+        return shown;
     }
 
     @HostAccess.Export

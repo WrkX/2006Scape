@@ -263,6 +263,27 @@ public final class ScriptFunctions {
 	}
 
 	/**
+	 * Registers one canonical interface hook: button handlers and optional
+	 * open/close lifecycle for a single cache interface id. Buttons are
+	 * scoped to the player's main frame interface at click time.
+	 */
+	public Consumer<Value> getDefineInterfaceHook() {
+		return def -> {
+			requireObject("defineInterfaceHook", def);
+			com.rs2.script.interfacehook.InterfaceHookDefinition hook =
+					new com.rs2.script.interfacehook
+							.InterfaceHookDefinitionParser(
+							ModuleScope.currentSource(),
+							ModuleScope.currentSchemaVersion()).parse(def);
+			rejectDuplicateRecord("defineInterfaceHook(" + hook.id() + ")",
+					com.rs2.script.interfacehook
+							.InterfaceHookDefinitionRegistry.put(hook));
+			com.rs2.script.interfacehook.ScriptInterfaceHookRuntime
+					.getInstance().register(hook);
+		};
+	}
+
+	/**
 	 * Registers one canonical scripted shop: the guest payload is parsed
 	 * into a Java-owned typed descriptor with definition-backed items,
 	 * declared stock, prices, and restock policy. Opening routes are bound

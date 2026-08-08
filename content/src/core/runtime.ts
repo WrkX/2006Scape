@@ -230,6 +230,8 @@ export interface ScriptedPresentation {
   closeInterfaces(): boolean;
   setText(componentId: number, text: string): boolean;
   setItemModel(componentId: number, itemId: number, zoom: number): boolean;
+  setConfig(configId: number, state: number): boolean;
+  setChildHidden(componentId: number, hidden: boolean): boolean;
   openStaticShop(shopId: number): boolean;
   /**
    * Opens one Java-owned scripted shop definition by its stable string id.
@@ -597,6 +599,31 @@ export interface ObjectOverlayDefinition {
 export type DefineItemOverlay = (definition: ItemOverlayDefinition) => void;
 export type DefineNpcOverlay = (definition: NpcOverlayDefinition) => void;
 export type DefineObjectOverlay = (definition: ObjectOverlayDefinition) => void;
+
+/**
+ * Canonical schema-v1 interface hook passed to `defineInterfaceHook`.
+ *
+ * Button handlers run only while the hook's interface is the player's main
+ * frame. Use presentation helpers in {@link onOpen} to populate text.
+ */
+export interface InterfaceHookDefinition {
+  readonly id: string;
+  readonly interfaceId: number;
+  readonly buttons?: Readonly<Record<number, (context: ButtonScriptContext) => void>>;
+  readonly onOpen?: (context: InterfaceHookScriptContext) => void;
+  readonly onClose?: (context: InterfaceHookScriptContext) => void;
+}
+
+/** Lifecycle context for {@link InterfaceHookDefinition} open/close hooks. */
+export interface InterfaceHookScriptContext {
+  readonly player: ScriptedPlayer;
+  readonly target: null;
+  readonly action: "open" | "close";
+  readonly interfaceId: number;
+  readonly hookId: string;
+}
+
+export type DefineInterfaceHook = (definition: InterfaceHookDefinition) => void;
 
 export interface PlayerStateNamespace {
   has(key: string): boolean;
@@ -1082,4 +1109,5 @@ declare global {
   const defineItemOverlay: DefineItemOverlay;
   const defineNpcOverlay: DefineNpcOverlay;
   const defineObjectOverlay: DefineObjectOverlay;
+  const defineInterfaceHook: DefineInterfaceHook;
 }
