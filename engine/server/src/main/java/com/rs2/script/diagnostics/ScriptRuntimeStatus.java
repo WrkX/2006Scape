@@ -27,6 +27,8 @@ public final class ScriptRuntimeStatus {
 	private final int activeShops;
 	private final int activeRaidLobbies;
 	private final int activeRaidSessions;
+	private final int activeMinigameLobbies;
+	private final int activeMinigameSessions;
 	private final int activeResourceSessions;
 	private final int mappedQuestRows;
 
@@ -34,7 +36,8 @@ public final class ScriptRuntimeStatus {
 			int definitionCount, int routeCount, long scheduledTasks,
 			int activeEncounters, int activeBossSessions,
 			int activeAreaSessions, int activeShops, int activeRaidLobbies,
-			int activeRaidSessions, int activeResourceSessions,
+			int activeRaidSessions, int activeMinigameLobbies,
+			int activeMinigameSessions, int activeResourceSessions,
 			int mappedQuestRows) {
 		this.generation = generation;
 		this.moduleCount = moduleCount;
@@ -47,6 +50,8 @@ public final class ScriptRuntimeStatus {
 		this.activeShops = activeShops;
 		this.activeRaidLobbies = activeRaidLobbies;
 		this.activeRaidSessions = activeRaidSessions;
+		this.activeMinigameLobbies = activeMinigameLobbies;
+		this.activeMinigameSessions = activeMinigameSessions;
 		this.activeResourceSessions = activeResourceSessions;
 		this.mappedQuestRows = mappedQuestRows;
 	}
@@ -93,6 +98,14 @@ public final class ScriptRuntimeStatus {
 
 	public int activeRaidSessions() {
 		return activeRaidSessions;
+	}
+
+	public int activeMinigameLobbies() {
+		return activeMinigameLobbies;
+	}
+
+	public int activeMinigameSessions() {
+		return activeMinigameSessions;
 	}
 
 	public int activeResourceSessions() {

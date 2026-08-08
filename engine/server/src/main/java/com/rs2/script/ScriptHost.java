@@ -271,6 +271,10 @@ public final class ScriptHost {
 				.lobbyCount();
 		int raidSessions = com.rs2.script.raid.ScriptRaidRuntime.getInstance()
 				.sessionCount();
+		int minigameLobbies = com.rs2.script.minigame.ScriptMinigameRuntime
+				.getInstance().lobbyCount();
+		int minigameSessions = com.rs2.script.minigame.ScriptMinigameRuntime
+				.getInstance().sessionCount();
 		int resources = com.rs2.script.resource.ScriptResourceRuntime
 				.getInstance().sessionCount();
 		int journalRows = com.rs2.script.quest.ScriptQuestJournalService
@@ -278,7 +282,8 @@ public final class ScriptHost {
 		return new ScriptRuntimeStatus(generation,
 				state.manifest.size(), state.definitions.size(),
 				state.routes.size(), scheduled, encounters, bosses, areas,
-				shops, raidLobbies, raidSessions, resources, journalRows);
+				shops, raidLobbies, raidSessions, minigameLobbies,
+				minigameSessions, resources, journalRows);
 	}
 
 	/**
@@ -410,6 +415,11 @@ public final class ScriptHost {
 			long previousGeneration =
 					previous == null ? 0L : previous.generation;
 
+			String commitQuarantine = transaction.quarantineWarning();
+			if (commitQuarantine != null) {
+				appendDiagnostic("script reload quarantined: "
+						+ commitQuarantine);
+			}
 			HookResult loadFailure = transaction.runLoadObservers();
 			if (loadFailure != null && loadFailure.threw()) {
 				appendDiagnostic("script reload onLoad observer failed for "

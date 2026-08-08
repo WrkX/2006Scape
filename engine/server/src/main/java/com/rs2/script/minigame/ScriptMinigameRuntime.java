@@ -95,7 +95,7 @@ public final class ScriptMinigameRuntime {
 			if (session.generation != generation) {
 				continue;
 			}
-			tickSession(session, generation);
+			tickSession(session);
 		}
 	}
 
@@ -173,7 +173,7 @@ public final class ScriptMinigameRuntime {
 				if ("join".equals(subcommand)) {
 					join(definition, player);
 				} else if ("leave".equals(subcommand)) {
-					leave(definition, player);
+					leave(definition, player, true);
 				} else if ("start".equals(subcommand)) {
 					start(definition, player);
 				} else {
@@ -217,43 +217,59 @@ public final class ScriptMinigameRuntime {
 		message(player, "You joined the " + definition.name() + " lobby.");
 	}
 
-	private void leave(MinigameDefinition definition, Player player) {
-		Session session;
+	private void leave(MinigameDefinition definition, Player player,
+			boolean teleportDepartingPlayer) {
+		Session sessionToFinish = null;
+		String wipeReason = null;
+		boolean found = false;
 		synchronized (this) {
-			session = sessions.get(definition.id());
+			Session session = sessions.get(definition.id());
 			if (session != null && session.members.containsKey(player)) {
 				session.members.remove(player);
 				memberships.remove(player);
-				if (session.members.isEmpty()) {
-					wipeSessionLocked(session, "all members left");
-				} else if (session.phase == PHASE_RUNNING) {
-					wipeSessionLocked(session, "a member left during the game");
-				}
+				found = true;
 				message(player, "You left the minigame.");
-				return;
-			}
-			Lobby lobby = lobbies.get(definition.id());
-			if (lobby != null && lobby.members.remove(player) != null) {
-				memberships.remove(player);
-				if (lobby.members.isEmpty()) {
-					lobbies.remove(definition.id());
+				if (session.phase == PHASE_RUNNING) {
+					String reason = session.members.isEmpty()
+							? "all members left"
+							: "a member left during the game";
+					wipeSessionLocked(session, reason);
+					session.wipeFinished = true;
+					sessionToFinish = session;
+					wipeReason = reason;
 				}
-				message(player, "You left the minigame lobby.");
-				return;
+			} else {
+				Lobby lobby = lobbies.get(definition.id());
+				if (lobby != null && lobby.members.remove(player) != null) {
+					memberships.remove(player);
+					found = true;
+					if (lobby.members.isEmpty()) {
+						lobbies.remove(definition.id());
+					}
+					message(player, "You left the minigame lobby.");
+				}
 			}
 		}
-		message(player, "You are not in this minigame.");
+		if (sessionToFinish != null) {
+			finishWipe(sessionToFinish, wipeReason,
+					teleportDepartingPlayer ? player : null);
+			return;
+		}
+		if (!found) {
+			message(player, "You are not in this minigame.");
+		}
 	}
 
 	private void start(MinigameDefinition definition, Player player) {
 		List<Player> roster;
 		long generation;
+		Lobby lobby;
 		synchronized (this) {
 			if (sessions.containsKey(definition.id())) {
 				message(player, "A minigame session is already active.");
 				return;
 			}
-			Lobby lobby = lobbies.get(definition.id());
+			lobby = lobbies.get(definition.id());
 			if (lobby == null) {
 				message(player, "No minigame lobby is open.");
 				return;
@@ -301,21 +317,24 @@ public final class ScriptMinigameRuntime {
 				return;
 			}
 		}
+		Session session;
+		synchronized (this) {
+			Lobby current = lobbies.get(definition.id());
+			if (current != lobby || sessions.containsKey(definition.id())) {
+				handle.close();
+				message(player,
+						"The minigame could not start; try again.");
+				return;
+			}
+			lobbies.remove(definition.id());
+			session = new Session(definition, generation, handle, roster);
+			sessions.put(definition.id(), session);
+		}
 		for (Player member : roster) {
 			ScriptedPlayer scripted = new ScriptedPlayer(member, generation);
 			scripted.teleport(definition.entranceX(), definition.entranceY(),
 					definition.entrancePlane());
 			resetScore(definition, scripted);
-		}
-		Session session;
-		synchronized (this) {
-			Lobby lobby = lobbies.remove(definition.id());
-			if (lobby == null) {
-				handle.close();
-				return;
-			}
-			session = new Session(definition, generation, handle, roster);
-			sessions.put(definition.id(), session);
 		}
 		runCallback(definition.onStart(), session, -1, "onStart");
 		beginWave(session, 0);
@@ -325,30 +344,54 @@ public final class ScriptMinigameRuntime {
 		if (lobby.definition.lobbyWaitTicks() <= 0) {
 			return;
 		}
-		lobby.waitTicks++;
-		if (lobby.waitTicks < lobby.definition.lobbyWaitTicks()) {
-			return;
-		}
-		if (lobby.members.size() < lobby.definition.minPlayers()) {
+		synchronized (this) {
+			if (lobbies.get(lobby.definition.id()) != lobby) {
+				return;
+			}
+			lobby.waitTicks++;
+			if (lobby.waitTicks < lobby.definition.lobbyWaitTicks()) {
+				return;
+			}
+			if (lobby.members.size() < lobby.definition.minPlayers()) {
+				lobby.waitTicks = 0;
+				return;
+			}
+			// Reset so a failed start waits another full lobbyWaitTicks
+			// instead of retrying every game tick.
 			lobby.waitTicks = 0;
-			return;
 		}
-		Player starter = lobby.members.keySet().iterator().next();
+		Player starter;
+		synchronized (this) {
+			if (lobbies.get(lobby.definition.id()) != lobby
+					|| lobby.members.isEmpty()) {
+				return;
+			}
+			starter = lobby.members.keySet().iterator().next();
+		}
 		start(lobby.definition, starter);
 	}
 
-	private void tickSession(Session session, long generation) {
+	private void tickSession(Session session) {
 		TickAction action = null;
+		int startedWave = -1;
 		synchronized (this) {
-			if (session.phase != PHASE_RUNNING) {
-				return;
-			}
-			session.elapsedTicks++;
-			if (session.elapsedTicks > session.definition.timeLimitTicks()) {
-				wipeSessionLocked(session, "time expired");
+			if (session.phase == PHASE_WIPED) {
+				if (session.wipeFinished) {
+					return;
+				}
+				session.wipeFinished = true;
 				action = TickAction.WIPED;
-			} else if (waveCleared(session)) {
-				action = TickAction.WAVE_CLEARED;
+			} else if (session.phase != PHASE_RUNNING) {
+				return;
+			} else {
+				session.elapsedTicks++;
+				if (session.elapsedTicks > session.definition.timeLimitTicks()) {
+					wipeSessionLocked(session, "time expired");
+					session.wipeFinished = true;
+					action = TickAction.WIPED;
+				} else if (waveCleared(session)) {
+					action = TickAction.WAVE_CLEARED;
+				}
 			}
 		}
 		if (action == TickAction.WAVE_CLEARED) {
@@ -362,10 +405,20 @@ public final class ScriptMinigameRuntime {
 				if (nextWave >= session.definition.waves().size()) {
 					completeSessionLocked(session);
 					action = TickAction.COMPLETED;
+				} else if (beginWaveLocked(session, nextWave)) {
+					wipeSessionLocked(session, "wave npcs failed to spawn");
+					session.wipeFinished = true;
+					action = TickAction.WIPED;
 				} else {
-					beginWaveLocked(session, nextWave);
+					startedWave = nextWave;
+					action = TickAction.WAVE_STARTED;
 				}
 			}
+		}
+		if (action == TickAction.WAVE_STARTED) {
+			runCallback(session.definition.onWaveStart(), session, startedWave,
+					"onWaveStart");
+			return;
 		}
 		if (action == TickAction.COMPLETED) {
 			runCallback(session.definition.onComplete(), session, -1,
@@ -375,9 +428,7 @@ public final class ScriptMinigameRuntime {
 			return;
 		}
 		if (action == TickAction.WIPED) {
-			runWipeCallback(session, session.wipeReason);
-			teleportMembersToLeave(session);
-			closeSession(session, null);
+			finishWipe(session, session.wipeReason);
 			return;
 		}
 		TickStatus status = runTickCallback(session);
@@ -385,21 +436,42 @@ public final class ScriptMinigameRuntime {
 			synchronized (this) {
 				if (session.phase == PHASE_RUNNING) {
 					wipeSessionLocked(session, status.reason);
+					session.wipeFinished = true;
+				} else if (session.wipeFinished) {
+					return;
+				} else {
+					session.wipeFinished = true;
 				}
 			}
-			runWipeCallback(session, session.wipeReason);
-			teleportMembersToLeave(session);
-			closeSession(session, null);
+			finishWipe(session, session.wipeReason != null
+					? session.wipeReason : status.reason);
 		}
 	}
 
 	private void beginWave(Session session, int waveIndex) {
+		boolean spawnFailed;
 		synchronized (this) {
-			beginWaveLocked(session, waveIndex);
+			spawnFailed = beginWaveLocked(session, waveIndex);
 		}
+		if (spawnFailed) {
+			synchronized (this) {
+				if (session.phase == PHASE_RUNNING) {
+					wipeSessionLocked(session, "wave npcs failed to spawn");
+					session.wipeFinished = true;
+				}
+			}
+			finishWipe(session, session.wipeReason);
+			return;
+		}
+		runCallback(session.definition.onWaveStart(), session, waveIndex,
+				"onWaveStart");
 	}
 
-	private void beginWaveLocked(Session session, int waveIndex) {
+	/**
+	 * Spawns the wave NPCs. Returns {@code true} when no NPCs were spawned.
+	 * Guest callbacks must not run while the caller holds the runtime monitor.
+	 */
+	private boolean beginWaveLocked(Session session, int waveIndex) {
 		session.waveIndex = waveIndex;
 		session.waveTicks = 0;
 		session.waveNpcs.clear();
@@ -415,8 +487,7 @@ public final class ScriptMinigameRuntime {
 				session.waveNpcs.add(npc);
 			}
 		}
-		runCallback(session.definition.onWaveStart(), session, waveIndex,
-				"onWaveStart");
+		return session.waveNpcs.isEmpty();
 	}
 
 	private boolean waveCleared(Session session) {
@@ -440,6 +511,19 @@ public final class ScriptMinigameRuntime {
 		session.wipeReason = reason;
 	}
 
+	private void finishWipe(Session session, String reason) {
+		finishWipe(session, reason, null);
+	}
+
+	private void finishWipe(Session session, String reason,
+			Player departingPlayer) {
+		runWipeCallback(session, reason == null
+				? "the minigame failed" : reason);
+		teleportPlayerToLeave(session, departingPlayer);
+		teleportMembersToLeave(session);
+		closeSession(session, null);
+	}
+
 	private void closeSession(Session session, String reason) {
 		if (reason != null) {
 			runWipeCallback(session, reason);
@@ -449,50 +533,63 @@ public final class ScriptMinigameRuntime {
 			session.handle.close();
 		}
 		synchronized (this) {
+			if (sessions.get(session.definition.id()) != session) {
+				return;
+			}
 			for (Player member : session.members.keySet()) {
 				memberships.remove(member);
 			}
 			sessions.remove(session.definition.id());
+			session.wipeFinished = true;
 		}
 	}
 
 	private void closeLobbyLocked(Lobby lobby) {
-		synchronized (this) {
-			for (Player member : lobby.members.keySet()) {
-				memberships.remove(member);
-			}
-			lobbies.remove(lobby.definition.id());
+		for (Player member : lobby.members.keySet()) {
+			memberships.remove(member);
 		}
+		lobbies.remove(lobby.definition.id());
 	}
 
 	private void handleDeparture(Player player) {
 		if (player == null) {
 			return;
 		}
-		String minigameId;
+		MinigameDefinition definition = null;
 		synchronized (this) {
-			minigameId = memberships.remove(player);
+			String minigameId = memberships.get(player);
+			if (minigameId == null) {
+				return;
+			}
+			Session session = sessions.get(minigameId);
+			if (session != null) {
+				definition = session.definition;
+			} else {
+				Lobby lobby = lobbies.get(minigameId);
+				if (lobby != null) {
+					definition = lobby.definition;
+				} else {
+					memberships.remove(player);
+					return;
+				}
+			}
 		}
-		if (minigameId == null) {
-			return;
-		}
-		MinigameDefinition definition = MinigameDefinitionRegistry.get(minigameId);
-		if (definition == null) {
-			return;
-		}
-		leave(definition, player);
+		leave(definition, player, false);
 	}
 
 	private void teleportMembersToLeave(Session session) {
 		for (Player member : session.members.keySet()) {
-			if (!isLive(member)) {
-				continue;
-			}
-			new ScriptedPlayer(member, session.generation).teleport(
-					session.definition.leaveX(),
-					session.definition.leaveY(),
-					session.definition.leavePlane());
+			teleportPlayerToLeave(session, member);
 		}
+	}
+
+	private void teleportPlayerToLeave(Session session, Player player) {
+		if (!isLive(player)) {
+			return;
+		}
+		new ScriptedPlayer(player, session.generation).teleport(
+				session.definition.leaveX(), session.definition.leaveY(),
+				session.definition.leavePlane());
 	}
 
 	private void resetScore(MinigameDefinition definition,
@@ -600,6 +697,7 @@ public final class ScriptMinigameRuntime {
 		private int waveTicks;
 		private int elapsedTicks;
 		private String wipeReason;
+		private boolean wipeFinished;
 
 		private Session(MinigameDefinition definition, long generation,
 				ScriptEncounterHandle handle, List<Player> roster) {
@@ -614,6 +712,7 @@ public final class ScriptMinigameRuntime {
 
 	private enum TickAction {
 		WAVE_CLEARED,
+		WAVE_STARTED,
 		COMPLETED,
 		WIPED
 	}

@@ -109,15 +109,17 @@ public final class RuntimeActivationTransaction {
 		// Mandatory-commit region: no abort, no rollback, no fallible
 		// injection point may intervene before the host publishes.
 		HookResult unload = runUnloadObservers();
-		ScriptRuntimeReport report = buildReport(unload);
-		RuntimeSnapshot published = candidate.withReport(report);
+		ScriptRuntimeReport provisional = buildReport(unload);
+		RuntimeSnapshot published = candidate.withReport(provisional);
 		try {
 			projections.commitSelection(published);
 		} catch (Throwable failure) {
 			quarantine("projection commit selection degraded: "
 					+ bound(failure));
 		}
-		return published;
+		// Rebuild after commitSelection so any quarantine raised there is
+		// visible on the published report the host installs.
+		return candidate.withReport(buildReport(unload));
 	}
 
 	/**

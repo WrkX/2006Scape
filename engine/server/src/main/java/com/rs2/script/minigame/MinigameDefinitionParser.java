@@ -69,7 +69,7 @@ public final class MinigameDefinitionParser {
 		int timeLimitTicks = integral(required(value, "timeLimitTicks"), 1,
 				MAX_TIME_LIMIT_TICKS, "timeLimitTicks");
 		List<MinigameWaveDefinition> waves = parseWaves(
-				required(value, "waves"), arenaArea.bounds().plane());
+				required(value, "waves"), arenaArea.bounds());
 		MinigameScoreDefinition score = parseScore(value.getMember("score"));
 		Value onStart = optionalExecutable(value.getMember("onStart"),
 				"onStart");
@@ -92,7 +92,7 @@ public final class MinigameDefinitionParser {
 	}
 
 	private List<MinigameWaveDefinition> parseWaves(Value array,
-			int defaultPlane) {
+			AreaBounds arenaBounds) {
 		requireBoundedArray(array, "waves", MAX_WAVES);
 		List<MinigameWaveDefinition> waves =
 				new ArrayList<MinigameWaveDefinition>();
@@ -113,20 +113,21 @@ public final class MinigameDefinitionParser {
 				throw failure("duplicate wave id '" + waveId + "'");
 			}
 			waves.add(new MinigameWaveDefinition(waveId,
-					parseSpawns(required(entry, "npcs"), defaultPlane,
+					parseSpawns(required(entry, "npcs"), arenaBounds,
 							"waves[" + index + "].npcs")));
 		}
 		return waves;
 	}
 
-	private List<MinigameWaveSpawn> parseSpawns(Value array, int defaultPlane,
-			String label) {
+	private List<MinigameWaveSpawn> parseSpawns(Value array,
+			AreaBounds arenaBounds, String label) {
 		requireBoundedArray(array, label, MAX_SPAWNS_PER_WAVE);
 		List<MinigameWaveSpawn> spawns = new ArrayList<MinigameWaveSpawn>();
 		long size = array.getArraySize();
 		if (size < 1) {
 			throw failure(label + " must contain at least one spawn");
 		}
+		int defaultPlane = arenaBounds.plane();
 		for (long index = 0; index < size; index++) {
 			Value entry = array.getArrayElement(index);
 			if (entry == null || !entry.hasMembers()) {
@@ -145,6 +146,10 @@ public final class MinigameDefinitionParser {
 			if (hasMember(entry, "plane")) {
 				plane = integral(required(entry, "plane"), 0, 3,
 						label + "[" + index + "].plane");
+			}
+			if (!arenaBounds.contains(x, y, plane)) {
+				throw failure(label + "[" + index
+						+ "] must lie inside the arena area bounds");
 			}
 			spawns.add(new MinigameWaveSpawn(npcId, x, y, plane));
 		}

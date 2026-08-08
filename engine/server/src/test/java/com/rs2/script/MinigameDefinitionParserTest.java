@@ -76,6 +76,21 @@ public class MinigameDefinitionParserTest {
 		}
 	}
 
+	@Test(expected = IllegalArgumentException.class)
+	public void rejectsSpawnOutsideArenaBounds() {
+		parseWithAreas(context.eval("js", "({"
+				+ "id:'wave-demo',"
+				+ "command:'wave-demo',"
+				+ "lobbyAreaId:'wave-demo-lobby',"
+				+ "arenaAreaId:'wave-demo-arena',"
+				+ "entrance:{x:3220,y:3220,plane:0},"
+				+ "leave:{x:3218,y:3218,plane:0},"
+				+ "minPlayers:1,maxPlayers:1,lobbyWaitTicks:0,"
+				+ "timeLimitTicks:100,"
+				+ "waves:[{id:'one',npcs:[{npcId:1,x:4000,y:4000}]}]"
+				+ "})"));
+	}
+
 	private MinigameDefinition parseWithAreas(Value definition) {
 		RegistryStore.State candidate = RegistryStore.beginStaging();
 		try {

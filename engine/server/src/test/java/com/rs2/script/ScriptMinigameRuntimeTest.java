@@ -82,6 +82,39 @@ public class ScriptMinigameRuntimeTest {
 		assertEquals(0, ScriptMinigameRuntime.getInstance().sessionCount());
 	}
 
+	@Test
+	public void leaveDuringSessionWipesAndClearsRuntime() {
+		minigameCommand(player, "join");
+		minigameCommand(player, "start");
+		assertEquals(1, ScriptMinigameRuntime.getInstance().sessionCount());
+
+		minigameCommand(player, "leave");
+		assertEquals(MIN_X, player.absX);
+		assertEquals(MIN_Y, player.absY);
+		assertEquals(PLANE, player.heightLevel);
+		assertEquals(0, ScriptMinigameRuntime.getInstance().sessionCount());
+		assertEquals(0, ScriptMinigameRuntime.getInstance().membershipCount());
+		assertEquals(1, context.getBindings("js").getMember("wipes").asInt());
+
+		// Minigame id must be reusable after leave wipe.
+		minigameCommand(player, "join");
+		assertEquals(1, ScriptMinigameRuntime.getInstance().lobbyCount());
+		assertEquals(1, ScriptMinigameRuntime.getInstance().membershipCount());
+	}
+
+	@Test
+	public void deathDuringSessionWipesAndClearsRuntime() {
+		minigameCommand(player, "join");
+		minigameCommand(player, "start");
+		assertEquals(1, ScriptMinigameRuntime.getInstance().sessionCount());
+
+		player.isDead = true;
+		ScriptMinigameRuntime.getInstance().onPlayerDeath(player);
+		assertEquals(0, ScriptMinigameRuntime.getInstance().sessionCount());
+		assertEquals(0, ScriptMinigameRuntime.getInstance().membershipCount());
+		assertEquals(1, context.getBindings("js").getMember("wipes").asInt());
+	}
+
 	private boolean hasAliveWaveNpc() {
 		for (Npc npc : NpcHandler.npcs) {
 			if (npc != null && !npc.isDead && npc.HP > 0) {
@@ -104,7 +137,7 @@ public class ScriptMinigameRuntimeTest {
 		RegistryStore.State candidate = RegistryStore.beginStaging();
 		try {
 			context.eval("js", "globalThis.starts = 0; globalThis.waveCompletes = 0;"
-					+ "globalThis.completed = 0;");
+					+ "globalThis.completed = 0; globalThis.wipes = 0;");
 			ScriptFunctions.getInstance().getDefineArea().accept(context
 					.eval("js", "({id:'test-wave-lobby',name:'Lobby',"
 							+ "bounds:{minX:" + MIN_X + ",minY:" + MIN_Y
@@ -126,6 +159,7 @@ public class ScriptMinigameRuntimeTest {
 							+ "onStart:function(){globalThis.starts++;},"
 							+ "onWaveComplete:function(){globalThis.waveCompletes++;},"
 							+ "onComplete:function(){globalThis.completed++;},"
+							+ "onWipe:function(){globalThis.wipes++;},"
 							+ "waves:["
 							+ "{id:'one',npcs:[{npcId:153,x:3220,y:3222}]},"
 							+ "{id:'two',npcs:[{npcId:153,x:3222,y:3222}]}"

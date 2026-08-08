@@ -112,6 +112,8 @@ public final class ScriptAdminCommands {
 				+ " areas, " + status.activeShops() + " shops, "
 				+ status.activeRaidLobbies() + " raid lobbies, "
 				+ status.activeRaidSessions() + " raid sessions, "
+				+ status.activeMinigameLobbies() + " minigame lobbies, "
+				+ status.activeMinigameSessions() + " minigame sessions, "
 				+ status.activeResourceSessions() + " resource sessions");
 		message(player, "Script journal: " + status.mappedQuestRows()
 				+ " scripted quest rows");
