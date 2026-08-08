@@ -1,5 +1,6 @@
 package com.rs2.script;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -74,7 +75,25 @@ public class OverlayDefinitionParserTest {
 				overlay.examine());
 		assertEquals("weapon", overlay.equipSlot());
 		assertNotNull(overlay.requirements());
+		assertArrayEquals("only attack is declared, the rest are absent",
+				new boolean[] { true, false, false, false, false, false,
+						false }, overlay.requirementPresence());
 		assertEquals(4, overlay.bonuses()[0]);
+	}
+
+	@Test
+	public void partialRequirementsTrackOnlyDeclaredSkills() {
+		registerItem("{id:'defence-only',itemId:" + CUSTOM_ITEM
+				+ ",requirements:{defence:20}}");
+
+		ItemOverlayDefinition overlay = ItemOverlayDefinitionRegistry
+				.get(CUSTOM_ITEM);
+		assertNotNull(overlay);
+		assertNotNull(overlay.requirements());
+		assertArrayEquals("only defence is declared",
+				new boolean[] { false, false, true, false, false, false,
+						false }, overlay.requirementPresence());
+		assertEquals(20, overlay.requirements()[2]);
 	}
 
 	@Test

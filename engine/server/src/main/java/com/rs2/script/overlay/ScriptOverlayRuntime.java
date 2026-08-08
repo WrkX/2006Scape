@@ -117,16 +117,19 @@ public final class ScriptOverlayRuntime {
 		for (ItemOverlayDefinition overlay
 				: new TreeMap<Integer, ItemOverlayDefinition>(items)
 						.values()) {
-			applyItemOverlay(overlay, mergeLog);
+			// Record the id before applying: each apply captures its baseline on
+			// its first line, so a mid-apply throw leaves the id recorded and the
+			// next closeGeneration reverts even a partially-mutated definition.
 			appliedItems.add(Integer.valueOf(overlay.itemId()));
+			applyItemOverlay(overlay, mergeLog);
 		}
 
 		Map<Integer, NpcOverlayDefinition> npcs = ScriptHost.getInstance()
 				.readActiveRegistry(NpcOverlayDefinitionRegistry::all);
 		for (NpcOverlayDefinition overlay
 				: new TreeMap<Integer, NpcOverlayDefinition>(npcs).values()) {
-			applyNpcOverlay(overlay, mergeLog);
 			appliedNpcs.add(Integer.valueOf(overlay.npcId()));
+			applyNpcOverlay(overlay, mergeLog);
 		}
 
 		Map<Integer, ObjectOverlayDefinition> objects = ScriptHost.getInstance()
@@ -134,8 +137,8 @@ public final class ScriptOverlayRuntime {
 		for (ObjectOverlayDefinition overlay
 				: new TreeMap<Integer, ObjectOverlayDefinition>(objects)
 						.values()) {
-			applyObjectOverlay(overlay, mergeLog);
 			appliedObjects.add(Integer.valueOf(overlay.objectId()));
+			applyObjectOverlay(overlay, mergeLog);
 		}
 
 		for (String line : mergeLog) {
@@ -193,17 +196,42 @@ public final class ScriptOverlayRuntime {
 		}
 		if (overlay.requirements() != null || overlay.equipSlot() != null) {
 			EquipmentDefinition equipment = EquipmentDefinition.ensure(itemId);
-			if (overlay.requirements() != null) {
-				int[] levels = overlay.requirements();
-				equipment.setLevels(levels[0], levels[1], levels[2],
-						levels[3], levels[4], levels[5], levels[6]);
-			}
 			if (overlay.equipSlot() != null) {
 				equipment.setSlot(equipSlotIndex(overlay.equipSlot()));
 			}
+			if (overlay.requirements() != null) {
+				// Merge only the skills the overlay declares over the existing
+				// cache requirements, rather than replacing all seven.
+				boolean[] present = overlay.requirementPresence();
+				int[] levels = overlay.requirements();
+				int[] merged = {
+						equipment.getAttackLevel(), equipment.getStrengthLevel(),
+						equipment.getDefenceLevel(), equipment.getHitpointsLevel(),
+						equipment.getRangedLevel(), equipment.getPrayerLevel(),
+						equipment.getMagicLevel()
+				};
+				if (present != null) {
+					for (int index = 0; index < merged.length; index++) {
+						if (index < present.length && present[index]) {
+							merged[index] = levels[index];
+						}
+					}
+				}
+				equipment.setLevels(merged[0], merged[1], merged[2], merged[3],
+						merged[4], merged[5], merged[6]);
+			}
 		}
 		if (overlay.bonuses() != null) {
-			ItemDefinitions.applyOverlay(itemId, overlay.bonuses());
+			// Merge each declared bonus over the current cache value. A declared
+			// 0 is indistinguishable from absent and means "make it 0".
+			int[] existing = ItemDefinitions.copyBonus(itemId);
+			int[] overlayBonuses = overlay.bonuses();
+			int[] merged = new int[overlayBonuses.length];
+			for (int index = 0; index < merged.length; index++) {
+				merged[index] = overlayBonuses[index] != 0
+						? overlayBonuses[index] : existing[index];
+			}
+			ItemDefinitions.applyOverlay(itemId, merged);
 		}
 		mergeLog.add("[overlay] item " + itemId + " <- '" + overlay.id()
 				+ "' (source: " + overlay.source() + ")");

@@ -94,7 +94,7 @@ final class OverlayParserSupport {
 		return Boolean.valueOf(value.asBoolean());
 	}
 
-	static int[] optionalRequirementLevels(Value value, String label) {
+	static LevelPresence optionalRequirementLevels(Value value, String label) {
 		if (value == null || value.isNull()) {
 			return null;
 		}
@@ -104,20 +104,22 @@ final class OverlayParserSupport {
 		only(value, label + ".requirements", "attack", "strength", "defence",
 				"hitpoints", "ranged", "prayer", "magic");
 		int[] levels = new int[7];
-		levels[0] = readOptionalLevel(value, label, "attack", 1, 99);
-		levels[1] = readOptionalLevel(value, label, "strength", 1, 99);
-		levels[2] = readOptionalLevel(value, label, "defence", 1, 99);
-		levels[3] = readOptionalLevel(value, label, "hitpoints", 1, 99);
-		levels[4] = readOptionalLevel(value, label, "ranged", 1, 99);
-		levels[5] = readOptionalLevel(value, label, "prayer", 1, 99);
-		levels[6] = readOptionalLevel(value, label, "magic", 1, 99);
-		return levels;
+		boolean[] present = new boolean[7];
+		levels[0] = readOptionalLevel(value, label, "attack", present, 0, 1, 99);
+		levels[1] = readOptionalLevel(value, label, "strength", present, 1, 1, 99);
+		levels[2] = readOptionalLevel(value, label, "defence", present, 2, 1, 99);
+		levels[3] = readOptionalLevel(value, label, "hitpoints", present, 3, 1, 99);
+		levels[4] = readOptionalLevel(value, label, "ranged", present, 4, 1, 99);
+		levels[5] = readOptionalLevel(value, label, "prayer", present, 5, 1, 99);
+		levels[6] = readOptionalLevel(value, label, "magic", present, 6, 1, 99);
+		return new LevelPresence(levels, present);
 	}
 
 	private static int readOptionalLevel(Value parent, String label,
-			String member, int min, int max) {
-		if (!hasMember(parent, member)) {
-			return 1;
+			String member, boolean[] present, int index, int min, int max) {
+		present[index] = hasMember(parent, member);
+		if (!present[index]) {
+			return 0;
 		}
 		return integral(parent.getMember(member), label, member, min, max);
 	}
@@ -229,5 +231,21 @@ final class OverlayParserSupport {
 	static IllegalArgumentException failure(String label, String message) {
 		return new IllegalArgumentException("Script registration " + label
 				+ ": " + message);
+	}
+
+	/**
+	 * Skill requirement levels plus a per-slot presence mask so an overlay can
+	 * merge only the skills it declares over an existing cache definition.
+	 * Absent slots carry {@code 0} in {@code levels} and {@code false} in
+	 * {@code present}.
+	 */
+	static final class LevelPresence {
+		final int[] levels;
+		final boolean[] present;
+
+		LevelPresence(int[] levels, boolean[] present) {
+			this.levels = levels;
+			this.present = present;
+		}
 	}
 }

@@ -16,14 +16,15 @@ public final class ItemOverlayDefinition {
 	private final Boolean stackable;
 	private final String equipSlot;
 	private final int[] requirements;
+	private final boolean[] requirementPresence;
 	private final int[] bonuses;
 	private final String source;
 	private final int schemaVersion;
 
 	public ItemOverlayDefinition(String id, int itemId, String name,
 			String examine, Boolean stackable, String equipSlot,
-			int[] requirements, int[] bonuses, String source,
-			int schemaVersion) {
+			int[] requirements, boolean[] requirementPresence, int[] bonuses,
+			String source, int schemaVersion) {
 		this.id = id;
 		this.itemId = itemId;
 		this.name = name;
@@ -31,6 +32,7 @@ public final class ItemOverlayDefinition {
 		this.stackable = stackable;
 		this.equipSlot = equipSlot;
 		this.requirements = requirements;
+		this.requirementPresence = requirementPresence;
 		this.bonuses = bonuses;
 		this.source = source;
 		this.schemaVersion = schemaVersion;
@@ -62,10 +64,20 @@ public final class ItemOverlayDefinition {
 
 	/**
 	 * Skill requirements in attack, strength, defence, hitpoints, ranged,
-	 * prayer, magic order, or {@code null} when unset.
+	 * prayer, magic order, or {@code null} when unset. Absent skills carry
+	 * {@code 0} and are merged over the existing cache definition.
 	 */
 	public int[] requirements() {
 		return requirements;
+	}
+
+	/**
+	 * Per-slot presence mask for {@link #requirements()}: {@code true} where
+	 * the overlay declares that skill, or {@code null} when requirements are
+	 * unset. Absent skills are not written to the cache item.
+	 */
+	public boolean[] requirementPresence() {
+		return requirementPresence;
 	}
 
 	/**

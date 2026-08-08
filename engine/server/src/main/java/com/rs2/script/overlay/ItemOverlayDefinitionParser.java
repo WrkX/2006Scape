@@ -42,8 +42,12 @@ public final class ItemOverlayDefinitionParser {
 				OverlayParserSupport.optionalBoundedString(
 						value.getMember("equipSlot"), label, "equipSlot", 16),
 				label);
-		int[] requirements = OverlayParserSupport.optionalRequirementLevels(
-				value.getMember("requirements"), label);
+		OverlayParserSupport.LevelPresence presence =
+				OverlayParserSupport.optionalRequirementLevels(
+						value.getMember("requirements"), label);
+		int[] requirements = presence == null ? null : presence.levels;
+		boolean[] requirementPresence =
+				presence == null ? null : presence.present;
 		int[] bonuses = OverlayParserSupport.optionalBonuses(
 				value.getMember("bonuses"), label);
 		if (name == null && examine == null && stackable == null
@@ -53,7 +57,8 @@ public final class ItemOverlayDefinitionParser {
 		}
 		rejectDuplicateStableId(id, itemId);
 		return new ItemOverlayDefinition(id, itemId, name, examine, stackable,
-				equipSlot, requirements, bonuses, source, schemaVersion);
+				equipSlot, requirements, requirementPresence, bonuses, source,
+				schemaVersion);
 	}
 
 	private void requireLoadedItem(int itemId) {
