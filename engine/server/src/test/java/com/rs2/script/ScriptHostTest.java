@@ -121,6 +121,11 @@ public class ScriptHostTest {
 					.get(35000));
 			assertNotNull(com.rs2.script.overlay.ObjectOverlayDefinitionRegistry
 					.get(35000));
+			assertNotNull(com.rs2.script.interfacehook
+					.InterfaceHookDefinitionRegistry.get("cooking-guide"));
+			assertEquals(8134, com.rs2.script.interfacehook
+					.InterfaceHookDefinitionRegistry.get("cooking-guide")
+					.interfaceId());
 			assertNotNull(LifecycleRegistry.getNpcDeath(14994));
 			assertNotNull(LifecycleRegistry.getItemPickup(14995));
 			assertNotNull(LifecycleRegistry.getAreaHandler(
@@ -232,6 +237,11 @@ public class ScriptHostTest {
 					.get(35000));
 			assertNotNull(com.rs2.script.overlay.ObjectOverlayDefinitionRegistry
 					.get(35000));
+			assertNotNull(com.rs2.script.interfacehook
+					.InterfaceHookDefinitionRegistry.get("cooking-guide"));
+			assertEquals(8134, com.rs2.script.interfacehook
+					.InterfaceHookDefinitionRegistry.get("cooking-guide")
+					.interfaceId());
 			assertNotNull(LifecycleRegistry.getNpcDeath(14994));
 			assertNotNull(LifecycleRegistry.getItemPickup(14995));
 			assertNotNull(LifecycleRegistry.getAreaHandler(
@@ -384,7 +394,7 @@ public class ScriptHostTest {
 			assertEquals(6, com.rs2.script.reward.RewardRegistry
 					.get("zaros_raid_reward").items().size());
 
-			assertEquals(13, ScriptHost.getInstance().getRuntimeReport()
+			assertEquals(14, ScriptHost.getInstance().getRuntimeReport()
 					.moduleCount());
 			java.util.List<String> moduleIds = ScriptHost.getInstance()
 					.readActiveRegistry(state -> {
@@ -397,6 +407,7 @@ public class ScriptHostTest {
 						return ids;
 					});
 			assertEquals(java.util.Arrays.asList(
+					"cooking-guide",
 					"cooking-skills",
 					"custom-namespace-overlays",
 					"dragon-awakens",

@@ -251,6 +251,7 @@ public class VerticalContentE2ETest {
 					return ids;
 				});
 		assertEquals(Arrays.asList(
+				"cooking-guide",
 				"cooking-skills",
 				"custom-namespace-overlays",
 				"dragon-awakens",
@@ -264,7 +265,7 @@ public class VerticalContentE2ETest {
 				"temple-of-zaros",
 				"woodcutting-resources",
 				"world-mobs"), moduleIds);
-		assertEquals(13, ScriptHost.getInstance().getRuntimeReport()
+		assertEquals(14, ScriptHost.getInstance().getRuntimeReport()
 				.moduleCount());
 
 		// A module-scoped definition carries its source and schema version.
