@@ -12,3 +12,4 @@ import "./skills/cooking.js";
 import "./mobs/goblin.js";
 import "./overlays/custom-port.js";
 import "./interfaces/cooking-guide.js";
+import "./minigames/wave-demo/index.js";

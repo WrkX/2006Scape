@@ -70,6 +70,8 @@ public final class ScriptLifecycleService {
 		ScriptEncounterService.getInstance().onPlayerLogout(player);
 		com.rs2.script.raid.ScriptRaidRuntime.getInstance()
 				.onPlayerLogout(player);
+		com.rs2.script.minigame.ScriptMinigameRuntime.getInstance()
+				.onPlayerLogout(player);
 		ScriptScheduler.getInstance().cancelPlayer(player);
 	}
 
@@ -78,6 +80,8 @@ public final class ScriptLifecycleService {
 		com.rs2.script.shop.ScriptShopRuntime.getInstance()
 				.onPlayerRemoved(player);
 		com.rs2.script.raid.ScriptRaidRuntime.getInstance()
+				.onPlayerRemoved(player);
+		com.rs2.script.minigame.ScriptMinigameRuntime.getInstance()
 				.onPlayerRemoved(player);
 		com.rs2.script.resource.ScriptResourceRuntime.getInstance()
 				.onPlayerRemoved(player);
@@ -176,6 +180,8 @@ public final class ScriptLifecycleService {
 				processAreasUnderLease(generation);
 				com.rs2.script.raid.ScriptRaidRuntime.getInstance()
 						.processGameTick(generation);
+				com.rs2.script.minigame.ScriptMinigameRuntime.getInstance()
+						.processGameTick(generation);
 				com.rs2.script.mob.ScriptMobRuntime.getInstance()
 						.processGameTick(generation);
 			}
@@ -190,6 +196,8 @@ public final class ScriptLifecycleService {
 	 */
 	public ScriptPlayerDeathTicket beginPlayerDeath(Player player) {
 		com.rs2.script.raid.ScriptRaidRuntime.getInstance()
+				.onPlayerDeath(player);
+		com.rs2.script.minigame.ScriptMinigameRuntime.getInstance()
 				.onPlayerDeath(player);
 		com.rs2.script.resource.ScriptResourceRuntime.getInstance()
 				.onPlayerDeath(player);

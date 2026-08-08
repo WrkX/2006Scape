@@ -12,6 +12,7 @@
  */
 
 import type { DefineArea } from "../areas/types.js";
+import type { DefineMinigame } from "./minigame.js";
 import type { DefineQuest } from "../quests/types.js";
 import type { DefineBoss } from "./boss.js";
 import type { DefineRaid } from "./raid.js";
@@ -1145,4 +1146,5 @@ declare global {
   const defineNpcOverlay: DefineNpcOverlay;
   const defineObjectOverlay: DefineObjectOverlay;
   const defineInterfaceHook: DefineInterfaceHook;
+  const defineMinigame: DefineMinigame;
 }

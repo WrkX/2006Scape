@@ -437,6 +437,10 @@ public final class ScriptHost {
 			runPostCommit("close old-generation raid lobbies and sessions",
 					() -> com.rs2.script.raid.ScriptRaidRuntime.getInstance()
 							.closeGeneration(previousGeneration));
+			runPostCommit("close old-generation minigame lobbies and sessions",
+					() -> com.rs2.script.minigame.ScriptMinigameRuntime
+							.getInstance()
+							.closeGeneration(previousGeneration));
 			runPostCommit("publish resource generation",
 					() -> com.rs2.script.resource.ScriptResourceRuntime
 							.getInstance()
@@ -545,6 +549,8 @@ public final class ScriptHost {
 				.closeGeneration(previousGeneration);
 		com.rs2.script.raid.ScriptRaidRuntime.getInstance()
 				.closeGeneration(previousGeneration);
+		com.rs2.script.minigame.ScriptMinigameRuntime.getInstance()
+				.closeGeneration(previousGeneration);
 		com.rs2.script.resource.ScriptResourceRuntime.getInstance()
 				.onGenerationPublished(generation);
 		com.rs2.script.resource.ScriptResourceRuntime.getInstance()
@@ -579,6 +585,8 @@ public final class ScriptHost {
 		com.rs2.script.shop.ScriptShopRuntime.getInstance()
 				.resetForTesting();
 		com.rs2.script.raid.ScriptRaidRuntime.getInstance()
+				.resetForTesting();
+		com.rs2.script.minigame.ScriptMinigameRuntime.getInstance()
 				.resetForTesting();
 		com.rs2.script.resource.ScriptResourceRuntime.getInstance()
 				.resetForTesting();

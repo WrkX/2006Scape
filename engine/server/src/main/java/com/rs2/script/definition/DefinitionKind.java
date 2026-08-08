@@ -50,6 +50,9 @@ public enum DefinitionKind {
 	OBJECT_OVERLAY,
 
 	/** Interface hook packs keyed by stable string id. */
-	INTERFACE_HOOK
+	INTERFACE_HOOK,
+
+	/** Declarative minigame definitions keyed by stable string id. */
+	MINIGAME
 
 }

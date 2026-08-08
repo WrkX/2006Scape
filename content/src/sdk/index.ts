@@ -37,6 +37,7 @@ export * from "./processing.js";
 export * from "./mob.js";
 export * from "./overlay.js";
 export * from "./interface-hook.js";
+export * from "./minigame.js";
 
 export * from "../manifest.js";
 

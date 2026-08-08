@@ -19,6 +19,7 @@ imports these names; it calls them directly.
 | `defineGatheringResource` | `core/runtime.ts` |
 | `defineInterfaceHook` | `core/runtime.ts` |
 | `defineItemOverlay` | `core/runtime.ts` |
+| `defineMinigame` | `core/runtime.ts` |
 | `defineMob` | `core/runtime.ts` |
 | `defineNpcOverlay` | `core/runtime.ts` |
 | `defineObjectOverlay` | `core/runtime.ts` |
@@ -77,6 +78,7 @@ imports these names; it calls them directly.
 | `sdk/gathering.ts` | createGatheringResource, GatheringResourceDefinition, registerGatheringResource |
 | `sdk/interface-hook.ts` | ButtonScriptContext, createInterfaceHook, InterfaceHookDefinition, InterfaceHookScriptContext, registerInterfaceHook |
 | `sdk/magic.ts` | consumeSpellRunes, hasSpellLevel, hasSpellRunes, ScriptedMagic, spellIndex, spellRequiredLevel, WIND_STRIKE |
+| `sdk/minigame.ts` | createMinigame, MinigameContext, MinigameDefinition, MinigamePoint, MinigameResult, MinigameScoreDefinition, MinigameWaveDefinition, MinigameWaveSpawn, registerMinigame |
 | `sdk/mob.ts` | createMob, MobDefinition, MobRuntimeContext, registerMob |
 | `sdk/overlay.ts` | createItemOverlay, createNpcOverlay, createObjectOverlay, CUSTOM_ITEM_START, CUSTOM_NPC_START, CUSTOM_OBJECT_START, ItemOverlayDefinition, MAX_CUSTOM_ID, NpcOverlayDefinition, ObjectOverlayDefinition, registerItemOverlay, registerNpcOverlay, registerObjectOverlay, RuntimeEquipmentSlot |
 | `sdk/prayer.ts` | activatePrayer, deactivateAllPrayers, deactivatePrayer, isPrayerActive, prayerName, ScriptedPrayer |

@@ -59,6 +59,8 @@ public final class ScriptBindings {
 				consumeValue(functions.getDefineObjectOverlay()));
 		globals.putMember("defineInterfaceHook",
 				consumeValue(functions.getDefineInterfaceHook()));
+		globals.putMember("defineMinigame",
+				consumeValue(functions.getDefineMinigame()));
 		globals.putMember("registerContentModule",
 				biValue(functions.getRegisterContentModule()));
 		globals.putMember("onObject", triIntStr(functions.getOnObject()));

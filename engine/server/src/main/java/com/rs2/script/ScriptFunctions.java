@@ -283,6 +283,21 @@ public final class ScriptFunctions {
 		};
 	}
 
+	public Consumer<Value> getDefineMinigame() {
+		return def -> {
+			requireObject("defineMinigame", def);
+			com.rs2.script.minigame.MinigameDefinition minigame =
+					new com.rs2.script.minigame.MinigameDefinitionParser(
+							ModuleScope.currentSource(),
+							ModuleScope.currentSchemaVersion()).parse(def);
+			rejectDuplicateRecord("defineMinigame(" + minigame.id() + ")",
+					com.rs2.script.minigame.MinigameDefinitionRegistry
+							.put(minigame));
+			com.rs2.script.minigame.ScriptMinigameRuntime.getInstance()
+					.registerRoutes(minigame);
+		};
+	}
+
 	/**
 	 * Registers one canonical scripted shop: the guest payload is parsed
 	 * into a Java-owned typed descriptor with definition-backed items,

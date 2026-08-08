@@ -135,6 +135,10 @@ public final class DefinitionRecord {
 		return (com.rs2.script.raid.RaidDefinition) typedPayload;
 	}
 
+	public com.rs2.script.minigame.MinigameDefinition minigamePayload() {
+		return (com.rs2.script.minigame.MinigameDefinition) typedPayload;
+	}
+
 	@Override
 	public String toString() {
 		return kind.name().toLowerCase(java.util.Locale.ROOT) + ":" + key

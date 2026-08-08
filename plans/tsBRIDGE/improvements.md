@@ -37,7 +37,7 @@ Existing pattern to copy everywhere: schema-v1 `defineX` → Java parser → Jav
 | **0.5** — Bridge hardening | **Done** | `BridgeValidation`, null-safe strings, `PolyglotException` logging, `beginEncounter` coordinate validation via `BridgeValidation`, `ScriptedPosition` cache; `ReadWriteLock` deferred |
 | **1** — Player capability parity | **~90%** | equip/unequip, openBank, prayer, magic routes done; attack styles / venom TBD |
 | **2** — Skilling kits | **In progress** | gathering packs + cooking via `defineProcessingSkill`; thieving/FM/agility kits pending |
-| **3–8** | Phase 3–6 done; 7–8 pending | See phases below |
+| **3–8** | Phase 3–7 done; 8 pending | See phases below |
 
 ---
 
@@ -274,7 +274,7 @@ Needed for authentic OSRS ports, not for early skilling/PvM. Tighten scope to av
 
 ---
 
-## Phase 7 — Minigames, randoms, bots (close gaps 7+)
+## Phase 7 — Minigames, randoms, bots (close gaps 7+) ✅ Done (minigame kit; bots deferred)
 
 1. **`defineMinigame`**: instance lifecycle, join/leave, score, NPC waves. **Compose existing kits** where possible:
    - `defineArea` for lobby/arena bounds and entry gates.
@@ -284,8 +284,8 @@ Needed for authentic OSRS ports, not for early skilling/PvM. Tighten scope to av
 3. **Bots:** wire [bot.ts](content/src/core/bot.ts) to a simulated-player host **or** keep quarantined (already marked design-only). Treat as parallel product, not content-authoring.
 
 **Acceptance:**
-- [ ] One wave-based minigame (e.g. Pest Control lobby + waves) ported with `defineMinigame` composing `defineArea`.
-- [ ] Bot module status documented: wired or explicitly deferred.
+- [x] One wave-based minigame (e.g. Pest Control lobby + waves) ported with `defineMinigame` composing `defineArea`.
+- [x] Bot module status documented: wired or explicitly deferred (`content/src/core/bot.ts`).
 
 ---
 
@@ -326,7 +326,7 @@ Keep iteration cheap while porting:
 | **5** | Overlays + asset-pipeline handoff (phases 7–8 ids) | Gap 1 | **Done** |
 | **5** | Interface hook packs + presentation helpers | Gap 2 | **Done** |
 | **6** | Trade gate + PvP queries (MVP scope) | Gap 5 (social) | **Done** |
-| **8** | Minigame kit; bot wiring decision | Gap 7 | Pending |
+| **8** | Minigame kit; bot wiring decision | Gap 7 | **Done** (bots deferred) |
 | **9** | Reload diagnostics + duplicate-route errors | Gap 8 | Pending |
 
 ---
