@@ -37,7 +37,7 @@ Existing pattern to copy everywhere: schema-v1 `defineX` → Java parser → Jav
 | **0.5** — Bridge hardening | **Done** | `BridgeValidation`, null-safe strings, `PolyglotException` logging, `beginEncounter` coordinate validation via `BridgeValidation`, `ScriptedPosition` cache; `ReadWriteLock` deferred |
 | **1** — Player capability parity | **~90%** | equip/unequip, openBank, prayer, magic routes done; attack styles / venom TBD |
 | **2** — Skilling kits | **In progress** | gathering packs + cooking via `defineProcessingSkill`; thieving/FM/agility kits pending |
-| **3–8** | Phase 3–4 done; 5–8 pending | See phases below |
+| **3–8** | Phase 3–5 done; 6–8 pending | See phases below |
 
 ---
 
@@ -235,17 +235,17 @@ You cannot invent new client graphics without cache work, but you **can** author
 
 ---
 
-## Phase 5 — Client UI realism (close gap 2)
+## Phase 5 — Client UI realism (close gap 2) ✅ Done
 
 Full “design new interfaces in TS” needs client changes. Practical bridge path:
 
-1. Richer helpers on presentation: open interface by id, `setText` / `setItemModel` (exists), hide/show children, set scrollbar, send config/varp-like state if the protocol supports it.
+1. Richer helpers on presentation: open interface by id, `setText` / `setItemModel` (exists), `setConfig`, `setChildHidden`, hide/show children, send config/varp-like state if the protocol supports it.
 2. **`defineInterfaceHook` pack**: group `onButton` handlers + open/close lifecycle for one interface id (quest journals, skill guides, custom shops).
 3. **Later client track:** custom interface definitions compiled into cache — only after Phase 4 pack pipeline exists. Do not block content ports on this; reuse OSRS interface ids from the cache you ship.
 
 **Acceptance:**
-- [ ] `defineInterfaceHook` registers all button routes for one interface id atomically.
-- [ ] One quest journal or skill guide ported using OSRS interface id from shipped cache.
+- [x] `defineInterfaceHook` registers all button routes for one interface id atomically.
+- [x] One quest journal or skill guide ported using OSRS interface id from shipped cache.
 
 ---
 
@@ -324,8 +324,8 @@ Keep iteration cheap while porting:
 | **3** | One cooking port (raw handlers) → `defineProcessingSkill` | Gap 3 | **Done** |
 | **4** | `defineMob` world AI | Gap 4 | **Done** |
 | **5** | Overlays + asset-pipeline handoff (phases 7–8 ids) | Gap 1 | **Done** |
-| **6** | Interface hook packs + presentation helpers | Gap 2 | Pending |
-| **7** | Trade gate + PvP queries (MVP scope) | Gap 5 (social) | Pending |
+| **5** | Interface hook packs + presentation helpers | Gap 2 | **Done** |
+| **6** | Trade gate + PvP queries (MVP scope) | Gap 5 (social) | Pending |
 | **8** | Minigame kit; bot wiring decision | Gap 7 | Pending |
 | **9** | Reload diagnostics + duplicate-route errors | Gap 8 | Pending |
 
